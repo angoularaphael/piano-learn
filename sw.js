@@ -4,7 +4,7 @@
 // La liste et la version sont regenerees par tools/precache.py.
 
 // PRECACHE-START
-const VERSION = 'pl-app-2c9797ae13';
+const VERSION = 'pl-app-f9b908e993';
 const PRECACHE = [
   './',
   'css/fonts.css',
@@ -50,6 +50,7 @@ const PRECACHE = [
   'js/piano3d.js',
   'js/progress.js',
   'js/score.js',
+  'js/sheet.js',
   'js/staff.js',
   'js/stage.js',
   'js/teacher.js',

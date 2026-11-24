@@ -14,6 +14,7 @@ import { countUp } from './fx.js';
 import { tick } from './audio.js';
 import { fr, esc, DOIGTS } from './text.js';
 import { keepAwake } from './awake.js';
+import { Sheet } from './sheet.js';
 
 const HANDS = { R: 'Main droite', L: 'Main gauche', RL: 'Les deux' };
 const WINDOW = 0.32;   // tolerance en mode rythme, en temps (environ 0,2 s a 100 a la noire)
@@ -31,6 +32,9 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   const hasRight = score.events.some((e) => e.hand === 'R');
   const settings = getSettings();
   const canRhythm = instr.features.has('metronome');
+  const canSheet = instr.features.has('portee');
+  const VIEWS = { notes: 'Notes qui tombent', mix: 'Notes et partition', partition: 'Partition' };
+  let display = canSheet ? (settings.affichage || 'mix') : 'notes';
   let part = hasLeft && hasRight ? 'RL' : hasLeft ? 'L' : 'R';
   const known = knownKeys();
   const free = freeRange(instr, known);
@@ -53,6 +57,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
         <div class="hud-progress"><span id="prog"></span></div>
         <div class="hud-next" id="hud-next" aria-live="polite"></div>
       </div>
+      <div class="sheet-panel" id="sheet" hidden></div>
       <div class="countdown" id="countdown"></div>
       ${lecon?.texte || song.intro ? `<div class="bubble" id="bubble"><span class="bubble-who">Le prof</span><p id="bubble-text">${fr(esc(lecon?.texte || song.intro))}</p></div>` : ''}
       <div class="toast" id="toast" aria-live="polite"></div>
@@ -68,6 +73,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       <button class="btn ghost" id="listen">Écouter</button>
       <button class="btn ghost" id="rhythm" ${canRhythm && !locked ? '' : 'disabled'} title="${canRhythm ? 'Le morceau n’attend pas : chaque note est jugée sur son temps' : 'Arrive avec le métronome, au palier 5'}">${canRhythm ? 'En rythme' : `${LOCK} En rythme · palier 5`}</button>
       ${hasLeft && hasRight ? `<div class="seg" id="hands" role="group" aria-label="Main travaillée">${Object.entries(HANDS).map(([k, v]) => `<button data-h="${k}" class="${k === part ? 'on' : ''}">${v}</button>`).join('')}</div>` : ''}
+      <div class="seg" id="display" role="group" aria-label="Affichage">${Object.entries(VIEWS).map(([k, v]) => `<button data-d="${k}" class="${k === display ? 'on' : ''}" ${k !== 'notes' && !canSheet ? 'disabled title="La partition arrive au palier 4"' : ''}>${k !== 'notes' && !canSheet ? LOCK : ''}${v}</button>`).join('')}</div>
       <label class="speed">Vitesse <input type="range" id="speed" min="40" max="100" step="5" value="${Math.round((settings.vitesse || 1) * 100)}"><output id="speed-out">${Math.round((settings.vitesse || 1) * 100)} %</output></label>
     </div>
     ${locked ? `<p class="hint locked-note">${fr(`Ce morceau s’ouvre au palier ${song.palier}. Tu peux déjà l’écouter.`)}</p>` : ''}
@@ -141,6 +147,24 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   const beatsPerSecond = () => ((song.tempo || 90) * scale) / 60;
   const hw = new Highway(piano, { speed: 7 / ((song.tempo || 90) / 60) });
 
+  // La partition, synchronisee avec les notes qui tombent
+  const sheetBox = $('#sheet');
+  const stageBox = app.querySelector('.player-stage');
+  let sheet = null;
+  const markNote = (i, ok) => { hw.mark(i, ok); sheet?.mark(i, ok); };
+  function applyDisplay(d) {
+    display = d;
+    const withSheet = d !== 'notes';
+    if (withSheet && !sheet) sheet = new Sheet(sheetBox, score, { mode: 'scroll', ppb: Math.max(44, Math.min(64, 8000 / Math.max(1, score.total))) });
+    sheetBox.hidden = !withSheet;
+    stageBox.classList.toggle('with-sheet', withSheet);
+    stageBox.classList.toggle('sheet-only', d === 'partition');
+    hw.group.visible = d !== 'partition';
+    piano.setView(d === 'partition' ? 'front' : 'highway');
+    sheet?.setTime(now);
+    app.querySelectorAll('#display button').forEach((b) => b.classList.toggle('on', b.dataset.d === d));
+  }
+
   // Prepare les notes : celles de l'eleve (par etapes) et celles jouees pour lui
   function prepare() {
     const mine = mode === 'joue' || mode === 'rythme' ? part : '';
@@ -154,6 +178,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
         else learn.push({ start: e.start, notes: [{ ...e, i }], got: new Set() });
       } else auto.push({ ...e, i });
     });
+    sheet?.reset();
     si = 0;
     autoIdx = 0;
     correct = 0;
@@ -171,7 +196,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     listener?.mute(ms + 200);
     const t = setTimeout(() => { timers.delete(t); piano.release(e.midi, { auto: true }); }, ms);
     timers.add(t);
-    hw.mark(e.i, true);
+    markNote(e.i, true);
   }
 
   function nextHint() {
@@ -181,6 +206,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     st.notes.forEach((n) => piano.highlight(n.midi, n.hand === 'L' ? '#a98bff' : '#3ef2ff'));
     const n0 = st.notes[0];
     piano.showFinger(n0.midi, n0.finger);
+    sheet?.focus(st.notes.map((n) => n.i));
     listener?.expectChord(st.notes.length > 1 ? st.notes.map((n) => n.midi) : null);
     next.innerHTML = `<b>${st.notes.map((n) => noteName(n.midi)).join(' + ')}</b>${n0.finger ? `<span>${n0.finger === 1 ? 'pouce' : DOIGTS[n0.finger]} · main ${n0.hand === 'L' ? 'gauche' : 'droite'}</span>` : ''}`;
   }
@@ -194,11 +220,11 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       const hit = st.notes.find((n) => (fromMic ? sameNote(midi, n.midi) : midi === n.midi) && !st.got.has(n.midi));
       if (!hit) continue;
       st.got.add(hit.midi);
-      hw.mark(hit.i, true);
+      markNote(hit.i, true);
       piano.flash(hit.midi, '#3dffa8');
       if (fromMic || st.notes.every((n) => st.got.has(n.midi))) {
         st.done = true;
-        st.notes.forEach((n) => { hw.mark(n.i, true); if (discover(n.midi)) { piano.discover(n.midi); fresh.push(n.midi); } });
+        st.notes.forEach((n) => { markNote(n.i, true); if (discover(n.midi)) { piano.discover(n.midi); fresh.push(n.midi); } });
         correct += st.notes.length;
         combo++;
         const gap = Math.abs(st.start - now);
@@ -225,12 +251,12 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     const hit = st.notes.find((n) => (fromMic ? sameNote(midi, n.midi) : midi === n.midi) && !st.got.has(n.midi));
     if (hit) {
       st.got.add(hit.midi);
-      hw.mark(hit.i, true);
+      markNote(hit.i, true);
       piano.flash(hit.midi, '#3dffa8');
       const done = fromMic || st.notes.every((n) => st.got.has(n.midi));
       if (done) {
         st.notes.forEach((n) => {
-          hw.mark(n.i, true);
+          markNote(n.i, true);
           if (discover(n.midi)) { piano.discover(n.midi); fresh.push(n.midi); }
         });
         correct += st.notes.length;
@@ -293,7 +319,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       while (learn[si] && (learn[si].done || learn[si].start < target - WINDOW)) {
         const st = learn[si];
         if (!st.done) {
-          st.notes.forEach((n) => { if (!st.got.has(n.midi)) hw.mark(n.i, false); });
+          st.notes.forEach((n) => { if (!st.got.has(n.midi)) markNote(n.i, false); });
           misses += st.notes.length - st.got.size;
           correct += st.got.size;
           combo = 0;
@@ -309,6 +335,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     // Rate une note qui est passee sans etre jouee (mode ecoute : rien a rater)
     now = target;
     hw.setTime(now);
+    sheet?.setTime(now);
     prog.style.transform = `scaleX(${Math.max(0, Math.min(1, now / score.total))})`;
     if (now >= score.total + (mode === 'rythme' ? WINDOW + 0.4 : 0.4) && si >= learn.length) finish();
   });
@@ -321,7 +348,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     playBtn.textContent = which === 'joue' ? 'Arrêter' : 'Jouer';
     listenBtn.textContent = which === 'ecoute' ? 'Arrêter' : 'Écouter';
     if (canRhythm) rhythmBtn.textContent = which === 'rythme' ? 'Arrêter' : 'En rythme';
-    piano.setView('highway');
+    piano.setView(display === 'partition' ? 'front' : 'highway');
     if (which === 'rythme') {
       next.innerHTML = '';
       piano.hideFinger();
@@ -439,6 +466,14 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     $('#hands').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
     if (mode === 'joue') start('joue');
   });
+  $('#display').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-d]');
+    if (!b || b.disabled) return;
+    setSetting('affichage', b.dataset.d);
+    applyDisplay(b.dataset.d);
+  });
+  applyDisplay(display);
+
   const speed = $('#speed');
   speed.addEventListener('input', () => {
     scale = Number(speed.value) / 100;

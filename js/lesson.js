@@ -13,6 +13,7 @@ import { countUp } from './fx.js';
 import { speak, hush, voiceAvailable } from './voice.js';
 import { fr, esc, DOIGTS } from './text.js';
 import { renderPlayer } from './tutorial.js';
+import { Sheet } from './sheet.js';
 import { keepAwake } from './awake.js';
 
 // Ou trouver une touche, dit avec les reperes des touches noires
@@ -72,6 +73,7 @@ export function renderLesson(app, id) {
   const full = [Math.min(free[0], need[0], 48), Math.max(free[1], need[1], 84)];
   const settings = getSettings();
   const canHideNames = instr.features.has('cacher-noms');
+  const withSheet = instr.features.has('portee');
 
   app.innerHTML = `
     <div class="lesson-head">
@@ -93,7 +95,8 @@ export function renderLesson(app, id) {
       <span class="meter"><span id="meter"></span></span>
       <span class="heard">J’entends <strong id="heard">–</strong></span>
     </div>
-    <div class="seq" id="seq" aria-label="Les notes de l’exercice">${steps.map((s) => `<span>${s.notes.map((n) => noteName(n.midi)).join('+')}</span>`).join('')}</div>
+    ${withSheet ? '<div class="lesson-sheet" id="lesson-sheet" aria-label="La partition de l’exercice"></div>' : ''}
+    <div class="seq" id="seq" ${withSheet ? 'hidden' : ''} aria-label="Les notes de l’exercice">${steps.map((s) => `<span>${s.notes.map((n) => noteName(n.midi)).join('+')}</span>`).join('')}</div>
     <div class="lesson-controls">
       <button class="btn ghost" id="watch" disabled>Regarder le prof</button>
       <button class="btn" id="go">À toi de jouer</button>
@@ -169,6 +172,8 @@ export function renderLesson(app, id) {
   if (!m.piano) return () => {};
   const piano = m.piano;
   keepAwake(true);
+  const sheet = withSheet ? new Sheet($('#lesson-sheet'), score, { mode: 'static', ppb: 46 }) : null;
+  const eventIndex = (n) => score.events.indexOf(n);
 
   // Le prof arrive (charge une seule fois pour tout le site)
   import('./teacher.js').then(({ Teacher }) => Teacher.load(piano, { main: lecon.main })).then((t) => {
@@ -237,6 +242,7 @@ export function renderLesson(app, id) {
     got = new Set();
     errorsHere = 0;
     st.notes.forEach((n) => piano.highlight(n.midi, '#3ef2ff'));
+    sheet?.focus(st.notes.map(eventIndex));
     const first = st.notes[0];
     piano.showFinger(first.midi, first.finger);
     const hand = {};
@@ -289,6 +295,7 @@ export function renderLesson(app, id) {
       if (fromMic) piano.flash(match.midi, '#3dffa8');
       if (!complete) return;
       st.notes.forEach((n) => {
+        sheet?.mark(eventIndex(n), true);
         piano.flash(n.midi, '#3dffa8');
         if (discover(n.midi)) {
           piano.discover(n.midi);
@@ -342,6 +349,7 @@ export function renderLesson(app, id) {
     idx = 0;
     errors = 0;
     fresh = [];
+    sheet?.reset();
     // A l'eleve : le prof retire ses mains du clavier
     teacher?.restHand('Right');
     teacher?.restHand('Left');

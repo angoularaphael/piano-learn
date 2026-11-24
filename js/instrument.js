@@ -21,6 +21,7 @@ export const STAGES = {
 
 export const FEATURES = {
   'cacher-noms': { nom: 'Jouer sans les noms', desc: 'Tu peux cacher le nom des notes pour lire vraiment.' },
+  portee: { nom: 'La partition', desc: 'Les notes s’écrivent sur la portée, en même temps qu’elles tombent vers le clavier.' },
   metronome: { nom: 'Le métronome', desc: 'Un battement régulier pour tenir le tempo.' },
   'deux-mains': { nom: 'Les deux mains', desc: 'Choisis la main que tu travailles dans chaque morceau.' },
   accords: { nom: 'Les accords', desc: 'Le nom de l’accord s’affiche quand tu le joues.' },
@@ -33,7 +34,7 @@ const BY_PALIER = {
   1: { stage: 'lumiere', range: [60, 72], sons: ['feutre'], features: [] },
   2: { range: [48, 72], features: [] },
   3: { stage: 'clavier', range: [48, 84], sons: ['droit'], features: [] },
-  4: { features: ['cacher-noms'] },
+  4: { features: ['cacher-noms', 'portee'] },
   5: { features: ['metronome'] },
   6: { stage: 'queue', range: [36, 84], sons: ['concert'], features: ['deux-mains'] },
   7: { range: [36, 96], sons: ['electrique'], features: ['accords'] },

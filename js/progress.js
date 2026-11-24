@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS = {
   noms: true,        // nom des notes sur les touches
   lettres: true,     // lettres du clavier d'ordinateur sur les touches (piano libre)
   entree: null,      // acoustique | numerique | ecran
+  affichage: null,   // notes | mix | partition (morceaux)
 };
 
 function read(key, fallback) {
