@@ -13,6 +13,7 @@ import { countUp } from './fx.js';
 import { speak, hush, voiceAvailable } from './voice.js';
 import { fr, esc, DOIGTS } from './text.js';
 import { renderPlayer } from './tutorial.js';
+import { hasKeyboard } from './kbd-ui.js';
 import { Sheet } from './sheet.js';
 import { keepAwake } from './awake.js';
 
@@ -106,7 +107,7 @@ export function renderLesson(app, id) {
         ${voiceAvailable() ? `<label class="chip-toggle"><input type="checkbox" id="opt-voice" ${settings.voix ? 'checked' : ''}> Voix du prof</label>` : ''}
       </div>
     </div>
-    <p class="hint lesson-tip">${fr('Pose ton téléphone ou ta tablette sur le pupitre : le site écoute ton piano au micro. Pas de piano sous la main ? Joue sur les touches à l’écran ou sur ton clavier d’ordinateur.')}</p>
+    <p class="hint lesson-tip">${fr(`Pose ton téléphone ou ta tablette sur le pupitre : le site écoute ton piano au micro. Pas de piano sous la main ? Joue sur les touches à l’écran${hasKeyboard() ? ' ou sur ton clavier d’ordinateur' : ''}.`)}</p>
   `;
 
   const $ = (sel) => app.querySelector(sel);

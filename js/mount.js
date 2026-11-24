@@ -5,6 +5,7 @@ import { KEYBOARD_MAP } from './notes.js';
 import { getSettings, onSettings } from './progress.js';
 import { onMidi } from './midi.js';
 import { setSustain } from './audio.js';
+import { keyboardSeen } from './kbd-ui.js';
 
 export function mountPiano(container, opts = {}) {
   container.querySelector('.piano-loading')?.remove();
@@ -22,6 +23,7 @@ export function mountPiano(container, opts = {}) {
 
   // Clavier d'ordinateur : la rangee du milieu joue les blanches, les fleches changent d'octave
   let shift = 0;
+  let seen = false;
   const held = new Map();
   const typing = (e) => e.target?.closest?.('input[type="text"], input[type="search"], textarea, select, [contenteditable]');
   const down = (e) => {
@@ -40,6 +42,7 @@ export function mountPiano(container, opts = {}) {
     const base = KEYBOARD_MAP[e.code];
     if (base == null) return;
     e.preventDefault();
+    if (!seen) { seen = true; keyboardSeen(); }
     if (e.repeat || held.has(e.code)) return;
     const midi = base + shift;
     held.set(e.code, midi);

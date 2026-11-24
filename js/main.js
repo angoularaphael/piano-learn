@@ -20,6 +20,11 @@ import { registerOffline, canInstall, isInstalled, isIOS, install, offlineReady,
 import { fr, esc, plural } from './text.js';
 import { Recorder, listTakes, saveTake, deleteTake, replay, midiFile, recordVideo, videoSupported } from './recorder.js';
 import { deliverFile, canShareFiles } from './share.js';
+import { hasKeyboard as keyboardPresent } from './kbd-ui.js';
+import { renderEarList, renderEarGame } from './ear.js';
+import { renderTheoryList, renderTheoryCard } from './theory.js';
+import { sessionSummary, reminderICS, reminderGoogle } from './session.js';
+import { exportData, importData, validData } from './progress.js';
 
 const app = document.getElementById('app');
 let cleanup = null;
@@ -59,6 +64,78 @@ const STAGE_ART = {
   queue: `<svg viewBox="0 0 120 60" aria-hidden="true"><path d="M14 8 H92 V14 C92 26 62 28 58 44 C55 54 46 56 36 56 H22 C17 56 14 53 14 48 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14 8 L104 2" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path d="M92 14 L104 2" stroke="currentColor" stroke-width="1" opacity=".5"/><g stroke="currentColor" stroke-width=".6" opacity=".55">${Array.from({ length: 9 }, (_, i) => `<line x1="${20 + i * 7}" y1="12" x2="${20 + i * 5}" y2="${50 - i * 3}"/>`).join('')}</g><rect x="14" y="4" width="78" height="4" rx="1" fill="currentColor" opacity=".8"/></svg>`,
 };
 
+// Lecons, oreille, theorie : les trois facons d'apprendre, sous le meme onglet
+const learnNav = (active) => `<nav class="subnav" aria-label="Apprendre" data-reveal>${[['parcours', 'Leçons'], ['oreille', 'Oreille'], ['theorie', 'Théorie']]
+  .map(([r, l]) => `<a href="#/${r}" class="${r === active ? 'on' : ''}" ${r === active ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>`;
+
+const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FLAME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.6 3.2 3.6 4.9 4.9 8 1.7 4-1 9-4.9 9s-6.7-3.3-5.6-7.1c.5-1.8 1.7-2.8 2.4-4.2.4 1.5.5 2.5 1.6 3.3.3-3.3.6-6.4 1.6-9z" fill="currentColor"/></svg>';
+
+// La seance du jour : quatre gestes, une dizaine de minutes, la serie et son joker
+function todayCard() {
+  const s = sessionSummary();
+  if (!s.plan.length) return '';
+  const next = s.plan.find((x) => !x.done);
+  const st = s.streak;
+  const note = st.savedBy ? 'Tu avais manqué un jour : ton joker de la semaine a gardé ta série.'
+    : st.jokerFree ? 'Un joker par semaine : si tu manques un jour, ta série tient quand même.'
+    : 'Ton joker de la semaine est déjà pris : reviens demain pour garder ta série.';
+  return `
+    <section class="section today" id="today">
+      <div class="card today-card" data-reveal>
+        <div class="today-head">
+          <div>
+            <div class="eyebrow">Ta séance du jour</div>
+            <h2>${s.complete ? 'Séance faite. À demain !' : `${s.minutes} minutes, ${s.total} gestes`}</h2>
+          </div>
+          <div class="streak ${st.days ? 'on' : ''} ${st.playedToday ? 'today-ok' : ''}" aria-label="${st.days} jour${st.days > 1 ? 's' : ''} d’affilée">
+            ${FLAME}<strong data-count="${st.days}">0</strong><span>${st.days > 1 ? 'jours' : 'jour'}</span>
+          </div>
+        </div>
+        <ol class="today-steps">
+          ${s.plan.map((x, i) => `<li class="${x.done ? 'done' : x === next ? 'next' : ''}"><a href="${x.href}">
+            <span class="ts-check">${x.done ? CHECK : i + 1}</span>
+            <span class="ts-text"><span class="ts-step">${x.step}</span><span class="ts-label">${esc(x.label)}</span></span>
+            <span class="ts-min">${x.min} min</span></a></li>`).join('')}
+        </ol>
+        <div class="today-actions">
+          ${next ? `<a class="btn" href="${next.href}">${s.done ? 'Continuer' : 'Commencer'} · ${esc(next.step.toLowerCase())}</a>` : '<a class="btn ghost" href="#/piano">Jouer librement</a>'}
+          <button class="btn ghost" id="remind" aria-expanded="false">Me le rappeler chaque jour</button>
+        </div>
+        <p class="hint streak-note">${fr(note)}</p>
+        <div class="remind-box" id="remind-box" hidden>
+          <label class="field"><span>À quelle heure ?</span><input type="time" id="remind-time" value="${esc(getSettings().rappel || '18:30')}"></label>
+          <div class="result-actions">
+            <button class="btn small" id="remind-ics">Ajouter à mon agenda</button>
+            <a class="btn ghost small" id="remind-google" target="_blank" rel="noopener">Google Agenda</a>
+          </div>
+          <p class="hint">${fr('Un rendez-vous de dix minutes, chaque jour, dans ton agenda (téléphone, ordinateur). Rien n’est envoyé à personne : c’est ton agenda qui te le rappelle.')}</p>
+        </div>
+      </div>
+    </section>`;
+}
+
+function bindToday() {
+  const btn = document.getElementById('remind');
+  if (!btn) return;
+  const box = document.getElementById('remind-box');
+  const time = document.getElementById('remind-time');
+  const google = document.getElementById('remind-google');
+  const url = `${location.origin}${location.pathname}#/`;
+  const opts = () => ({ time: time.value || '18:30', title: 'Piano : ta séance du jour', body: 'Dix minutes au piano : l’oreille, une leçon, une révision, un morceau.', url });
+  const refresh = () => { google.href = reminderGoogle(opts()); };
+  btn.addEventListener('click', () => {
+    box.hidden = !box.hidden;
+    btn.setAttribute('aria-expanded', String(!box.hidden));
+    refresh();
+  });
+  time.addEventListener('change', () => { setSetting('rappel', time.value); refresh(); });
+  document.getElementById('remind-ics').addEventListener('click', () => {
+    setSetting('rappel', time.value);
+    deliverFile(reminderICS(opts()), 'seance-piano.ics');
+  });
+}
+
 // ---------- Accueil ----------
 function pageAccueil(_, { entered }) {
   app.classList.add('full');
@@ -85,6 +162,7 @@ function pageAccueil(_, { entered }) {
       <div class="hero-hint">PASSE SUR LES TOUCHES</div>
     </section>
 
+    ${started ? todayCard() : ''}
     <div class="marquee" aria-hidden="true"><div class="marquee-track">${marquee}</div></div>
 
     <section class="section">
@@ -133,6 +211,8 @@ function pageAccueil(_, { entered }) {
     ${footer()}
   `;
   const hero = createHeroScene(document.getElementById('hero-canvas'), { unfold: entered });
+  bindToday();
+  countUp(app);
   return () => { hero.dispose(); app.classList.remove('full'); };
 }
 
@@ -180,6 +260,7 @@ function pageParcours() {
   }).join('');
 
   app.innerHTML = `
+    ${learnNav('parcours')}
     <div class="eyebrow" data-reveal>8 paliers</div>
     <h1 data-split>Ton <span class="grad-text">parcours</span></h1>
     <p class="lead" data-reveal style="--d:200ms">${fr('Du tout premier do jusqu’aux vrais morceaux. Chaque palier se termine par un morceau, et chaque palier fait grandir ton instrument.')}</p>
@@ -240,7 +321,7 @@ function pagePiano(_, { query }) {
   const known = apercu ? null : knownKeys();
   const settings = getSettings();
   const soundNow = settings.son && instr.sons.includes(settings.son) ? settings.son : instr.son;
-  const hasKeyboard = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const hasKeyboard = keyboardPresent();
   let layout = getLayout();
   let letters = hasKeyboard && settings.lettres !== false;
   if (apercu) setInstrument(instr.son);
@@ -830,6 +911,15 @@ function pageReglages() {
         <p class="hint">${fr('Installe le site sur ta tablette ou ton téléphone : il s’ouvre en plein écran, et il marche même sans réseau, posé sur le pupitre.')}</p>
         <div class="mic-test"><button class="btn small" id="install-btn" hidden>Installer</button><span class="hint" id="install-state"></span></div>
       </section>
+      <section class="card set" data-reveal style="--d:345ms">
+        <h3>Changer d’appareil</h3>
+        <p class="hint">${fr('Pas de compte, pas de serveur : ta progression tient dans un petit fichier. Garde-le, ou rouvre-le sur ton autre appareil (tes leçons, ton XP, tes badges, tes réglages et tes prises).')}</p>
+        <div class="result-actions" style="justify-content:flex-start">
+          <button class="btn small" id="export">Exporter ma progression</button>
+          <label class="btn ghost small file-btn">Importer un fichier<input type="file" id="import-file" accept="application/json,.json" hidden></label>
+        </div>
+        <p class="hint" id="transfer-state" aria-live="polite"></p>
+      </section>
       <section class="card set danger" data-reveal style="--d:360ms">
         <h3>Ta progression</h3>
         <p class="hint">${fr('Elle est gardée dans ce navigateur. La remettre à zéro efface les leçons, les notes apprises, l’XP et les badges.')}</p>
@@ -849,6 +939,32 @@ function pageReglages() {
   $('voice-test')?.addEventListener('click', () => {
     const p = getSettings().prenom;
     speak(`Bonjour${p ? ` ${p}` : ''}. On reprend là où on s’était arrêtés ?`, { force: true });
+  });
+  // Export : un fichier date ; import : verifie, puis confirme en deux gestes (il remplace tout)
+  const tState = $('transfer-state');
+  $('export').addEventListener('click', () => {
+    const data = exportData({ takes: listTakes() });
+    const day = new Date().toISOString().slice(0, 10);
+    deliverFile(new Blob([JSON.stringify(data)], { type: 'application/json' }), `piano-progression-${day}.json`);
+    tState.textContent = fr('Fichier prêt. Ouvre-le ici même, dans Réglages, sur ton autre appareil.');
+  });
+  let pending = null;
+  $('import-file').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    let data = null;
+    try { data = JSON.parse(await file.text()); } catch (err) { data = null; }
+    if (!validData(data)) { tState.textContent = fr('Ce fichier n’est pas une progression de Piano Learn.'); return; }
+    pending = data;
+    const p = data.progress;
+    tState.innerHTML = `${fr(`Progression du ${new Date(data.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} : ${p.xp} XP, ${Object.keys(p.lessonsDone).length} leçons. Elle remplacera celle-ci.`)} <button class="btn small" id="import-go">Remplacer</button>`;
+    $('import-go').addEventListener('click', () => {
+      if (!pending || !importData(pending)) return;
+      if (Array.isArray(pending.takes)) { try { localStorage.setItem('piano-learn-prises-v1', JSON.stringify(pending.takes.slice(0, 12))); } catch (err) { /* plein */ } }
+      pending = null;
+      route(true);
+    });
   });
   $('reset').addEventListener('click', () => {
     if (confirm('Tout effacer ? Les leçons, les notes apprises, l’XP et les badges. On ne pourra pas revenir en arrière.')) {
@@ -956,10 +1072,13 @@ function render(opts = {}) {
   // Rien ne continue de sonner d'une page a l'autre (orgue, pedale) ; l'accord d'entree, lui, finit de resonner
   if (!opts.entered) allNotesOff();
   const { name, param, query } = parse();
-  document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === name || (name === 'lecon' && a.dataset.route === 'parcours') || (name === 'morceau' && a.dataset.route === 'morceaux')));
+  const learning = ['lecon', 'oreille', 'theorie'].includes(name);
+  document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === name || (learning && a.dataset.route === 'parcours') || (name === 'morceau' && a.dataset.route === 'morceaux')));
   const page = name === 'lecon' && needsBilan() ? () => pageBilan(null, { query: new URLSearchParams(`next=lecon/${param}`) })
     : name === 'lecon' ? () => pageLecon(param)
     : name === 'morceau' ? () => pageMorceau(param)
+    : name === 'oreille' ? () => (param ? renderEarGame(app, param) : renderEarList(app, learnNav('oreille')))
+    : name === 'theorie' ? () => (param ? renderTheoryCard(app, param) : renderTheoryList(app, learnNav('theorie')))
     : ROUTES[name] || pageIntrouvable;
   window.scrollTo(0, 0);
   app.classList.remove('full');

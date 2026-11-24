@@ -13,6 +13,9 @@ const DEFAULT = {
   seen: [],          // deblocages deja celebres ('palier-2', 'stage-clavier'...)
   placement: 0,      // palier de depart (bilan de niveau ou choix de l'eleve)
   bilan: null,       // { niveau, materiel, reponses, tests, palier, date }
+  jour: null,        // seance du jour : { date, done: ['lecon:3-2', ...] }
+  joker: null,       // un jour manque par semaine ne casse pas la serie : { week, used, saved }
+  oreille: {},       // meilleurs scores des jeux d'oreille : { 'hauteur': 9 }
 };
 
 const DEFAULT_SETTINGS = {
@@ -27,6 +30,8 @@ const DEFAULT_SETTINGS = {
   lettres: true,     // lettres du clavier d'ordinateur sur les touches (piano libre)
   entree: null,      // acoustique | numerique | ecran
   affichage: null,   // notes | mix | partition (morceaux)
+  rappel: '18:30',   // heure du rappel quotidien (fichier calendrier)
+  langue: null,      // fr | en (null = celle du navigateur)
 };
 
 function read(key, fallback) {
@@ -79,13 +84,82 @@ export function addXp(amount) {
   save();
 }
 
+// Jours en heure locale (et non en temps universel : la journee de l'eleve finit a minuit chez lui)
+const pad = (n) => String(n).padStart(2, '0');
+export function dayKey(d = new Date()) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function daysAgo(n) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - n);
+  return dayKey(d);
+}
+// Semaine du calendrier (du lundi au dimanche) : un joker par semaine
+export function weekKey(d = new Date()) {
+  const x = new Date(d);
+  x.setHours(12, 0, 0, 0);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return dayKey(x);
+}
+
 function touchDay() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dayKey();
   if (state.lastDay === today) return;
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  state.streak = state.lastDay === yesterday ? state.streak + 1 : 1;
+  const week = weekKey();
+  if (!state.joker || state.joker.week !== week) state.joker = { week, used: false, saved: null };
+  if (state.lastDay === daysAgo(1)) state.streak += 1;
+  else if (state.lastDay === daysAgo(2) && state.streak > 0 && !state.joker.used) {
+    // Un seul jour manque : le joker de la semaine garde la serie
+    state.joker.used = true;
+    state.joker.saved = daysAgo(1);
+    state.streak += 1;
+  } else state.streak = 1;
   state.lastDay = today;
   if (state.streak > 1) state.xp += 10 * Math.min(state.streak, 7);
+}
+
+// La serie en cours, telle qu'on peut l'afficher aujourd'hui (elle peut encore etre sauvee)
+export function streakInfo() {
+  const today = dayKey();
+  const week = weekKey();
+  const jokerFree = !state.joker || state.joker.week !== week || !state.joker.used;
+  let alive = state.lastDay === today || state.lastDay === daysAgo(1);
+  if (!alive && state.lastDay === daysAgo(2) && jokerFree) alive = true;
+  return {
+    days: alive ? state.streak : 0,
+    playedToday: state.lastDay === today,
+    jokerFree,
+    savedBy: state.joker?.saved && state.joker.week === week ? state.joker.saved : null,
+  };
+}
+
+// ---------- Seance du jour ----------
+export function dailyDone() {
+  return state.jour?.date === dayKey() ? state.jour.done : [];
+}
+export function markDaily(key) {
+  const today = dayKey();
+  if (state.jour?.date !== today) state.jour = { date: today, done: [] };
+  if (state.jour.done.includes(key)) return false;
+  state.jour.done.push(key);
+  save();
+  return true;
+}
+
+// ---------- Jeux d'oreille ----------
+export function earBest(id) {
+  return state.oreille?.[id] || 0;
+}
+export function completeEar(id, score, total) {
+  if (!state.oreille) state.oreille = {};
+  const best = Math.max(score, state.oreille[id] || 0);
+  const first = !state.oreille[id];
+  state.oreille[id] = best;
+  const gained = Math.round((score / Math.max(1, total)) * (first ? 40 : 15));
+  addXp(gained);
+  markDaily(`oreille:${id}`);
+  return { gained, best };
 }
 
 export function starsFor(accuracy) {
@@ -101,6 +175,7 @@ export function completeLesson(id, accuracy) {
   };
   const gained = (prev ? 10 : 50) + Math.round(accuracy / 2);
   addXp(gained);
+  markDaily(`lecon:${id}`);
   return { stars, gained, first: !prev };
 }
 
@@ -113,6 +188,7 @@ export function completeSong(id, accuracy, boss = false) {
   };
   const gained = (prev ? 15 : boss ? 200 : 80) + Math.round(accuracy / 2);
   addXp(gained);
+  markDaily(`morceau:${id}`);
   return { stars, gained, first: !prev };
 }
 
@@ -155,8 +231,30 @@ export function setPlacement(palier) {
 }
 
 export function resetProgress() {
-  state = { ...DEFAULT, lessonsDone: {}, songsDone: {}, badges: [], known: [], seen: [], bilan: null, placement: 0 };
+  state = { ...DEFAULT, lessonsDone: {}, songsDone: {}, badges: [], known: [], seen: [], bilan: null, placement: 0, jour: null, joker: null, oreille: {} };
   save();
+}
+
+// ---------- Changer d'appareil, sans compte ni serveur ----------
+// Toute la progression tient dans un petit fichier (ou un code a copier) qu'on rouvre ailleurs.
+export function exportData(extra = {}) {
+  return { app: 'piano-learn', v: 1, at: new Date().toISOString(), progress: state, settings, ...extra };
+}
+
+export function validData(d) {
+  const p = d?.progress;
+  return !!(d && d.app === 'piano-learn' && p && typeof p.xp === 'number' && p.lessonsDone && typeof p.lessonsDone === 'object'
+    && Array.isArray(p.known) && Array.isArray(p.badges));
+}
+
+export function importData(d) {
+  if (!validData(d)) return false;
+  state = { ...DEFAULT, ...d.progress };
+  settings = { ...DEFAULT_SETTINGS, ...(d.settings || {}) };
+  write(SETTINGS_KEY, settings);
+  save();
+  settingListeners.forEach((fn) => fn(settings, null));
+  return true;
 }
 
 // ---------- Reglages ----------

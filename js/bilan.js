@@ -1,6 +1,7 @@
 // Ton niveau : avant que le prof commence, on situe l'eleve.
 // Debutant : pas de test, on part du debut. Intermediaire ou confirme : quelques questions, puis de
 // courts tests joues (micro, ecran, clavier d'ordinateur ou piano numerique) qui le placent au bon palier.
+import { hasKeyboard } from './kbd-ui.js';
 import { mountPiano } from './mount.js';
 import { noteName } from './notes.js';
 import { pitchToMidi } from './score.js';
@@ -23,7 +24,7 @@ const NIVEAUX = [
 const MATERIEL = [
   { id: 'acoustique', titre: 'Un piano acoustique', desc: 'Le site écoute au micro. Pose ton téléphone ou ta tablette sur le pupitre.' },
   { id: 'numerique', titre: 'Un piano numérique', desc: 'Branché en USB ou en Bluetooth : chaque note est reconnue sans erreur.' },
-  { id: 'ecran', titre: 'L’écran', desc: 'Je joue sur les touches à l’écran, ou avec mon clavier d’ordinateur.' },
+  { id: 'ecran', titre: 'L’écran', desc: hasKeyboard() ? 'Je joue sur les touches à l’écran, ou avec mon clavier d’ordinateur.' : 'Je joue sur les touches à l’écran.' },
 ];
 
 // Chaque test verifie la competence d'un palier. Le reussir, c'est pouvoir passer ce palier.

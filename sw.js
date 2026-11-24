@@ -4,7 +4,7 @@
 // La liste et la version sont regenerees par tools/precache.py.
 
 // PRECACHE-START
-const VERSION = 'pl-app-5f162efbb1';
+const VERSION = 'pl-app-6998894fc7';
 const PRECACHE = [
   './',
   'css/fonts.css',
@@ -41,10 +41,12 @@ const PRECACHE = [
   'js/data/paliers.js',
   'js/data/songs.js',
   'js/data/theorie.js',
+  'js/ear.js',
   'js/fx.js',
   'js/grand.js',
   'js/hero-scene.js',
   'js/highway.js',
+  'js/i18n.js',
   'js/instrument.js',
   'js/kbd-ui.js',
   'js/lesson.js',
@@ -58,6 +60,7 @@ const PRECACHE = [
   'js/progress.js',
   'js/recorder.js',
   'js/score.js',
+  'js/session.js',
   'js/share.js',
   'js/sheet.js',
   'js/staff.js',
@@ -65,6 +68,7 @@ const PRECACHE = [
   'js/teacher-body.js',
   'js/teacher.js',
   'js/text.js',
+  'js/theory.js',
   'js/tutorial.js',
   'js/voice.js',
   'manifest.webmanifest',
