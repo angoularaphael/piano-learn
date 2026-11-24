@@ -18,6 +18,8 @@ import { connectMidi, midiSupported, midiInputs, autoConnectMidi, onMidiDevices 
 import { speak, voiceAvailable } from './voice.js';
 import { registerOffline, canInstall, isInstalled, isIOS, install, offlineReady, onInstallChange } from './app-install.js';
 import { fr, esc, plural } from './text.js';
+import { Recorder, listTakes, saveTake, deleteTake, replay, midiFile, recordVideo, videoSupported } from './recorder.js';
+import { deliverFile, canShareFiles } from './share.js';
 
 const app = document.getElementById('app');
 let cleanup = null;
@@ -260,6 +262,11 @@ function pagePiano(_, { query }) {
       ${miniKeys(known)}
       <span class="mm-window" id="mm-window"></span>
     </div>
+    <div class="studio" id="studio" data-reveal style="--d:190ms">
+      <button class="rec-btn" id="rec" aria-pressed="false"><i class="rec-dot" aria-hidden="true"></i><span id="rec-label">Enregistrer</span><time id="rec-time" hidden>0:00</time></button>
+      <p class="hint studio-hint" id="studio-hint">${fr('Appuie, joue ce que tu veux, puis réécoute-toi. Tes prises restent sur cet appareil.')}</p>
+      <ol class="takes" id="takes" aria-label="Mes prises"></ol>
+    </div>
     <div class="piano-tools">
       <div class="seg" id="views" role="group" aria-label="Vue">
         <button data-v="front" class="on">Face</button><button data-v="top">Dessus</button>${look(instr) === 'queue' ? '<button data-v="grand">Piano entier</button>' : ''}
@@ -307,12 +314,16 @@ function pagePiano(_, { query }) {
     return Math.round((whites * 12) / 7);
   };
 
+  const rec = new Recorder();
   const m = mountPiano(document.getElementById('piano'), {
     low: 21, high: 108, stage: look(from), known, view: 'front',
     labels: instr.features.has('cacher-noms') ? settings.noms : true,
     pedal: () => instr.features.has('pedale'),
     onShift: (s) => { shift = s; center = 64 + s; whole = false; placeWindow(); applyLetters(); },
-    onNoteOn: (midi) => {
+    onPedal: (on) => rec.pedal(on),
+    onNoteOff: (midi, meta) => { if (meta?.source !== 'replay') rec.off(midi); },
+    onNoteOn: (midi, meta, velocity) => {
+      if (meta?.source !== 'replay') rec.on(midi, velocity);
       now.textContent = noteName(midi);
       now.classList.remove('hit');
       void now.offsetWidth;
@@ -435,11 +446,182 @@ function pagePiano(_, { query }) {
   // Pedale a l'ecran
   const pedal = document.getElementById('pedal');
   if (pedal) {
-    const set = (on) => { setSustain(on); piano.grand?.setPedal(on); pedal.classList.toggle('on', on); };
+    const set = (on) => { setSustain(on); piano.grand?.setPedal(on); pedal.classList.toggle('on', on); rec.pedal(on); };
     pedal.addEventListener('pointerdown', (e) => { e.preventDefault(); pedal.setPointerCapture(e.pointerId); set(true); });
     pedal.addEventListener('pointerup', () => set(false));
     pedal.addEventListener('pointercancel', () => set(false));
   }
+
+
+  // ---------- Studio : enregistrer, reecouter, garder ----------
+  const recBtn = document.getElementById('rec');
+  const recLabel = document.getElementById('rec-label');
+  const recTime = document.getElementById('rec-time');
+  const takesEl = document.getElementById('takes');
+  const studioHint = document.getElementById('studio-hint');
+  const stageEl = app.querySelector('.piano-stage');
+  const HINT = studioHint.textContent;
+  const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
+  const STOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>';
+  const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const mmss = (ms) => { const sec = Math.round(ms / 1000); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
+  const soundOf = () => { const st = getSettings(); return st.son && instr.sons.includes(st.son) ? st.son : instr.son; };
+  let recTimer = null;
+  let player = null;
+  let filming = false;
+  let msgTimer = null;
+
+  function say(text) {
+    clearTimeout(msgTimer);
+    studioHint.textContent = fr(text);
+    studioHint.hidden = false;
+    msgTimer = setTimeout(() => { studioHint.textContent = HINT; studioHint.hidden = listTakes().length > 0; }, 5000);
+  }
+
+  function renderTakes() {
+    const list = listTakes();
+    studioHint.hidden = list.length > 0 && studioHint.textContent === HINT;
+    takesEl.innerHTML = list.map((t, i) => `
+      <li class="take" data-id="${t.id}">
+        <button class="take-play" data-act="play" aria-label="Réécouter la prise ${list.length - i}">${PLAY}</button>
+        <div class="take-meta"><strong>Prise ${list.length - i}</strong><span>${dateFmt.format(t.at)} · ${mmss(t.dur)} · ${plural(t.notes.length, 'note', 'notes')}</span></div>
+        <div class="take-actions">
+          <button class="chip small" data-act="midi" title="${fr('Fichier MIDI : il s’ouvre dans n’importe quel logiciel de musique')}">MIDI</button>
+          ${videoSupported() ? `<button class="chip small" data-act="video" title="${fr('Une vidéo du piano qui rejoue ta prise, avec le son')}">Vidéo</button>` : ''}
+          <button class="icon-btn" data-act="del" aria-label="Supprimer la prise ${list.length - i}">×</button>
+        </div>
+        <i class="take-progress" aria-hidden="true"></i>
+      </li>`).join('');
+  }
+
+  function startRec() {
+    stopPlayer();
+    rec.start();
+    recBtn.classList.add('on');
+    recBtn.setAttribute('aria-pressed', 'true');
+    recLabel.textContent = 'Arrêter';
+    recTime.hidden = false;
+    recTime.textContent = '0:00';
+    stageEl.classList.add('recording');
+    studioHint.hidden = true;
+    recTimer = setInterval(() => { recTime.textContent = mmss(rec.elapsed()); }, 250);
+  }
+
+  function stopRec() {
+    clearInterval(recTimer);
+    const take = rec.stop({ son: soundOf(), stage: look(instr) });
+    recBtn.classList.remove('on');
+    recBtn.setAttribute('aria-pressed', 'false');
+    recLabel.textContent = 'Enregistrer';
+    recTime.hidden = true;
+    stageEl.classList.remove('recording');
+    if (!take) { renderTakes(); say('Rien d’enregistré : joue au moins une note.'); return; }
+    if (!saveTake(take)) say('Plus de place sur cet appareil pour garder cette prise.');
+    renderTakes();
+    takesEl.firstElementChild?.classList.add('fresh');
+  }
+  rec.onLimit = () => stopRec();
+  recBtn.addEventListener('click', () => (rec.active ? stopRec() : startRec()));
+
+  function stopPlayer() {
+    if (!player) return;
+    const p = player;
+    player = null;
+    p.handle.stop();
+    endPlay(p);
+  }
+  function endPlay(p) {
+    p.li?.classList.remove('playing');
+    const btn = p.li?.querySelector('[data-act="play"]');
+    if (btn) btn.innerHTML = PLAY;
+    const bar = p.li?.querySelector('.take-progress');
+    if (bar) bar.style.transform = '';
+    if (p.before) setInstrument(p.before);
+  }
+  function play(take, li) {
+    stopPlayer();
+    if (rec.active) stopRec();
+    // La prise se rejoue avec le son qu'elle avait
+    const now = soundOf();
+    const before = take.son && take.son !== now && instr.sons.includes(take.son) ? now : null;
+    if (before) setInstrument(take.son);
+    li.classList.add('playing');
+    li.querySelector('[data-act="play"]').innerHTML = STOP;
+    const bar = li.querySelector('.take-progress');
+    const p = { id: take.id, li, before };
+    p.handle = replay(piano, take, {
+      onTime: (f) => { bar.style.transform = `scaleX(${f})`; },
+      onEnd: () => { if (player === p) { player = null; endPlay(p); } },
+    });
+    player = p;
+  }
+
+  async function film(take, li, btn) {
+    // Deuxieme geste : la video est prete, on la donne (le partage a besoin d'un geste frais)
+    if (btn.classList.contains('ready') && btn.blob) {
+      await deliverFile(btn.blob, btn.filename, { share: canShareFiles(btn.blob.type), title: 'Ma prise au piano' });
+      return;
+    }
+    if (filming) return;
+    filming = true;
+    stopPlayer();
+    if (rec.active) stopRec();
+    const before = soundOf();
+    if (take.son && take.son !== before && instr.sons.includes(take.son)) setInstrument(take.son);
+    li.classList.add('playing', 'filming');
+    stageEl.classList.add('filming');
+    const bar = li.querySelector('.take-progress');
+    btn.textContent = 'Vidéo · 0 %';
+    try {
+      const { blob, ext } = await recordVideo(piano, take, {
+        onTime: (f) => { bar.style.transform = `scaleX(${f})`; btn.textContent = `Vidéo · ${Math.round(f * 100)} %`; },
+      });
+      const n = li.querySelector('.take-meta strong')?.textContent.replace(/\D/g, '') || '1';
+      btn.blob = blob;
+      btn.filename = `prise-${n}.${ext}`;
+      btn.classList.add('ready');
+      btn.textContent = canShareFiles(blob.type) ? 'Partager la vidéo' : 'Télécharger la vidéo';
+    } catch (e) {
+      console.error(e);
+      btn.textContent = 'Vidéo';
+      say('La vidéo n’a pas pu être créée sur ce navigateur. Le fichier MIDI, lui, marche partout.');
+    }
+    setInstrument(before);
+    filming = false;
+    li.classList.remove('playing', 'filming');
+    stageEl.classList.remove('filming');
+    bar.style.transform = '';
+  }
+
+  takesEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const li = btn.closest('.take');
+    const take = listTakes().find((t) => t.id === li.dataset.id);
+    if (!take) return;
+    const act = btn.dataset.act;
+    if (act === 'play') {
+      if (player?.id === take.id) stopPlayer();
+      else if (!filming) play(take, li);
+    } else if (act === 'midi') {
+      const n = li.querySelector('.take-meta strong')?.textContent.replace(/\D/g, '') || '1';
+      deliverFile(midiFile(take, { name: `Prise ${n}` }), `prise-${n}.mid`);
+    } else if (act === 'video') {
+      film(take, li, btn);
+    } else if (act === 'del') {
+      // Deux gestes pour effacer : la prise ne se recupere pas
+      if (!btn.classList.contains('confirm')) {
+        btn.classList.add('confirm');
+        btn.textContent = 'Effacer ?';
+        setTimeout(() => { if (btn.isConnected) { btn.classList.remove('confirm'); btn.textContent = '×'; } }, 3000);
+        return;
+      }
+      if (player?.id === take.id) stopPlayer();
+      deleteTake(take.id);
+      renderTakes();
+    }
+  });
+  renderTakes();
 
   // Ceremonie : l'instrument du palier precedent se transforme sous tes yeux
   if (ceremony) {
@@ -480,6 +662,11 @@ function pagePiano(_, { query }) {
 
   return () => {
     window.removeEventListener('resize', onResize);
+    // On ne perd jamais une prise : partir de la page pendant l'enregistrement la garde
+    if (rec.active) stopRec();
+    stopPlayer();
+    clearInterval(recTimer);
+    clearTimeout(msgTimer);
     m.dispose();
     if (apercu) applySound();
   };

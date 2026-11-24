@@ -61,7 +61,7 @@ export function mountPiano(container, opts = {}) {
   const offMidi = onMidi({
     noteOn: (m, v) => piano.press(m, v, { source: 'midi' }),
     noteOff: (m) => piano.release(m, { source: 'midi' }),
-    pedal: (on) => { setSustain(on); piano.grand?.setPedal(on); },
+    pedal: (on) => { setSustain(on); piano.grand?.setPedal(on); opts.onPedal?.(on); },
   });
 
   const offSettings = onSettings((st, key) => {

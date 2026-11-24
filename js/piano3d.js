@@ -757,7 +757,7 @@ export class Piano3D {
       if (midi < 21 || midi > 108) return;
       this.pressed.add(midi);
       if (this.sound && !meta.silent) noteOn(midi, velocity);
-      this.onNoteOn?.(midi, meta);
+      this.onNoteOn?.(midi, meta, velocity);
       return;
     }
     this.pressed.add(midi);
@@ -768,7 +768,7 @@ export class Piano3D {
     this.fx.start(midi, p, this.colorFor(midi), k.black ? 0.5 : 0.85);
     if (this.sound && !meta.silent) noteOn(midi, velocity);
     this.grand?.strike(midi, velocity);
-    this.onNoteOn?.(midi, meta);
+    this.onNoteOn?.(midi, meta, velocity);
   }
 
   release(midi, meta = {}) {

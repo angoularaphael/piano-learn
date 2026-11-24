@@ -1,6 +1,7 @@
 // Le certificat de fin de parcours : une image a imprimer ou partager, dessinee sur l'appareil.
 // Format A4 paysage (rapport racine de 2), fond ivoire, lisible imprime en noir et blanc.
 import { BRAND } from './text.js';
+import { deliverFile } from './share.js';
 
 const W = 2000;
 const H = Math.round(W / Math.SQRT2);
@@ -165,23 +166,6 @@ export async function certificateBlob({ name, song, acc, xp, lessons, songs, dat
 }
 
 // Telecharge, ou partage sur telephone quand c'est possible
-export async function deliverCertificate(blob, { share = false, title = BRAND } = {}) {
-  const file = new File([blob], 'certificat-piano.png', { type: 'image/png' });
-  if (share && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title });
-      return 'shared';
-    } catch (e) {
-      if (e?.name === 'AbortError') return 'cancelled';
-    }
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = file.name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 8000);
-  return 'downloaded';
+export function deliverCertificate(blob, { share = false, title = BRAND } = {}) {
+  return deliverFile(blob, 'certificat-piano.png', { share, title });
 }
