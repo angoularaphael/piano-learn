@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Piano Learn - Apprendre le piano pas à pas</title>
+  <meta name="description" content="Apprendre le piano a la maison avec un prof en 3D : les notes, le rythme, les deux mains, puis de vrais morceaux.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#2f5d50">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="brand">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <span>Piano Learn</span>
+    </a>
+    <nav class="nav" id="nav">
+      <a href="#/parcours" data-route="parcours">Parcours</a>
+      <a href="#/piano" data-route="piano">Piano libre</a>
+      <a href="#/morceaux" data-route="morceaux">Morceaux</a>
+      <a href="#/profil" data-route="profil">Profil</a>
+    </nav>
+    <div class="xp-chip" id="xp-chip" title="Ton niveau">
+      <span class="xp-level" id="xp-level">Niv. 1</span>
+      <span class="xp-bar"><span class="xp-fill" id="xp-fill"></span></span>
+    </div>
+  </header>
+
+  <main id="app" class="app"></main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
