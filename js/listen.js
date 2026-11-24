@@ -1,6 +1,6 @@
 // Ecoute au micro : reconnait la note jouee sur un vrai piano.
 // Tout se passe dans le navigateur, rien n'est envoye nulle part.
-import { unlockAudio } from './audio.js';
+import { unlockAudio, getContext } from './audio.js';
 
 const TUNE_KEY = 'piano-learn-tuning';
 
@@ -56,9 +56,11 @@ export class Listener {
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });
     unlockAudio();
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (this.ctx.state === 'suspended') await this.ctx.resume();
+    // Meme contexte audio que le piano : un seul moteur, rien a synchroniser
+    this.ctx = getContext();
+    if (this.ctx.state === 'suspended') await this.ctx.resume().catch(() => {});
     const src = this.ctx.createMediaStreamSource(this.stream);
+    this.src = src;
     // On coupe les tres graves (bruits de pas, souffle)
     const hp = this.ctx.createBiquadFilter();
     hp.type = 'highpass';
@@ -66,6 +68,7 @@ export class Listener {
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 4096;
     src.connect(hp).connect(this.analyser);
+    this.hp = hp;
     this.buf = new Float32Array(this.analyser.fftSize);
 
     this.floor = 0.004;
@@ -178,8 +181,8 @@ export class Listener {
   stop() {
     this.running = false;
     clearInterval(this.timer);
+    try { this.src?.disconnect(); this.hp?.disconnect(); } catch (e) { /* deja deconnecte */ }
     this.stream?.getTracks().forEach((t) => t.stop());
-    this.ctx?.close();
   }
 }
 

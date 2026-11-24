@@ -5,6 +5,7 @@ import { isBlack } from './notes.js';
 import { noteOn, noteOff } from './audio.js';
 import { NoteFX } from './note-fx.js';
 import { createBloom } from './bloom.js';
+import { attach, detach, measureFrame } from './stage.js';
 
 const CYAN = new THREE.Color('#3ef2ff');
 const VIOLET = new THREE.Color('#8b5cff');
@@ -18,20 +19,19 @@ const MELODY = [
   [60, 1], [64, 1], [69, 1], [71, 3], [64, 1], [72, 1], [71, 1], [69, 4],
 ];
 
-export function createHeroScene(container) {
+export function createHeroScene(container, { unfold = false } = {}) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const mobile = window.innerWidth < 760;
+  const owner = { detached() { renderer?.setAnimationLoop(null); } };
 
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer = attach(container, owner);
   } catch (e) {
-    return { dispose() {} };
+    return { dispose() {}, unfold() {} };
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.25 : 1.75));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  container.appendChild(renderer.domElement);
+  renderer.toneMappingExposure = 1;
+  renderer.shadowMap.enabled = false;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#04050b');
@@ -72,22 +72,32 @@ export function createHeroScene(container) {
     const black = isBlack(m);
     const g = new THREE.Group();
     g.position.set(x - off, black ? 0.42 : 0, black ? -1.05 : 0);
+    // Touches lisibles : blanches en verre givre eclaire, noires profondes
     const mat = new THREE.MeshStandardMaterial({
-      color: black ? '#06070f' : '#10142b', metalness: 0.7, roughness: 0.25,
+      color: black ? '#06070f' : '#b7c9ee', metalness: black ? 0.6 : 0.12, roughness: black ? 0.25 : 0.4,
       emissive: new THREE.Color('#000'), emissiveIntensity: 1,
     });
     const mesh = new THREE.Mesh(black ? blackGeo : whiteGeo, mat);
     mesh.userData.midi = m;
     g.add(mesh);
     const lineMat = new THREE.LineBasicMaterial({
-      color: black ? VIOLET : CYAN, transparent: true, opacity: black ? 0.55 : 0.4,
+      color: black ? VIOLET : CYAN, transparent: true, opacity: black ? 0.55 : 0.3,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
     g.add(new THREE.LineSegments(black ? blackEdges : whiteEdges, lineMat));
     board.add(g);
     keyMeshes.push(mesh);
-    keys.set(m, { g, mat, lineMat, black, x: x - off, glow: 0, depth: 0, held: false, baseLine: black ? 0.55 : 0.4 });
+    keys.set(m, { g, mat, lineMat, black, x: x - off, glow: 0, depth: 0, held: false, baseLine: black ? 0.55 : 0.3, appear: 1, delay: 0 });
   }
+  // Le clavier se deploie a partir du do du milieu
+  const c4 = keys.get(60).x;
+  function startUnfold() {
+    for (const k of keys.values()) {
+      k.appear = 0;
+      k.delay = Math.abs(k.x - c4) * 0.035;
+    }
+  }
+  if (unfold && !reduced) startUnfold();
 
   // Ligne lumineuse sous le clavier
   const strip = new THREE.Mesh(
@@ -204,19 +214,28 @@ export function createHeroScene(container) {
   const clock = new THREE.Clock();
   let t = 0;
   renderer.setAnimationLoop(() => {
+    const raw = clock.getDelta();
     if (!visible || document.hidden) return;
-    const dt = Math.min(clock.getDelta(), 0.05);
+    measureFrame(raw * 1000);
+    const dt = Math.min(raw, 0.05);
     t += reduced ? 0 : dt;
 
     for (const [m, k] of keys) {
       const wave = Math.sin(k.x * 0.16 - t * 1.1) * 0.9 + Math.sin(k.x * 0.05 + t * 0.4) * 0.6;
       k.depth += ((k.held ? -0.28 : 0) - k.depth) * Math.min(1, dt * 18);
-      k.g.position.y = (k.black ? 0.42 : 0) + wave + k.depth;
+      if (k.appear < 1) {
+        if (k.delay > 0) k.delay -= dt;
+        else k.appear = Math.min(1, k.appear + dt * 2.6);
+        const e = 1 - Math.pow(1 - k.appear, 3);
+        k.g.scale.set(1, Math.max(0.001, e), Math.max(0.001, e));
+        k.lineMat.opacity = k.baseLine * e + (1 - e) * (k.appear > 0 ? 0.9 : 0);
+      }
+      k.g.position.y = (k.black ? 0.42 : 0) + wave + k.depth + (1 - k.appear) * 1.5;
       k.g.rotation.x = k.held ? 0.06 : 0;
       k.glow = k.held ? 1 : Math.max(0, k.glow - dt * 1.8);
       const c = colorFor(m);
       k.mat.emissive.copy(c).multiplyScalar(k.glow * 0.9);
-      k.lineMat.opacity = k.baseLine + k.glow * 0.6;
+      if (k.appear >= 1) k.lineMat.opacity = k.baseLine + k.glow * 0.6;
     }
     // Les colonnes suivent la vague de leur touche
     for (const [m, col] of fx.held) {
@@ -238,9 +257,11 @@ export function createHeroScene(container) {
   });
 
   return {
+    unfold() { if (!reduced) startUnfold(); },
     dispose() {
       clearTimeout(timer);
       renderer.setAnimationLoop(null);
+      detach(owner);
       ro.disconnect();
       vio.disconnect();
       el.removeEventListener('pointermove', onMove);
@@ -250,8 +271,6 @@ export function createHeroScene(container) {
       fx.dispose();
       bloom?.dispose();
       scene.traverse((o) => { o.geometry?.dispose(); if (o.material) [].concat(o.material).forEach((m) => m.dispose()); });
-      renderer.dispose();
-      el.remove();
     },
   };
 }

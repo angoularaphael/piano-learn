@@ -31,6 +31,26 @@ Astuce pratique : le site doit bien marcher sur tablette posee sur le pupitre du
 
 Chaque palier : 5 a 8 lecons courtes (5 a 10 min), puis un morceau de fin a reussir pour debloquer le palier suivant.
 
+## L'instrument grandit avec l'eleve
+
+Personne ne commence devant un piano de concert. L'instrument se debloque avec le parcours :
+
+| Palier | Corps | Touches | Sons | Fonctions |
+|---|---|---|---|---|
+| 1 | Clavier de lumiere | 1 octave | Piano feutre | Nom des notes |
+| 2 | Clavier de lumiere | 2 octaves | | |
+| 3 | Vrai clavier (ivoire, ebene, feutre rouge) | 3 octaves | Piano droit | |
+| 4 | | | | Cacher le nom des notes |
+| 5 | | | | Metronome |
+| 6 | Piano a queue (couvercle ouvert, cordes qui vibrent) | 4 octaves | Piano de concert | Choisir sa main |
+| 7 | | 5 octaves | Piano electrique | Accords |
+| 8 | | 88 touches | Orgue, clavecin | Pedale, transposition |
+
+- Chaque note reussie dans une lecon s'allume pour de bon : le clavier est la carte de la progression.
+- Chaque palier ouvert declenche une ceremonie : l'instrument se transforme sous les yeux de l'eleve.
+- On peut voir l'apercu d'un instrument pas encore debloque, sans toucher a sa progression.
+- L'entree du site est une seule touche, le do : la toucher joue la premiere note et ouvre le son.
+
 ## XP et niveaux
 
 - Lecon reussie : +50 XP, bonus selon la precision (jusqu'a +50).
@@ -94,5 +114,7 @@ Chaque palier : 5 a 8 lecons courtes (5 a 10 min), puis un morceau de fin a reus
 ## Questions encore ouvertes
 
 - Le nom du site ?
-- On met le projet sur GitHub (pour sauvegarder et mettre en ligne) ? Le dossier n'est pas encore un depot git.
-- Une couleur ou un style deja en tete ?
+- Pour qui exactement : une personne en particulier, ou tout le monde ? (le ton, le prenom, l'accord des mots en dependent)
+- Francais seulement, ou aussi en anglais ?
+- Mise en ligne : le depot git existe, reste a choisir l'hebergement (Vercel, Netlify, Cloudflare Pages).
+- Morceaux actuels proteges : licence, ou seulement des morceaux libres de droits ?

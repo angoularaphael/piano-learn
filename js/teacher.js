@@ -70,15 +70,35 @@ function ccd(links, effector, target, iterations = 12, maxStep = 0.6) {
   }
 }
 
+// Le modele est charge une seule fois et garde pour toutes les lecons
+let modelPromise = null;
+export function preloadTeacher() {
+  if (!modelPromise) {
+    modelPromise = new GLTFLoader().loadAsync(MODEL_URL).then((gltf) => {
+      const scene = gltf.scene;
+      const rest = new Map();
+      scene.traverse((o) => {
+        if (o.isBone) rest.set(o.name, o.quaternion.clone());
+        if (o.isMesh) o.userData.joints = o.material.name.includes('Joints');
+      });
+      scene.userData.rest = rest;
+      scene.userData.basePos = scene.position.clone();
+      return scene;
+    }).catch((e) => { modelPromise = null; throw e; });
+  }
+  return modelPromise;
+}
+
 export class Teacher {
-  static async load(piano) {
-    const gltf = await new GLTFLoader().loadAsync(MODEL_URL);
-    return new Teacher(piano, gltf.scene);
+  static async load(piano, opts) {
+    const model = await preloadTeacher();
+    return new Teacher(piano, model, opts);
   }
 
-  constructor(piano, model) {
+  constructor(piano, model, { main = 'deux' } = {}) {
     this.piano = piano;
     this.model = model;
+    this.main = main;
     this.time = 0;
     this.nodT = 0;
     this.shakeT = 0;
@@ -86,26 +106,35 @@ export class Teacher {
     this.lookTarget = new THREE.Vector3(0, 0, 0);
 
     // Materiaux : coque sombre et articulations lumineuses
+    if (!Teacher.mats) {
+      Teacher.mats = {
+        joints: new THREE.MeshStandardMaterial({ color: '#0e1430', emissive: new THREE.Color('#3ef2ff'), emissiveIntensity: 0.22, roughness: 0.3, metalness: 0.4 }),
+        shell: new THREE.MeshStandardMaterial({ color: '#9ea8c4', metalness: 0.35, roughness: 0.3 }),
+      };
+    }
+    const shadows = piano.shadows;
     model.traverse((o) => {
       if (!o.isMesh) return;
-      o.castShadow = true;
-      o.receiveShadow = true;
+      o.castShadow = shadows;
+      o.receiveShadow = shadows;
       o.frustumCulled = false;
-      if (o.material.name.includes('Joints')) {
-        o.material = new THREE.MeshStandardMaterial({ color: '#0e1430', emissive: new THREE.Color('#3ef2ff'), emissiveIntensity: 0.22, roughness: 0.3, metalness: 0.4 });
-      } else {
-        o.material = new THREE.MeshStandardMaterial({ color: '#9ea8c4', metalness: 0.35, roughness: 0.3 });
-      }
+      o.material = o.userData.joints ? Teacher.mats.joints : Teacher.mats.shell;
     });
 
     this.bones = {};
     model.traverse((o) => { if (o.isBone) this.bones[o.name.replace('mixamorig', '')] = o; });
     this.rest = new Map();
-    Object.values(this.bones).forEach((b) => this.rest.set(b, b.quaternion.clone()));
+    const rest = model.userData.rest;
+    Object.values(this.bones).forEach((b) => {
+      const q = rest.get(b.name) || b.quaternion.clone();
+      b.quaternion.copy(q);
+      this.rest.set(b, q);
+    });
 
     // Assis face au piano, entre les deux mains
+    model.position.copy(model.userData.basePos);
     model.scale.setScalar(M);
-    model.rotation.y = Math.PI;
+    model.rotation.set(0, Math.PI, 0);
     piano.root.add(model);
     model.updateMatrixWorld(true);
     const hips = wpos(this.bones.Hips, new THREE.Vector3());
@@ -135,7 +164,7 @@ export class Teacher {
     piano.root.add(bench);
     this.bench = bench;
 
-    // Eclairage du prof : une douche de lumiere devant lui
+    // Eclairage du prof : douche de lumiere devant, liseré violet derriere
     const spot = new THREE.SpotLight('#dfe8ff', 380, 160, 0.45, 0.7, 1.4);
     spot.position.set(-20, 70, -30);
     spot.target.position.set(0, 0, 16);
@@ -153,10 +182,13 @@ export class Teacher {
       pressTarget: [0, 0, 0, 0, 0],
       fingerKey: [null, null, null, null, null],
       active: false,
+      resting: false,
     });
     this.hands = { Right: mk('Right'), Left: mk('Left') };
     this.#placeHand(this.hands.Right, 60, true);
     this.#placeHand(this.hands.Left, 48, true);
+    if (main === 'droite') this.restHand('Left', true);
+    if (main === 'gauche') this.restHand('Right', true);
 
     this.unhook = piano.onFrame((dt) => this.update(dt));
   }
@@ -179,9 +211,39 @@ export class Teacher {
     // Doigt i (pouce = 0) : a droite le pouce est sur la touche la plus grave, a gauche sur la plus aigue
     hand.fingerKey = FINGERS.map((_, i) => (hand.side === 'Right' ? whites[i] : whites[4 - i]));
     const mid = this.piano.keyTop(whites[2], 0.7);
-    if (!mid) return;
+    if (!mid) {
+      // Les touches de cette main ne sont pas sur le clavier : elle se pose sur le genou
+      this.restHand(hand.side, instant);
+      return;
+    }
+    hand.resting = false;
     hand.wristTarget.set(mid.x + (hand.side === 'Right' ? -0.6 : 0.6), mid.y + 2.6, mid.z + 6.2);
     if (instant) hand.wrist.copy(hand.wristTarget);
+  }
+
+  // Main au repos, posee sur la cuisse
+  restHand(side, instant = false) {
+    const hand = this.hands[side];
+    hand.resting = true;
+    hand.pressTarget = [0, 0, 0, 0, 0];
+    const sgn = side === 'Right' ? 1 : -1;
+    hand.wristTarget.set(sgn * 6.2, this.hipsTarget.y + 3.4, this.hipsTarget.z - 8.5);
+    if (instant) hand.wrist.copy(hand.wristTarget);
+  }
+
+  // Place la main pour que tel doigt tombe sur telle note (doigtes de la partition)
+  #placeForFinger(hand, midi, finger) {
+    const f = finger - 1;
+    if (hand.fingerKey[f] === midi && !hand.resting) return;
+    const anchor = isBlack(midi) ? midi - 1 : midi;
+    if (hand.fingerKey[f] === anchor && !hand.resting) { hand.fingerKey[f] = midi; return; }
+    const step = hand.side === 'Right' ? -1 : 1;
+    let thumb = anchor;
+    for (let i = 0; i < f; i++) { thumb += step; while (isBlack(thumb)) thumb += step; }
+    let base = thumb;
+    if (hand.side === 'Left') { for (let i = 0; i < 4; i++) { base--; while (isBlack(base)) base--; } }
+    this.#placeHand(hand, base);
+    hand.fingerKey[f] = midi;
   }
 
   // Choisit la main et le doigt pour une note, et deplace la main si besoin
@@ -215,14 +277,23 @@ export class Teacher {
 
   // ---------- Jeu ----------
   // Joue une note : la main se place, le doigt descend, la touche sonne
-  playNote(midi, ms = 450) {
-    const { hand, finger } = this.#fingerFor(midi);
+  playNote(midi, ms = 450, { hand: handName, finger: fingerNum, velocity = 0.8 } = {}) {
+    let hand;
+    let finger;
+    if (handName && fingerNum) {
+      hand = this.hands[handName === 'L' ? 'Left' : 'Right'];
+      this.#placeForFinger(hand, midi, fingerNum);
+      finger = fingerNum - 1;
+    } else {
+      ({ hand, finger } = this.#fingerFor(midi));
+    }
     hand.active = true;
+    hand.resting = false;
     hand.fingerKey[finger] = midi;
     hand.pressTarget[finger] = 1;
     this.lookTarget.copy(this.piano.keyTop(midi) || this.lookTarget);
     const travel = hand.wrist.distanceTo(hand.wristTarget) > 0.5 ? 180 : 90;
-    setTimeout(() => this.piano.press(midi, 0.8, { teacher: true }), travel);
+    setTimeout(() => this.piano.press(midi, velocity, { teacher: true }), travel);
     setTimeout(() => {
       this.piano.release(midi);
       hand.pressTarget[finger] = 0;
@@ -231,20 +302,40 @@ export class Teacher {
   }
 
   async playSequence(notes, { tempo = 90, onNote } = {}) {
+    let t = 0;
+    const steps = [];
+    notes.forEach(([midi, beats = 1]) => {
+      if (midi != null) steps.push({ start: t, notes: [{ midi, dur: beats, finger: null, hand: midi >= 60 ? 'R' : 'L' }] });
+      t += beats;
+    });
+    return this.playScore(steps, { tempo, onStep: onNote, total: t });
+  }
+
+  // Joue une partition (etapes de js/score.js) au tempo voulu
+  async playScore(steps, { tempo = 90, onStep, total } = {}) {
     this.stopped = false;
     const beat = 60000 / tempo;
-    for (let i = 0; i < notes.length; i++) {
+    const t0 = performance.now() + 120;
+    for (let i = 0; i < steps.length; i++) {
+      const st = steps[i];
+      const wait = t0 + st.start * beat - performance.now();
+      if (wait > 0) await new Promise((r) => { this.timer = setTimeout(r, wait); });
       if (this.stopped) return false;
-      const [midi, beats = 1] = notes[i];
-      onNote?.(i, midi);
-      if (midi != null) this.playNote(midi, beats * beat * 0.85);
-      await new Promise((r) => setTimeout(r, beats * beat));
+      onStep?.(i, st);
+      st.notes.forEach((n) => this.playNote(n.midi, Math.max(120, n.dur * beat * 0.88 - 90), { hand: n.hand, finger: n.finger }));
     }
+    const end = steps.length ? steps[steps.length - 1] : null;
+    const last = total ?? (end ? end.start + Math.max(...end.notes.map((n) => n.dur)) : 0);
+    const tail = t0 + last * beat - performance.now();
+    if (tail > 0) await new Promise((r) => { this.timer = setTimeout(r, tail); });
+    if (!this.stopped && this.main === 'droite') this.restHand('Left');
+    if (!this.stopped && this.main === 'gauche') this.restHand('Right');
     return !this.stopped;
   }
 
   stop() {
     this.stopped = true;
+    clearTimeout(this.timer);
   }
 
   // Numero du doigt (1 = pouce) pour une note, d'apres la position actuelle des mains
@@ -327,6 +418,13 @@ export class Teacher {
 
     // Doigts : arrondis au-dessus des touches, celui qui joue descend sur la sienne
     FINGERS.forEach((name, i) => {
+      if (hand.resting) {
+        const r1 = b[`${S}Hand${name}1`], r2 = b[`${S}Hand${name}2`], r3 = b[`${S}Hand${name}3`], r4 = b[`${S}Hand${name}4`];
+        pointBone(r1, r2, new THREE.Vector3(name === 'Thumb' ? -sgn * 0.4 : 0, -0.3, -1));
+        pointBone(r2, r3, new THREE.Vector3(0, -0.7, -0.8));
+        pointBone(r3, r4, new THREE.Vector3(0, -1, -0.4));
+        return;
+      }
       const f1 = b[`${S}Hand${name}1`], f2 = b[`${S}Hand${name}2`], f3 = b[`${S}Hand${name}3`], f4 = b[`${S}Hand${name}4`];
       if (name === 'Thumb') {
         pointBone(f1, f2, new THREE.Vector3(-sgn * 0.5, -0.5, -0.8));
@@ -352,10 +450,10 @@ export class Teacher {
   }
 
   dispose() {
+    this.stop();
     this.unhook?.();
     this.piano.root.remove(this.model);
     this.piano.root.remove(this.bench);
     this.bench.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
-    this.model.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
   }
 }

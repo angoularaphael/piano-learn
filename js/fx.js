@@ -1,56 +1,92 @@
-// Effets d'interface : intro, rideau en touches, apparitions, lueurs
+// Effets d'interface : la touche d'entree, les transitions de page, les apparitions, les lueurs.
+import { noteOn, noteOff, unlockAudio } from './audio.js';
+import { discover, unlockBadge } from './progress.js';
+
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// ---------- Intro ----------
-export function playIntro() {
-  const intro = document.getElementById('intro');
-  if (!intro) return Promise.resolve();
-  const seen = sessionStorage.getItem('pl-intro');
-  const wait = reduced || seen ? 0 : 1900;
-  sessionStorage.setItem('pl-intro', '1');
-  return new Promise((res) => {
-    setTimeout(() => {
-      intro.classList.add('done');
-      setTimeout(() => intro.remove(), 700);
-      res();
-    }, wait);
+// ---------- La touche d'entree ----------
+// Le site s'ouvre sur un seul do, a cote de ses deux touches noires. Le toucher joue la premiere note,
+// debloque le son pour toute la visite, et deploie le reste.
+export function playGate() {
+  const gate = document.getElementById('gate');
+  if (!gate) return Promise.resolve(false);
+  let seen = false;
+  try { seen = sessionStorage.getItem('pl-gate') === '1'; } catch (e) { /* stockage bloque */ }
+  if (seen) { gate.remove(); return Promise.resolve(false); }
+  gate.hidden = false;
+  document.body.classList.add('gated');
+  const hint = gate.querySelector('.gate-hint');
+  return new Promise((resolve) => {
+    let done = false;
+    const open = (midi) => {
+      if (done) return;
+      done = true;
+      try { sessionStorage.setItem('pl-gate', '1'); } catch (e) { /* stockage bloque */ }
+      unlockAudio();
+      // Le do touche a l'entree est la toute premiere note apprise
+      discover(60);
+      unlockBadge('premiere-note');
+      noteOn(midi, 0.75);
+      setTimeout(() => noteOn(64, 0.5), 140);
+      setTimeout(() => noteOn(67, 0.5), 280);
+      setTimeout(() => noteOn(72, 0.55), 420);
+      setTimeout(() => [midi, 64, 67, 72].forEach((m) => noteOff(m)), 1600);
+      gate.classList.add('open');
+      document.body.classList.remove('gated');
+      setTimeout(() => gate.remove(), 1100);
+      resolve(true);
+    };
+    gate.querySelectorAll('[data-midi]').forEach((k) => {
+      k.addEventListener('pointerdown', (e) => {
+        const midi = Number(k.dataset.midi);
+        k.classList.add('down');
+        if (midi === 60) { open(60); return; }
+        e.preventDefault();
+        unlockAudio();
+        noteOn(midi, 0.6);
+        setTimeout(() => noteOff(midi), 350);
+        hint.textContent = 'Presque. Le do, c’est la blanche juste à gauche des deux noires.';
+        gate.classList.remove('nudge');
+        void gate.offsetWidth;
+        gate.classList.add('nudge');
+      });
+      k.addEventListener('pointerup', () => k.classList.remove('down'));
+      k.addEventListener('pointerleave', () => k.classList.remove('down'));
+    });
+    gate.querySelector('[data-midi="60"]').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(60); }
+    });
+    const onKey = (e) => {
+      if (e.code === 'KeyA' || e.key === 'Enter') { window.removeEventListener('keydown', onKey); open(60); }
+    };
+    window.addEventListener('keydown', onKey);
+    requestAnimationFrame(() => gate.querySelector('[data-midi="60"]').focus({ preventScroll: true }));
   });
 }
 
-// ---------- Rideau de transition ----------
-const PATTERN = [1, 1, 0, 1, 1, 1, 0]; // touche noire apres do, re, fa, sol, la
-const curtain = document.getElementById('curtain');
-function buildCurtain() {
-  const n = window.innerWidth < 640 ? 7 : 14;
-  curtain.innerHTML = '';
-  for (let i = 0; i < n; i++) {
-    const el = document.createElement('i');
-    el.style.setProperty('--i', i);
-    if (PATTERN[i % 7] && i < n - 1) el.classList.add('black');
-    curtain.appendChild(el);
-  }
-}
-buildCurtain();
-window.addEventListener('resize', () => { if (!curtain.classList.contains('cover')) buildCurtain(); });
-
-export function curtainSwap(swap) {
-  if (reduced) { swap(); return; }
-  curtain.classList.remove('open');
-  curtain.querySelectorAll('i').forEach((el) => { el.style.transition = 'none'; el.style.transform = ''; });
-  void curtain.offsetWidth;
-  curtain.querySelectorAll('i').forEach((el) => { el.style.transition = ''; });
-  curtain.classList.add('cover');
-  const n = curtain.children.length;
-  setTimeout(() => {
+// ---------- Transition de page ----------
+// Le contenu change tout de suite ; un trait de lumiere balaie l'ecran comme un glissando.
+const sweep = document.getElementById('sweep');
+let activeTransition = null;
+export function pageTransition(swap) {
+  if (reduced || document.hidden) { swap(); return; }
+  sweep?.classList.remove('run');
+  void sweep?.offsetWidth;
+  sweep?.classList.add('run');
+  if (document.startViewTransition) {
+    // Une navigation rapide en interrompt une autre : on termine la precedente sans bruit
+    activeTransition?.skipTransition?.();
+    const vt = document.startViewTransition(() => swap());
+    activeTransition = vt;
+    [vt.ready, vt.finished, vt.updateCallbackDone].forEach((p) => p?.catch(() => {}));
+    vt.finished?.finally(() => { if (activeTransition === vt) activeTransition = null; });
+  } else {
     swap();
-    curtain.classList.add('open');
-    setTimeout(() => {
-      curtain.classList.remove('cover', 'open');
-      curtain.querySelectorAll('i').forEach((el) => { el.style.transition = 'none'; });
-      void curtain.offsetWidth;
-      curtain.querySelectorAll('i').forEach((el) => { el.style.transition = ''; });
-    }, 520 + n * 28);
-  }, 480 + n * 28);
+    const app = document.getElementById('app');
+    app.classList.remove('enter');
+    void app.offsetWidth;
+    app.classList.add('enter');
+  }
 }
 
 // ---------- Texte decoupe en mots ----------
@@ -97,14 +133,16 @@ export function observeReveals(root) {
         io.unobserve(e.target);
       }
     });
-  }, { threshold: 0.12, rootMargin: '0px 0px -5% 0px' });
+  }, { threshold: 0.08, rootMargin: '0px 0px -4% 0px' });
   root.querySelectorAll('[data-reveal], .split').forEach((el) => io.observe(el));
 }
 
 // ---------- Lueur qui suit la souris ----------
 const glow = document.getElementById('cursor-glow');
 let gx = 0, gy = 0, tx = 0, ty = 0;
+let glowRunning = false;
 window.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
   tx = e.clientX; ty = e.clientY;
   const card = e.target.closest?.('.card');
   if (card) {
@@ -112,28 +150,29 @@ window.addEventListener('pointermove', (e) => {
     card.style.setProperty('--mx', `${e.clientX - r.left}px`);
     card.style.setProperty('--my', `${e.clientY - r.top}px`);
   }
+  if (!glowRunning && !reduced && glow) { glowRunning = true; requestAnimationFrame(glowLoop); }
 }, { passive: true });
 function glowLoop() {
-  gx += (tx - gx) * 0.12;
-  gy += (ty - gy) * 0.12;
+  gx += (tx - gx) * 0.14;
+  gy += (ty - gy) * 0.14;
   glow.style.transform = `translate(${gx}px, ${gy}px)`;
-  requestAnimationFrame(glowLoop);
+  if (Math.abs(tx - gx) + Math.abs(ty - gy) > 0.5) requestAnimationFrame(glowLoop);
+  else glowRunning = false;
 }
-if (!reduced && glow) glowLoop();
 
-// ---------- Boutons aimantes ----------
+// ---------- Boutons aimantes (souris seulement) ----------
+let magnet = null;
 document.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse' || reduced) return;
   const b = e.target.closest?.('.btn');
-  document.querySelectorAll('.btn.magnet').forEach((el) => {
-    if (el !== b) { el.style.transform = ''; el.classList.remove('magnet'); }
-  });
-  if (!b || reduced) return;
+  if (magnet && magnet !== b) { magnet.style.translate = ''; magnet = null; }
+  if (!b || b.disabled) return;
   const r = b.getBoundingClientRect();
   const dx = e.clientX - (r.left + r.width / 2);
   const dy = e.clientY - (r.top + r.height / 2);
-  b.classList.add('magnet');
-  b.style.transform = `translate(${dx * 0.18}px, ${dy * 0.25}px)`;
-});
+  magnet = b;
+  b.style.translate = `${dx * 0.14}px ${dy * 0.22}px`;
+}, { passive: true });
 
 // ---------- Egaliseur du header qui reagit aux notes ----------
 const bars = [...document.querySelectorAll('#eq i')];
@@ -144,7 +183,7 @@ window.addEventListener('pl:note', (e) => {
     b.style.animation = 'none';
     b.style.height = `${h}px`;
     clearTimeout(b._t);
-    b._t = setTimeout(() => { b.style.height = ''; b.style.animation = ''; }, 260 + i * 30);
+    b._t = setTimeout(() => { b.style.height = ''; b.style.animation = ''; }, 240 + i * 26);
   });
 });
 
@@ -154,7 +193,7 @@ export function countUp(root) {
     const end = Number(el.dataset.count);
     if (reduced || !end) { el.textContent = end; return; }
     const start = performance.now();
-    const dur = 1400;
+    const dur = 1100;
     const step = (t) => {
       const p = Math.min(1, (t - start) / dur);
       el.textContent = Math.round(end * (1 - Math.pow(1 - p, 3)));
