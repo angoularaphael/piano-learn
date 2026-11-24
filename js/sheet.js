@@ -42,6 +42,25 @@ function rest(g, x, staffTop, len) {
   return grp;
 }
 
+// Un ovale au crayon, trace a main levee : il ne se referme pas tout a fait, il depasse son depart
+function pencilRing(x, y, seed) {
+  const h = (k) => {
+    const v = Math.sin((seed + 1) * 12.9898 + k * 78.233) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const a0 = -2.2 + h(1) * 0.8;
+  const span = Math.PI * 2 + 0.55 + h(2) * 0.4;
+  const pts = [];
+  for (let k = 0; k <= 28; k++) {
+    const t = k / 28;
+    const a = a0 + span * t;
+    const rx = 11.5 + 1.2 * Math.sin(t * 6 + h(3) * 6);
+    const ry = 8.6 + 0.9 * Math.cos(t * 5 + h(4) * 6);
+    pts.push(`${(x + 0.8 * t + rx * Math.cos(a)).toFixed(1)} ${(y - 0.6 * t + ry * Math.sin(a)).toFixed(1)}`);
+  }
+  return `M ${pts.join(' L ')}`;
+}
+
 export class Sheet {
   // score : partition de js/score.js ; mode 'scroll' (defile avec le temps) ou 'static' (lecon)
   constructor(container, score, { mode = 'scroll', ppb = 58, hands = null } = {}) {
@@ -229,6 +248,9 @@ export class Sheet {
         el('circle', { class: 'dot', cx: x + 9, cy: onLine ? y - S / 2 : y, r: 1.5 }, head);
       }
       if (e.finger && this.mode === 'static') el('text', { class: 'finger', x, y: up ? Math.max(...ys) + 14 : Math.min(...ys) - 9 }, head).textContent = e.finger;
+      // Le crayon du prof : un ovale autour de la note a jouer, une coche quand elle est juste
+      el('path', { class: 'pencil-ring', d: pencilRing(x, y, i), pathLength: 100 }, head);
+      el('path', { class: 'pencil-tick', d: `M ${x + 6} ${y - 10} l 2.6 3.2 l 5.6 -7.4`, pathLength: 100 }, head);
       this.heads.set(i, head);
     });
   }

@@ -5,7 +5,8 @@ import {
   getState, onChange, levelInfo, unlockBadge, resetProgress, knownKeys, getSettings, setSetting, onSettings,
   markSeen,
 } from './progress.js';
-import { PALIERS, palierStatus, isUnlocked, lessonUnlocked, currentPalier, nextLesson } from './data/paliers.js';
+import { PALIERS, palierStatus, isUnlocked, lessonUnlocked, currentPalier, nextLesson, findLesson } from './data/paliers.js';
+import { parseScore, beatsPerBar } from './score.js';
 import { SONGS, songOpen } from './data/library.js';
 import { BADGES } from './data/badges.js';
 import { instrumentAt, unlocksOf, STAGES } from './instrument.js';
@@ -21,8 +22,9 @@ import { fr, esc, plural } from './text.js';
 import { Recorder, listTakes, saveTake, deleteTake, replay, midiFile, recordVideo, videoSupported } from './recorder.js';
 import { deliverFile, canShareFiles } from './share.js';
 import { hasKeyboard as keyboardPresent } from './kbd-ui.js';
-import { renderEarList, renderEarGame } from './ear.js';
+import { renderEarList, renderEarGame, EAR_GAMES } from './ear.js';
 import { renderTheoryList, renderTheoryCard } from './theory.js';
+import { FICHES } from './data/theorie.js';
 import { sessionSummary, reminderICS, reminderGoogle } from './session.js';
 import { exportData, importData, validData } from './progress.js';
 import { t, lang, setLang, locale } from './i18n.js';
@@ -78,7 +80,7 @@ const lock = '<svg class="lock" viewBox="0 0 16 16" aria-hidden="true"><path d="
 // Petites illustrations des trois corps de l'instrument
 const STAGE_ART = {
   lumiere: `<svg viewBox="0 0 120 60" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.4">${[0, 1, 2, 3, 4, 5, 6].map((i) => `<rect x="${12 + i * 14}" y="14" width="12" height="34" rx="2" opacity="${[1, 1, 1, 0.9, 0.35, 0.25, 0.2][i]}"/>`).join('')}</g><g fill="currentColor">${[0, 1, 3, 4, 5].map((i) => `<rect x="${21 + i * 14}" y="14" width="7" height="20" rx="1.5" opacity="${i < 2 ? 0.9 : 0.25}"/>`).join('')}</g></svg>`,
-  clavier: `<svg viewBox="0 0 120 60" aria-hidden="true"><rect x="6" y="18" width="108" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="1.4"/><g fill="currentColor" opacity=".9">${Array.from({ length: 13 }, (_, i) => `<rect x="${10 + i * 8}" y="22" width="6.6" height="20" rx="1" opacity=".55"/>`).join('')}</g><g fill="currentColor">${[0, 1, 3, 4, 5, 7, 8, 10, 11].map((i) => `<rect x="${15 + i * 8}" y="22" width="4" height="12" rx=".8"/>`).join('')}</g><rect x="6" y="46" width="108" height="3" fill="#6d0f1c"/></svg>`,
+  clavier: `<svg viewBox="0 0 120 60" aria-hidden="true"><rect x="6" y="18" width="108" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="1.4"/><g fill="currentColor" opacity=".9">${Array.from({ length: 13 }, (_, i) => `<rect x="${10 + i * 8}" y="22" width="6.6" height="20" rx="1" opacity=".55"/>`).join('')}</g><g fill="currentColor">${[0, 1, 3, 4, 5, 7, 8, 10, 11].map((i) => `<rect x="${15 + i * 8}" y="22" width="4" height="12" rx=".8"/>`).join('')}</g><rect x="6" y="46" width="108" height="3" fill="#9e2c15"/></svg>`,
   queue: `<svg viewBox="0 0 120 60" aria-hidden="true"><path d="M14 8 H92 V14 C92 26 62 28 58 44 C55 54 46 56 36 56 H22 C17 56 14 53 14 48 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M14 8 L104 2" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path d="M92 14 L104 2" stroke="currentColor" stroke-width="1" opacity=".5"/><g stroke="currentColor" stroke-width=".6" opacity=".55">${Array.from({ length: 9 }, (_, i) => `<line x1="${20 + i * 7}" y1="12" x2="${20 + i * 5}" y2="${50 - i * 3}"/>`).join('')}</g><rect x="14" y="4" width="78" height="4" rx="1" fill="currentColor" opacity=".8"/></svg>`,
 };
 
@@ -162,74 +164,112 @@ function pageAccueil(_, { entered }) {
   const started = Object.keys(state.lessonsDone).length > 0;
   const cur = currentPalier(state);
   const instr = instrumentAt(cur);
-  // Les notes dans la langue de l'eleve (Do Re Mi... ou C D E...), et les titres tels que la bibliotheque les affiche
-  const words = [...[60, 62, 64, 65, 67, 69, 71].map((n) => noteName(n)), t('Ode à la joie'), t('Lettre à Élise'), 'Gymnopédie', 'Clair de lune', 'Frère Jacques'];
-  const marquee = [...words, ...words].map((w) => `<span>${esc(w)}</span>`).join('');
+  const known = [...knownKeys()];
+  const hover = window.matchMedia('(hover: hover)').matches;
   const teaser = SONGS.slice(0, 1).concat(SONGS.filter((s) => s.palier > 1).sort((a, b) => a.palier - b.palier).filter((_, i) => i % 3 === 0)).slice(0, 4);
+  const plateText = known.length
+    ? (many(known.length) ? t('Ton clavier : {n} notes déjà encrées, celles que tu connais.', { n: known.length }) : t('Ton clavier : une note déjà encrée, celle que tu connais.'))
+    : t('Le clavier au crayon : chaque touche jouée s’encre.');
+  const plateHint = hover ? t('Passe dessus pour l’entendre.') : t('Touche-le pour l’entendre.');
+  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+  // La table des matieres : chaque palier mene a sa prochaine lecon, ou dit quand il s'ouvre
+  const toc = PALIERS.map((p, i) => {
+    const s = palierStatus(p, state.lessonsDone);
+    const open = isUnlocked(i, state) && p.lecons.length > 0;
+    const j = p.lecons.findIndex((l, k) => !state.lessonsDone[l.id] && lessonUnlocked(i, k, state));
+    const target = p.lecons[j >= 0 ? j : 0];
+    const right = p.bientot ? t('bientôt')
+      : s.complete ? t('fait')
+        : open ? t('{done} leçons sur {total}', { done: s.done, total: s.total })
+          : t('après le palier {n}', { n: p.id - 1 });
+    // Le prof entoure le palier en cours et coche ceux qui sont faits, au crayon rouge
+    const here = p.id === cur && !s.complete;
+    const row = `<span class="n" ${here ? 'data-pencil="circle"' : ''}>${ROMAN[i]}</span><span class="t">${esc(p.titre)}</span><span class="d" aria-hidden="true"></span><span class="r" ${s.complete ? 'data-pencil="tick"' : ''}>${right}</span><p class="sub">${fr(esc(p.resume))}</p>`;
+    return `<li class="${open ? '' : 'locked'} ${s.complete ? 'done' : ''} ${here ? 'current' : ''}" data-reveal style="--d:${i * 50}ms">${open && target ? `<a href="#/lecon/${target.id}">${row}</a>` : `<span>${row}</span>`}</li>`;
+  }).join('');
   app.innerHTML = `
-    <section class="hero">
-      <div class="hero-canvas" id="hero-canvas"></div>
-      <div class="hero-content">
-        <div class="eyebrow" data-reveal>${t('Ton prof de piano, en 3D')}</div>
-        <h1 data-split>${t('Apprends le piano, <span class="grad-text">une touche</span> après l’autre')}</h1>
-        <p class="lead" data-reveal style="--d:220ms">${fr(t('Le prof te montre sur son piano, tu rejoues sur le tien. Le site t’écoute, te dit si c’est juste, et ton instrument grandit avec toi.'))}</p>
-        <div class="hero-actions" data-reveal style="--d:320ms">
-          ${started && nxt ? `<a href="#/lecon/${nxt.lecon.id}" class="btn">${t('Reprendre : {titre}', { titre: esc(nxt.lecon.titre) })}</a>` : `<a href="${needsBilan() ? '#/bilan' : '#/lecon/1-1'}" class="btn">${t('Commencer')}</a>`}
-          <a href="#/piano" class="btn ghost">${started ? t('Mon piano') : t('Essayer le piano')}</a>
+    <section class="cover">
+      <div class="cover-top" data-reveal><span>${t('Méthode de piano en huit paliers')}</span><span>${t('pour débuter, ou pour reprendre')}</span></div>
+      <h1 data-split>${t('Apprends le piano, <em data-pencil="under">une touche</em> après l’autre')}</h1>
+      <div class="cover-grid">
+        <div class="cover-text">
+          <p class="lead" data-reveal style="--d:220ms">${fr(t('Le prof te montre sur son piano, tu rejoues sur le tien. Le site t’écoute, te dit si c’est juste, et ton instrument grandit avec toi.'))}</p>
+          <div class="hero-actions" data-reveal style="--d:320ms">
+            ${started && nxt ? `<a href="#/lecon/${nxt.lecon.id}" class="btn">${t('Reprendre : {titre}', { titre: esc(nxt.lecon.titre) })}</a>` : `<a href="${needsBilan() ? '#/bilan' : '#/lecon/1-1'}" class="btn">${t('Commencer')}</a>`}
+            <a href="#/piano" class="btn ghost">${started ? t('Mon piano') : t('Essayer le piano')}</a>
+          </div>
+          <dl class="cover-facts" data-reveal style="--d:420ms">
+            ${[
+              [PALIERS.length, t('paliers')],
+              [PALIERS.reduce((n, p) => n + p.lecons.length, 0), t('leçons avec le prof')],
+              [SONGS.length, t('morceaux')],
+              [EAR_GAMES.length + FICHES.length, t('jeux d’oreille et fiches')],
+            ].map(([n, l]) => `<div><dt>${n}</dt><dd>${l}</dd></div>`).join('')}
+          </dl>
         </div>
+        <figure class="cover-figure" data-reveal style="--d:120ms">
+          <div class="plate cover-plate"><div class="hero-canvas" id="hero-canvas"></div></div>
+          <figcaption class="caption"><b>${t('Planche I.')}</b><span>${fr(plateText)} ${fr(plateHint)}</span></figcaption>
+        </figure>
       </div>
-      <div class="hero-hint">${t('PASSE SUR LES TOUCHES')}</div>
     </section>
 
     ${started ? todayCard() : ''}
-    <div class="marquee" aria-hidden="true"><div class="marquee-track">${marquee}</div></div>
 
     <section class="section">
-      <div class="eyebrow" data-reveal>${t('Comment ça marche')}</div>
-      <h2 data-split>${t('Trois temps, à chaque leçon')}</h2>
-      <div class="grid steps">
+      <div class="section-head">
+        <div><div class="eyebrow" data-reveal>${t('Comment ça marche')}</div><h2 data-split>${t('Trois temps, à chaque leçon')}</h2></div>
+      </div>
+      <ol class="movements">
         ${[
-          [t('Le prof montre'), t('Il joue l’exercice lentement sur son piano. Tu vois ses doigts, les touches s’allument.')],
+          [t('Le prof montre'), t('Il joue l’exercice lentement sur son piano. Tu vois ses doigts, et chaque touche qu’il joue prend la couleur de sa main.')],
           [t('Tu joues chez toi'), t('Sur ton vrai piano : pose le téléphone sur le pupitre, le site t’écoute au micro. Ou joue à l’écran.')],
           [t('Le site attend'), t('Il attend la bonne note, sans chrono. Il t’aide si tu hésites. Chaque leçon réussie rapporte de l’XP.')],
-        ].map(([title, d], i) => `
-          <div class="card" data-reveal style="--d:${i * 90}ms">
-            <span class="num">0${i + 1}</span>
-            <div class="keys-deco">${[0, 1, 2, 3, 4].map((k) => `<i style="--k:${k + i * 2}"></i>`).join('')}</div>
-            <h3>${title}</h3><p class="hint" style="margin:0">${fr(d)}</p>
-          </div>`).join('')}
+        ].map(([title, d], i) => `<li data-reveal style="--d:${i * 90}ms"><b>${ROMAN[i]}</b><h3>${title}</h3><p>${fr(d)}</p></li>`).join('')}
+      </ol>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div><div class="eyebrow" data-reveal>${t('Table des matières')}</div><h2 data-split>${t('Huit paliers, <em>de la première note au concert</em>')}</h2></div>
+        <a class="link" href="#/parcours" data-reveal>${t('Voir le parcours')}</a>
       </div>
+      <ol class="toc">${toc}</ol>
     </section>
 
     <section class="section grows">
-      <div class="eyebrow" data-reveal>${t('Ton instrument')}</div>
-      <h2 data-split>${t('Il grandit <span class="grad-text">avec toi</span>')}</h2>
-      <p class="lead" data-reveal>${fr(t('Personne ne commence devant un piano de concert. Tu commences sur un clavier de lumière ; chaque note apprise s’allume pour de bon. Puis la lumière prend corps, et le piano à queue t’attend.'))}</p>
+      <div class="section-head">
+        <div><div class="eyebrow" data-reveal>${t('Ton instrument')}</div><h2 data-split>${t('Il grandit <em>avec toi</em>')}</h2></div>
+      </div>
+      <p class="lead" data-reveal>${fr(t('Personne ne commence devant un piano de concert. Tu commences sur un clavier esquissé au crayon ; chaque note apprise s’encre pour de bon. Puis l’esquisse prend corps, et le piano à queue t’attend.'))}</p>
       <div class="stages">
         ${Object.values(STAGES).map((s, i) => {
           const open = cur >= s.palier;
-          return `<div class="card stage-card ${open ? 'open' : ''} ${instr.stage === s.id ? 'current' : ''}" data-reveal style="--d:${i * 110}ms">
-            <div class="stage-art">${STAGE_ART[s.id]}</div>
-            <span class="tag ${open ? '' : 'grey'}">${instr.stage === s.id ? t('Ton instrument') : open ? t('Débloqué') : t('Palier {n}', { n: s.palier })}</span>
-            <h3>${esc(s.nom)}</h3>
-            <p class="hint">${fr(s.desc)}</p>
-            ${open ? '' : `<a class="link" href="#/piano?apercu=${s.palier}">${t('Aperçu')}</a>`}
-          </div>`;
-        }).join('<div class="stage-arrow" aria-hidden="true"></div>')}
+          return `<figure class="stage-plate ${open ? 'open' : ''} ${instr.stage === s.id ? 'current' : ''}" data-reveal style="--d:${i * 110}ms">
+            <div class="plate stage-art">${STAGE_ART[s.id]}</div>
+            <figcaption>
+              <span class="caption"><b>${t('Planche {n}.', { n: ['II', 'III', 'IV'][i] })}</b>${instr.stage === s.id ? `<span class="tag">${t('Ton instrument')}</span>` : open ? t('Débloqué') : t('Palier {n}', { n: s.palier })}</span>
+              <h3>${esc(s.nom)}</h3>
+              <p class="hint">${fr(s.desc)}</p>
+              ${open ? '' : `<a class="link" href="#/piano?apercu=${s.palier}">${t('Aperçu')}</a>`}
+            </figcaption>
+          </figure>`;
+        }).join('')}
       </div>
     </section>
 
     <section class="section">
-      <div class="eyebrow" data-reveal>${t('Les morceaux')}</div>
-      <h2 data-split>${t('De vrais airs, très vite')}</h2>
+      <div class="section-head">
+        <div><div class="eyebrow" data-reveal>${t('Les morceaux')}</div><h2 data-split>${t('De vrais airs, très vite')}</h2></div>
+        <a class="link" href="#/morceaux" data-reveal>${t('Toute la bibliothèque')} · ${plural(SONGS.length, t('morceau'), t('morceaux'))}</a>
+      </div>
       <div class="grid songs-teaser">
         ${teaser.map((s, i) => songCard(s, i, cur)).join('')}
       </div>
-      <p data-reveal style="margin-top:1.6rem"><a class="btn ghost" href="#/morceaux">${t('Toute la bibliothèque')} · ${plural(SONGS.length, t('morceau'), t('morceaux'))}</a></p>
     </section>
     ${footer()}
   `;
-  const hero = createHeroScene(document.getElementById('hero-canvas'), { unfold: entered });
+  const hero = createHeroScene(document.getElementById('hero-canvas'), { unfold: entered, known });
   bindToday();
   countUp(app);
   return () => { hero.dispose(); app.classList.remove('full'); };
@@ -238,7 +278,7 @@ function pageAccueil(_, { entered }) {
 function footer() {
   return `<footer class="foot">
     <p>${fr(t('Rien ne quitte ton appareil : l’écoute au micro et ta progression restent dans ton navigateur.'))}</p>
-    <p class="credits">${fr(t('Sons de piano : Salamander Grand Piano, Alexander Holm (CC-BY 3.0). Prof 3D : modèle X Bot de Mixamo.'))}</p>
+    <p class="credits">${fr(t('Sons de piano : Salamander Grand Piano, Alexander Holm (CC-BY 3.0). Polices : Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text (SIL OFL). Le prof 3D et les dessins sont faits ici, en code.'))}</p>
   </footer>`;
 }
 
@@ -283,7 +323,7 @@ function pageParcours() {
   app.innerHTML = `
     ${learnNav('parcours')}
     <div class="eyebrow" data-reveal>${t('8 paliers')}</div>
-    <h1 data-split>${t('Ton <span class="grad-text">parcours</span>')}</h1>
+    <h1 data-split>${t('Ton <span class="pencil-word">parcours</span>')}</h1>
     <p class="lead" data-reveal style="--d:200ms">${fr(t('Du tout premier do jusqu’aux vrais morceaux. Chaque palier se termine par un morceau, et chaque palier fait grandir ton instrument.'))}</p>
     <div class="placement card" data-reveal style="--d:260ms">
       <div>
@@ -353,7 +393,7 @@ function pagePiano(_, { query }) {
         <div class="eyebrow" data-reveal>${apercu ? t('Aperçu · palier {n}', { n: apercu }) : t('Mon piano')}</div>
         <h1 data-split>${esc(STAGES[look(instr)].nom)}</h1>
       </div>
-      <span class="now-playing grad-text" id="now" aria-live="off"></span>
+      <span class="now-playing pencil-word" id="now" aria-live="off"></span>
     </div>
     ${apercu ? `<div class="preview-banner" data-reveal><span>${fr(t('Voici ton instrument tel qu’il sera au palier {n}. Ta progression ne change pas.', { n: apercu }))}</span><a class="btn ghost small" href="#/piano">${t('Revenir à mon piano')}</a></div>` : ''}
     <div class="stage piano-stage" data-reveal style="--d:100ms">
@@ -776,19 +816,67 @@ function pagePiano(_, { query }) {
 }
 
 // ---------- Morceaux ----------
+// L'incipit : les premieres notes du morceau, gravees sur une petite portee en cle de sol.
+// Chaque carte montre la vraie musique qu'elle ouvre ; au survol, les notes se lisent une a une.
+const LETTER = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+const diatonic = (m) => (Math.floor(m / 12) - 1) * 7 + LETTER[m % 12];
+const incipits = new Map();
+function incipit(s) {
+  if (incipits.has(s.id)) return incipits.get(s.id);
+  let src = s;
+  if (!s.droite && !s.demo && s.lecon) src = findLesson(s.lecon)?.lecon || s;
+  let events = [];
+  try {
+    events = parseScore({ droite: src.droite || '', mesure: src.mesure || s.mesure || '4/4', demo: src.demo || null }).events.filter((e) => e.hand !== 'L');
+  } catch (e) { /* partition illisible : pas d'incipit */ }
+  if (!events.length) { incipits.set(s.id, ''); return ''; }
+  const per = beatsPerBar(src.mesure || s.mesure || '4/4');
+  const span = per * 2;
+  const notes = events.filter((e) => e.start < span).slice(0, 12);
+  const W = 240;
+  const S = 5.2;
+  const top = 15;
+  const bottom = top + 4 * S;
+  const x0 = 34;
+  const ppb = (W - x0 - 12) / span;
+  const yOf = (m) => bottom - (diatonic(m) - diatonic(64)) * (S / 2);
+  const f = (v) => v.toFixed(1);
+  let out = `<svg class="incipit" viewBox="0 0 ${W} 58" aria-hidden="true"><g class="staff">`;
+  for (let i = 0; i < 5; i++) out += `<line x1="0" x2="${W}" y1="${f(top + i * S)}" y2="${f(top + i * S)}"/>`;
+  out += `<line class="bar" x1="${f(x0 + per * ppb - 5)}" x2="${f(x0 + per * ppb - 5)}" y1="${top}" y2="${f(bottom)}"/></g>`;
+  out += `<text class="clef" x="2" y="${f(bottom + S * 0.9)}" font-size="${f(S * 6.7)}">\u{1D11E}</text>`;
+  notes.forEach((e, k) => {
+    const x = x0 + e.start * ppb + 4;
+    const y = yOf(e.midi);
+    for (let ly = bottom + S; ly <= y + 0.1; ly += S) out += `<line class="ledger" x1="${f(x - 5.5)}" x2="${f(x + 5.5)}" y1="${f(ly)}" y2="${f(ly)}"/>`;
+    for (let ly = top - S; ly >= y - 0.1; ly -= S) out += `<line class="ledger" x1="${f(x - 5.5)}" x2="${f(x + 5.5)}" y1="${f(ly)}" y2="${f(ly)}"/>`;
+    if (isBlack(e.midi)) out += `<text class="acc" x="${f(x - 10)}" y="${f(y + 3)}">♯</text>`;
+    if (e.dur < 4) {
+      const up = y >= top + 2 * S;
+      const sx = up ? x + 3.1 : x - 3.1;
+      const tip = up ? y - 3.4 * S : y + 3.4 * S;
+      out += `<line class="stem" x1="${f(sx)}" x2="${f(sx)}" y1="${f(y)}" y2="${f(tip)}"/>`;
+      // Croche : un crochet ; double croche : deux
+      for (let q = 0; q < (e.dur <= 0.25 ? 2 : e.dur <= 0.5 ? 1 : 0); q++) {
+        const fy = tip + (up ? q * 3.2 : -q * 3.2);
+        out += `<path class="flag" d="M ${f(sx)} ${f(fy)} c 0.6 ${up ? 3 : -3} 4.6 ${up ? 3.6 : -3.6} 4 ${up ? 8 : -8}"/>`;
+      }
+    }
+    out += `<ellipse class="${e.dur >= 2 ? 'h' : ''}" style="--i:${k}" cx="${f(x)}" cy="${f(y)}" rx="3.4" ry="2.5" transform="rotate(-20 ${f(x)} ${f(y)})"/>`;
+  });
+  out += '</svg>';
+  incipits.set(s.id, out);
+  return out;
+}
+
 function songCard(s, i, cur) {
   const open = songOpen(s, cur);
   const st = getState();
   const done = s.lecon ? st.lessonsDone[s.lecon] : st.songsDone[s.id];
-  let seed = [...s.id].reduce((a, c) => a + c.charCodeAt(0), 0);
-  const wave = Array.from({ length: 22 }, (_, k) => {
-    seed = (seed * 9301 + 49297) % 233280;
-    return `<i style="--h:${25 + (seed / 233280) * 75};--k:${k}"></i>`;
-  }).join('');
   const href = s.lecon ? `#/lecon/${s.lecon}` : `#/morceau/${s.id}`;
   return `
     <a class="card song ${open ? '' : 'locked'}" href="${href}" data-reveal style="--d:${(i % 3) * 80}ms">
-      <div class="wave">${wave}</div>
+      ${incipit(s)}
       <h3>${esc(s.titre)}</h3>
       <span class="hint">${esc([s.compositeur, s.annee].filter(Boolean).join(' · '))}</span>
       <div class="meta">
@@ -808,7 +896,7 @@ function pageMorceaux() {
   let i = 0;
   app.innerHTML = `
     <div class="eyebrow" data-reveal>${t('Bibliothèque')}</div>
-    <h1 data-split>${t('Les <span class="grad-text">morceaux</span>')}</h1>
+    <h1 data-split>${t('Les <span class="pencil-word">morceaux</span>')}</h1>
     <p class="lead" data-reveal style="--d:200ms">${fr(SONGS.length > 1
       ? t('{n} morceaux, du plus simple au plus beau. Les notes descendent vers les touches : écoute-les, puis joue-les à ton rythme.', { n: SONGS.length })
       : t('Les morceaux, du plus simple au plus beau. Les notes descendent vers les touches : écoute-les, puis joue-les à ton rythme.'))}</p>
@@ -857,11 +945,10 @@ function pageProfil() {
     </div>`).join('');
   app.innerHTML = `
     <div class="eyebrow" data-reveal>${t('Profil')}</div>
-    <h1 data-split>${name ? t('{name}, ta <span class="grad-text">progression</span>', { name: esc(name) }) : t('Ta <span class="grad-text">progression</span>')}</h1>
+    <h1 data-split>${name ? t('{name}, ta <span class="pencil-word">progression</span>', { name: esc(name) }) : t('Ta <span class="pencil-word">progression</span>')}</h1>
     <div class="profile-top">
       <div class="ring" data-reveal>
         <svg viewBox="0 0 190 190">
-          <defs><linearGradient id="ringgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3ef2ff"/><stop offset="1" stop-color="#8b5cff"/></linearGradient></defs>
           <circle class="track" cx="95" cy="95" r="84" fill="none" stroke-width="10"/>
           <circle class="bar" id="ring-bar" cx="95" cy="95" r="84" fill="none" stroke-width="10" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
         </svg>
@@ -880,7 +967,7 @@ function pageProfil() {
         <a class="btn ghost small" href="#/piano">${esc(STAGES[instr.stage].nom)}</a>
       </div>
       ${keysMap(known)}
-      <p class="hint">${fr(t('Chaque note réussie dans une leçon s’allume ici, et sur ton piano.'))}</p>
+      <p class="hint">${fr(t('Chaque note réussie dans une leçon s’encre ici, et sur ton piano.'))}</p>
     </section>
     <h2 data-split>${t('Badges')}</h2>
     <div class="badges">${badges}</div>
@@ -898,7 +985,7 @@ function pageReglages() {
   const instr = instrumentAt(currentPalier(getState()));
   app.innerHTML = `
     <div class="eyebrow" data-reveal>${t('Réglages')}</div>
-    <h1 data-split>${t('À ta <span class="grad-text">main</span>')}</h1>
+    <h1 data-split>${t('À ta <span class="pencil-word">main</span>')}</h1>
     <div class="settings">
       <section class="card set" data-reveal>
         <h3 id="set-lang-title">${t('Langue · Language')}</h3>
@@ -1081,7 +1168,7 @@ function pageIntrouvable() {
   app.innerHTML = `
     <div class="empty">
       <div class="eyebrow">${t('Erreur 404')}</div>
-      <h1 data-split>${t('Fausse <span class="grad-text">note</span>')}</h1>
+      <h1 data-split>${t('Fausse <span class="pencil-word">note</span>')}</h1>
       <p class="lead" style="margin:0 auto 1.5rem">${fr(t('Cette page n’existe pas. On reprend depuis le début ?'))}</p>
       <a href="#/" class="btn">${t('Retour à l’accueil')}</a>
     </div>`;

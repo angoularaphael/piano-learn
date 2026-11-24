@@ -77,25 +77,35 @@ function grainTexture() {
   return t;
 }
 
+// La plaque du facteur, a la feuille d'or sur l'ebene, gravee en Didone comme les pianos anciens
+const PLATE_FONT = '600 60px "Bodoni Moda", "Bodoni 72", Didot, Georgia, serif';
+
 function nameplate(text) {
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 128;
   const g = c.getContext('2d');
-  g.fillStyle = '#050507';
-  g.fillRect(0, 0, 1024, 128);
-  const grd = g.createLinearGradient(0, 30, 0, 100);
-  grd.addColorStop(0, '#f6e1a6');
-  grd.addColorStop(0.5, '#c9a24a');
-  grd.addColorStop(1, '#8a6a26');
-  g.fillStyle = grd;
-  g.font = '600 54px Unbounded, Georgia, serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.letterSpacing = '18px';
-  g.fillText(text, 512, 66);
+  const draw = () => {
+    g.fillStyle = '#050507';
+    g.fillRect(0, 0, 1024, 128);
+    const grd = g.createLinearGradient(0, 30, 0, 100);
+    grd.addColorStop(0, '#f6e1a6');
+    grd.addColorStop(0.5, '#c9a24a');
+    grd.addColorStop(1, '#8a6a26');
+    g.fillStyle = grd;
+    g.font = PLATE_FONT;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.letterSpacing = '16px';
+    g.fillText(text, 512, 66);
+  };
+  draw();
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
+  // Si la police n'etait pas encore chargee, on regrave la plaque des qu'elle l'est
+  if (document.fonts && !document.fonts.check(PLATE_FONT, text)) {
+    document.fonts.load(PLATE_FONT, text).then(() => { draw(); t.needsUpdate = true; }).catch(() => {});
+  }
   return t;
 }
 
@@ -327,6 +337,7 @@ export function buildGrand({ width: W, keyLength = 6, floorY = -30, shadows = tr
   const name = new THREE.Mesh(new THREE.PlaneGeometry(9, 1.125), plateMat);
   disposables.push(name.geometry);
   name.position.set(0, 0.05, 0.16);
+  name.renderOrder = 3; // la plaque reste lisible par-dessus le rouleau du pianola
   fall.add(board2, name);
   fall.position.set(0, 0.95, front + 0.12);
   fall.rotation.x = -0.12;

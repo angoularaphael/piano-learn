@@ -1,7 +1,8 @@
 // Page d'une lecon.
 // Le prof montre, puis l'eleve rejoue note par note : le site attend la bonne note, qu'elle vienne
 // du micro (vrai piano), de l'ecran, du clavier d'ordinateur ou d'un piano numerique.
-// Chaque note apprise s'allume pour de bon sur le clavier.
+// Chaque note apprise s'encre pour de bon sur le clavier.
+import { PAL, handColor } from './palette.js';
 import { mountPiano } from './mount.js';
 import { noteName } from './notes.js';
 import { parseScore } from './score.js';
@@ -68,7 +69,7 @@ export function renderLesson(app, id) {
     app.innerHTML = `
       <div class="empty">
         <div class="eyebrow">${t('Pas encore')}</div>
-        <h1 data-split>${t('Une touche <span class="grad-text">après l’autre</span>')}</h1>
+        <h1 data-split>${t('Une touche <span class="pencil-word">après l’autre</span>')}</h1>
         <p class="lead" style="margin:0 auto 1.6rem">${fr(prev ? t('Cette leçon s’ouvre quand tu as fini « {titre} ».', { titre: esc(prev.titre) }) : t('Ce palier s’ouvre quand tu as fini le précédent.'))}</p>
         <a class="btn" href="${prev ? `#/lecon/${prev.id}` : '#/parcours'}">${prev ? t('Aller à cette leçon') : t('Voir le parcours')}</a>
       </div>`;
@@ -260,7 +261,7 @@ export function renderLesson(app, id) {
     chips[idx]?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
     got = new Set();
     errorsHere = 0;
-    st.notes.forEach((n) => piano.highlight(n.midi, '#3ef2ff'));
+    st.notes.forEach((n) => piano.highlight(n.midi, handColor(n.hand)));
     sheet?.focus(st.notes.map(eventIndex));
     const first = st.notes[0];
     piano.showFinger(first.midi, first.finger);
@@ -311,15 +312,15 @@ export function renderLesson(app, id) {
     if (match) {
       got.add(match.midi);
       const complete = fromMic || st.notes.every((n) => got.has(n.midi));
-      if (fromMic) piano.flash(match.midi, '#3dffa8');
+      if (fromMic) piano.flash(match.midi, PAL.ok);
       if (!complete) return;
       st.notes.forEach((n) => {
         sheet?.mark(eventIndex(n), true);
-        piano.flash(n.midi, '#3dffa8');
+        piano.flash(n.midi, PAL.ok);
         if (discover(n.midi)) {
           piano.discover(n.midi);
           fresh.push(n.midi);
-          showToast(`<b>${t('Nouvelle note : {nom}', { nom: noteName(n.midi) })}</b><span>${fr(t('Elle reste allumée sur ton clavier.'))}</span>`);
+          showToast(`<b>${t('Nouvelle note : {nom}', { nom: noteName(n.midi) })}</b><span>${fr(t('Elle est encrée pour de bon sur ton clavier.'))}</span>`);
         }
       });
       if (getSettings().vibration && source === 'touch') navigator.vibrate?.([4, 30, 8]);
@@ -330,7 +331,7 @@ export function renderLesson(app, id) {
     }
     errors++;
     errorsHere++;
-    piano.flash(midi, '#ff5470');
+    piano.flash(midi, PAL.graphite);
     const chip = chips[idx];
     chip?.classList.remove('bad');
     void chip?.offsetWidth;

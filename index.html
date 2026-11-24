@@ -6,16 +6,16 @@
   <title>Piano Learn · Apprendre le piano pas à pas</title>
   <meta name="description" content="Apprendre le piano à la maison avec un prof en 3D : il montre, tu joues sur ton piano, le site écoute. Et ton instrument grandit avec toi.">
   <meta name="robots" content="noindex, nofollow">
-  <meta name="theme-color" content="#04050b">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#f3eee3">
+  <meta name="color-scheme" content="light">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Piano Learn">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="preload" href="fonts/Unbounded-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="fonts/SpaceGrotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preload" href="fonts/BodoniModa.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/AtkinsonNext.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/style.css">
   <script type="importmap">
@@ -47,17 +47,11 @@
 
   <div class="sweep" id="sweep" aria-hidden="true"></div>
 
-  <div class="ambient" aria-hidden="true">
-    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
-    <div class="gridfloor"></div>
-  </div>
-  <div class="grain" aria-hidden="true"></div>
-  <div class="cursor-glow" id="cursor-glow" aria-hidden="true"></div>
 
   <header class="topbar">
     <a href="#/" class="brand" aria-label="Piano Learn, accueil">
       <img src="favicon.svg" alt="" width="30" height="30">
-      <span>PIANO<b>LEARN</b></span>
+      <span>Piano <b>Learn</b></span>
     </a>
     <nav class="nav" id="nav" aria-label="Navigation principale">
       <a href="#/parcours" data-route="parcours">Parcours</a>
@@ -65,7 +59,6 @@
       <a href="#/morceaux" data-route="morceaux">Morceaux</a>
       <a href="#/profil" data-route="profil">Profil</a>
     </nav>
-    <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <a href="#/profil" class="xp-chip" id="xp-chip" title="Ton niveau">
       <span class="xp-level" id="xp-level">NIV 1</span>
       <span class="xp-bar"><span class="xp-fill" id="xp-fill"></span></span>

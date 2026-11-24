@@ -2,23 +2,27 @@
 // - Son squelette est construit ici, avec les noms d'os qu'attend la pose procedurale (teacher.js).
 // - Tout le corps tient en un seul maillage anime, donc une seule passe de rendu : chaque piece
 //   suit son os sans se deformer, comme un mannequin d'artiste.
-// - Le bout de chaque doigt s'allume quand il joue, dans la couleur de sa main (cyan a droite,
-//   violet a gauche) : la meme que les numeros de doigts poses sur les touches.
-// - Le collier bat la mesure quand il joue ; le visage est un ecran (yeux qui clignent, suivent
-//   la touche, sourient, s'inquietent).
+// - Le doigt qui joue se teinte comme trempe dans l'encre, dans la couleur de sa main (vermillon a
+//   droite, bleu a gauche) : les deux crayons du prof, les memes que les doigtes poses sur les touches.
+// - Le collier de laiton rougit sur chaque temps quand il joue ; les oreilles rougissent quand il
+//   t'ecoute (le rouge de l'enregistrement). Le visage est dessine a l'encre sur la porcelaine
+//   (yeux qui clignent, suivent la touche, sourient, s'inquietent).
 // Reperes : metres, personnage tourne vers +Z, sa main gauche du cote +X (convention des
 // squelettes de personnages). teacher.js le met a l'echelle du piano et le retourne vers le clavier.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { PAL } from './palette.js';
 
 export const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
-export const HAND_COLOR = { Right: new THREE.Color('#3ef2ff'), Left: new THREE.Color('#a98bff') };
-// Canaux de lumiere du corps : 1-5 doigts de la main gauche, 6-10 main droite, 11 collier, 12 oreilles
+export const HAND_COLOR = { Right: new THREE.Color(PAL.right), Left: new THREE.Color(PAL.left) };
+// Canaux d'encre du corps (couleur + dose, 0 a 1) : 1-5 doigts de la main gauche, 6-10 main droite,
+// 11 collier, 12 oreilles
 export const GLOW = { finger: (side, i) => (side === 'Left' ? 1 : 6) + i, collar: 11, ears: 12, count: 13 };
 
-const PORCELAIN = new THREE.Color('#f1ece4');
-const GRAPHITE = new THREE.Color('#252938');
+const PORCELAIN = new THREE.Color('#f7f2ea');
+const GRAPHITE = new THREE.Color('#2b2520');
+const BRASS = new THREE.Color(PAL.brass);
 
 // ---------- Squelette ----------
 // Doigts : decalage de chaque articulation par rapport a la precedente (cote gauche, x vers l'exterieur)
@@ -162,26 +166,33 @@ function visorGeometry(segX = 48, segY = 24) {
   return g;
 }
 
-// ---------- Materiau : porcelaine, articulations graphite, lumieres par canal ----------
+// ---------- Materiau : porcelaine, articulations graphite, encre par canal ----------
+// Chaque canal porte une couleur et une dose : la piece se teinte (melange de la couleur de base vers
+// l'encre), elle ne s'allume pas. uInkGlow ajoute un peu de lumiere propre, pour la salle de concert.
 function bodyMaterial(uniforms) {
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.36, metalness: 0.04 });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.02 });
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uGlow = uniforms.uGlow;
     shader.uniforms.uRim = uniforms.uRim;
+    shader.uniforms.uInkGlow = uniforms.uInkGlow;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
 attribute float aGlow;
 attribute float aGlowK;
-uniform vec3 uGlow[${GLOW.count}];
-varying vec3 vGlow;`)
+uniform vec4 uGlow[${GLOW.count}];
+varying vec4 vInk;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vGlow = uGlow[int(aGlow + 0.5)] * aGlowK;`);
+vec4 ink = uGlow[int(aGlow + 0.5)];
+vInk = vec4(ink.rgb, ink.a * aGlowK);`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-varying vec3 vGlow;
-uniform vec3 uRim;`)
+varying vec4 vInk;
+uniform vec3 uRim;
+uniform float uInkGlow;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+diffuseColor.rgb = mix(diffuseColor.rgb, vInk.rgb, clamp(vInk.a, 0.0, 1.0));`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-totalEmissiveRadiance += vGlow;
+totalEmissiveRadiance += vInk.rgb * clamp(vInk.a, 0.0, 1.0) * uInkGlow;
 float rimF = 1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
 totalEmissiveRadiance += uRim * rimF * rimF * rimF;`);
   };
@@ -190,18 +201,12 @@ totalEmissiveRadiance += uRim * rimF * rimF * rimF;`);
 }
 
 // ---------- Visage ----------
-const EYE = '#d4fcff';
-const HALO = 'rgba(62,242,255,0.95)';
-
-function roundRect(g, x, y, w, h, r) {
-  g.beginPath();
-  g.moveTo(x + r, y);
-  g.arcTo(x + w, y, x + w, y + h, r);
-  g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r);
-  g.arcTo(x, y, x + w, y, r);
-  g.closePath();
-}
+// Un visage dessine a l'encre sur la porcelaine, comme un croquis de carnet. Le canevas est
+// transparent : seule l'encre se pose sur la tete. Un reflet de papier laisse en reserve donne vie
+// au regard ; deux touches de crayon rouge aux joues quand il est content.
+const INK = '#1c1814';
+const PAPER = '#f7f2ea';
+const BLUSH = 'rgba(192,57,31,0.2)';
 
 class Face {
   constructor() {
@@ -244,55 +249,84 @@ class Face {
 
   #draw(expr, blink, lx, ly) {
     const g = this.g;
-    g.fillStyle = '#000';
-    g.fillRect(0, 0, 256, 128);
+    g.clearRect(0, 0, 256, 128);
     g.save();
     // La visiere est un peu moins large que le canevas : on etire a peine pour garder des yeux ronds
     g.translate(128, 0);
     g.scale(1.08, 1);
     g.translate(-128, 0);
-    g.shadowColor = HALO;
-    g.shadowBlur = 16;
-    g.fillStyle = EYE;
-    g.strokeStyle = EYE;
     g.lineCap = 'round';
-    const cy = 56 + ly;
-    [128 - 38 + lx, 128 + 38 + lx].forEach((x, k) => {
+    g.lineJoin = 'round';
+    const cy = 58 + ly;
+    if (expr === 'happy') {
+      g.fillStyle = BLUSH;
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        g.ellipse(128 + s * 56 + lx * 0.6, cy + 24, 16, 8, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+    g.fillStyle = INK;
+    g.strokeStyle = INK;
+    [128 - 36 + lx, 128 + 36 + lx].forEach((x, k) => {
       const inner = k === 0 ? 1 : -1; // cote du nez
       if (expr === 'happy') {
-        g.lineWidth = 10;
+        g.lineWidth = 7;
         g.beginPath();
-        g.arc(x, cy + 10, 16, Math.PI * 1.12, Math.PI * 1.88);
+        g.arc(x, cy + 9, 13, Math.PI * 1.14, Math.PI * 1.86);
         g.stroke();
         return;
       }
-      let w = 27;
-      let h = 40;
-      if (expr === 'focus') { w = 32; h = 19; }
-      if (expr === 'wow') { w = 35; h = 35; }
-      if (expr === 'sorry') { w = 25; h = 30; }
-      h = Math.max(3, h * (1 - blink));
-      roundRect(g, x - w / 2, cy - h / 2, w, h, Math.min(w, h) / 2);
+      let w = 26;
+      let h = 36;
+      if (expr === 'focus') { w = 28; h = 17; }
+      if (expr === 'wow') { w = 31; h = 33; }
+      if (expr === 'sorry') { w = 22; h = 28; }
+      h = Math.max(2.6, h * (1 - blink));
+      g.beginPath();
+      g.ellipse(x, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
       g.fill();
+      if (h > 10) {
+        // Le reflet : un point de papier laisse en reserve, du cote de la lumiere
+        g.fillStyle = PAPER;
+        g.beginPath();
+        g.arc(x + w * 0.17, cy - h * 0.2, Math.min(w, h) * 0.17, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = INK;
+      }
+      if (expr === 'focus') {
+        // Paupiere appliquee : un trait courbe juste au-dessus
+        g.lineWidth = 3.6;
+        g.beginPath();
+        g.moveTo(x - 16, cy - 11);
+        g.quadraticCurveTo(x, cy - 16, x + 16, cy - 11);
+        g.stroke();
+      }
       if (expr === 'sorry') {
         // Sourcils inquiets : le bout cote nez remonte
-        g.lineWidth = 5;
+        g.lineWidth = 4.2;
         g.beginPath();
-        g.moveTo(x - 16 * inner, cy - 25);
-        g.lineTo(x + 13 * inner, cy - 33);
+        g.moveTo(x - 15 * inner, cy - 20);
+        g.lineTo(x + 11 * inner, cy - 28);
         g.stroke();
       }
     });
     if (expr === 'happy') {
-      g.lineWidth = 6;
+      g.lineWidth = 4.6;
       g.beginPath();
-      g.arc(128 + lx, 80 + ly, 17, Math.PI * 0.2, Math.PI * 0.8);
+      g.arc(128 + lx, 82 + ly, 14, Math.PI * 0.18, Math.PI * 0.82);
       g.stroke();
     }
     if (expr === 'wow') {
-      g.lineWidth = 5;
+      g.lineWidth = 4;
       g.beginPath();
-      g.arc(128 + lx, 94 + ly, 6, 0, Math.PI * 2);
+      g.ellipse(128 + lx, 97 + ly, 5, 6.5, 0, 0, Math.PI * 2);
+      g.stroke();
+    }
+    if (expr === 'sorry') {
+      g.lineWidth = 3.6;
+      g.beginPath();
+      g.arc(128 + lx, 104 + ly, 10, Math.PI * 1.22, Math.PI * 1.78);
       g.stroke();
     }
     g.restore();
@@ -325,9 +359,9 @@ export function buildTeacherBody() {
   part(turned(at('Spine2', 0, 0, 0.004), [[-0.118, 0], [-0.116, 0.1], [-0.07, 0.124], [0, 0.147], [0.06, 0.163], [0.1, 0.167], [0.13, 0.156], [0.152, 0.126], [0.166, 0.08], [0.172, 0]], 0.64), 'Spine2', PORCELAIN);
   part(egg(at('Spine', 0, 0.055, 0), 0.104, 0.08, 0.074), 'Spine', GRAPHITE);
   part(turned(at('Hips', 0, 0, 0.004), [[-0.106, 0], [-0.092, 0.098], [-0.06, 0.14], [-0.02, 0.152], [0.03, 0.141], [0.068, 0.112], [0.088, 0.066], [0.094, 0]], 0.72), 'Hips', PORCELAIN);
-  part(new THREE.TorusGeometry(0.05, 0.0085, 12, 48).rotateX(Math.PI / 2).translate(0, P('Neck').y + 0.004, P('Neck').z), 'Spine2', GRAPHITE, GLOW.collar);
+  part(new THREE.TorusGeometry(0.05, 0.0085, 12, 48).rotateX(Math.PI / 2).translate(0, P('Neck').y + 0.004, P('Neck').z), 'Spine2', BRASS, GLOW.collar);
   part(limb(P('Neck'), P('Head'), 0.04, 0.036), 'Neck', GRAPHITE);
-  // Tete et oreilles : un anneau qui s'allume quand il ecoute
+  // Tete et oreilles : un anneau qui rougit quand il ecoute
   const headC = at('Head', 0, 0.112, 0.008);
   part(headGeometry(headC), 'Head', PORCELAIN);
   for (const s of [1, -1]) {
@@ -397,8 +431,10 @@ export function buildTeacherBody() {
   geos.forEach((g) => g.dispose());
 
   const uniforms = {
-    uGlow: { value: Array.from({ length: GLOW.count }, () => new THREE.Vector3()) },
-    uRim: { value: new THREE.Vector3(0.12, 0.28, 0.36) },
+    // Vector4() vaut (0, 0, 0, 1) par defaut : la dose d'encre doit partir de zero
+    uGlow: { value: Array.from({ length: GLOW.count }, () => new THREE.Vector4(0, 0, 0, 0)) },
+    uRim: { value: new THREE.Vector3(0, 0, 0) },
+    uInkGlow: { value: 0 },
   };
   const mesh = new THREE.SkinnedMesh(geometry, bodyMaterial(uniforms));
   mesh.frustumCulled = false;
@@ -406,13 +442,13 @@ export function buildTeacherBody() {
   const skeleton = new THREE.Skeleton(list);
   mesh.bind(skeleton);
 
-  // Visière : un ecran de verre fume pose sur le visage
+  // Le visage : une decalcomanie d'encre posee a fleur de porcelaine (le canevas est transparent)
   const face = new Face();
   const visor = new THREE.Mesh(visorGeometry(), new THREE.MeshStandardMaterial({
-    color: '#04050a', roughness: 0.14, metalness: 0.55,
-    emissive: '#ffffff', emissiveMap: face.tex, emissiveIntensity: 1.9,
+    map: face.tex, transparent: true, depthWrite: false, roughness: 0.5, metalness: 0,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
   }));
+  visor.userData.noShadow = true;
   visor.position.copy(headC).sub(P('Head'));
   visor.frustumCulled = false;
   bones.Head.add(visor);

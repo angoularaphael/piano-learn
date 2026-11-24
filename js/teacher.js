@@ -5,9 +5,10 @@
 import * as THREE from 'three';
 import { isBlack } from './notes.js';
 import { buildTeacherBody, FINGERS, HAND_COLOR, GLOW } from './teacher-body.js';
+import { PAL } from './palette.js';
 
 const M = 42.5; // unites du piano par metre (1 touche blanche = 2,35 cm)
-const COLLAR = new THREE.Color('#3ef2ff');
+const RED = new THREE.Color(PAL.right); // le crayon rouge : le temps qui tombe, l'oreille qui ecoute
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -110,7 +111,7 @@ export class Teacher {
     const shadows = piano.shadows;
     model.traverse((o) => {
       if (!o.isMesh) return;
-      o.castShadow = shadows;
+      o.castShadow = shadows && !o.userData.noShadow;
       o.receiveShadow = shadows;
     });
 
@@ -139,26 +140,28 @@ export class Teacher {
     // Banc
     const floorY = piano.floorY;
     const seatY = this.hipsTarget.y - 3.6;
-    const benchMat = new THREE.MeshStandardMaterial({ color: '#07080f', roughness: 0.2, metalness: 0.5 });
+    // Le banc du piano : ebene vernie comme la caisse, assise de cuir capitonne
+    const benchMat = new THREE.MeshStandardMaterial({ color: '#17120f', roughness: 0.32, metalness: 0.05 });
+    const leather = new THREE.MeshStandardMaterial({ color: '#2a201b', roughness: 0.68, metalness: 0 });
     const bench = new THREE.Group();
-    const top = new THREE.Mesh(new THREE.BoxGeometry(26, 2, 14), benchMat);
-    top.position.y = seatY - 1;
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(26, 1.2, 14), benchMat);
+    frame.position.y = seatY - 1.4;
+    const top = new THREE.Mesh(new THREE.BoxGeometry(25.2, 1.2, 13.2), leather);
+    top.position.y = seatY - 0.4;
     const legH = seatY - 2 - floorY;
     [[-11, -5], [11, -5], [-11, 5], [11, 5]].forEach(([x, z]) => {
       const leg = new THREE.Mesh(new THREE.BoxGeometry(1.2, legH, 1.2), benchMat);
       leg.position.set(x, floorY + legH / 2, z);
       bench.add(leg);
     });
-    const led = new THREE.Mesh(new THREE.BoxGeometry(26.2, 0.15, 0.15), new THREE.MeshBasicMaterial({ color: new THREE.Color('#8b5cff').multiplyScalar(3) }));
-    led.position.set(0, seatY - 2, -7.05);
-    bench.add(top, led);
+    bench.add(frame, top);
     bench.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     bench.position.set(0, 0, this.hipsTarget.z + 1.5);
     piano.root.add(bench);
     this.bench = bench;
 
-    // Eclairage du prof : douche de lumiere devant, liseré violet derriere
-    const spot = new THREE.SpotLight('#dfe8ff', 380, 160, 0.45, 0.7, 1.4);
+    // Eclairage du prof : une lampe de studio chaude, au-dessus et devant lui
+    const spot = new THREE.SpotLight('#fff1de', 300, 160, 0.45, 0.8, 1.4);
     spot.position.set(-20, 70, -30);
     spot.target.position.set(0, 0, 16);
     bench.add(spot, spot.target);
@@ -347,7 +350,7 @@ export class Teacher {
   shake() { this.shakeT = 1; this.body.face.feel('sorry', 1.9); }
   feel(expr, seconds) { this.body.face.feel(expr, seconds); }
 
-  // Ses oreilles s'allument quand le micro t'ecoute, et vibrent avec ce qu'il entend
+  // Ses oreilles rougissent quand le micro t'ecoute, et suivent ce qu'il entend
   listen(on) { this.ears = on ? 0 : null; }
   hear(level) { if (this.ears !== null) this.ears = level; }
 
@@ -420,21 +423,23 @@ export class Teacher {
     const ly = THREE.MathUtils.clamp(-local.y * 30, -12, 14);
     this.body.face.update(dt, lx, ly, this.playing ? 'focus' : 'idle');
 
-    // Lumieres : le bout du doigt qui joue, le collier sur le temps, les oreilles quand il sourit
+    // L'encre : le doigt qui joue prend la couleur de sa main, le collier rougit sur le temps,
+    // les oreilles rougissent quand il t'ecoute (le rouge de l'enregistrement)
     const glow = this.body.uniforms.uGlow.value;
     for (const hand of Object.values(this.hands)) {
       const c = HAND_COLOR[hand.side];
-      for (let i = 0; i < 5; i++) glow[GLOW.finger(hand.side, i)].set(c.r, c.g, c.b).multiplyScalar(hand.resting ? 0 : hand.press[i] * 2.6);
+      for (let i = 0; i < 5; i++) glow[GLOW.finger(hand.side, i)].set(c.r, c.g, c.b, hand.resting ? 0 : Math.min(1, hand.press[i] * 1.15));
     }
-    let pulse = 0.22 + 0.08 * Math.sin(t * 1.6);
+    let pulse = 0;
     if (this.beat) {
       const e = performance.now() - this.beat.t0;
-      if (e >= 0) pulse = 0.3 + 1.8 * Math.exp(-((e / this.beat.ms) % 1) * 7);
+      if (e >= 0) pulse = 0.85 * Math.exp(-((e / this.beat.ms) % 1) * 6);
     }
-    glow[GLOW.collar].set(COLLAR.r, COLLAR.g, COLLAR.b).multiplyScalar(pulse);
+    glow[GLOW.collar].set(RED.r, RED.g, RED.b, pulse);
     const listening = this.ears !== null && this.ears !== undefined;
-    this.earLevel += ((listening ? 0.9 + Math.min(1, this.ears * 3) * 1.6 : this.body.face.expr === 'happy' ? 1.1 : 0.2) - this.earLevel) * (1 - Math.exp(-dt * 12));
-    glow[GLOW.ears].set(COLLAR.r, COLLAR.g, COLLAR.b).multiplyScalar(this.earLevel);
+    const earWant = listening ? 0.55 + Math.min(1, this.ears * 3) * 0.45 : this.body.face.expr === 'happy' ? 0.3 : 0;
+    this.earLevel += (earWant - this.earLevel) * (1 - Math.exp(-dt * 12));
+    glow[GLOW.ears].set(RED.r, RED.g, RED.b, this.earLevel);
   }
 
   #poseHand(hand, dt) {

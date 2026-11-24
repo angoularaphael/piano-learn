@@ -1,4 +1,4 @@
-// Effets d'interface : la touche d'entree, les transitions de page, les apparitions, les lueurs.
+// Effets d'interface : la touche d'entree, les transitions de page, les apparitions, les compteurs.
 import { noteOn, noteOff, unlockAudio } from './audio.js';
 import { discover, unlockBadge } from './progress.js';
 import { noteName } from './notes.js';
@@ -144,56 +144,6 @@ export function observeReveals(root) {
   }, { threshold: 0.08, rootMargin: '0px 0px -4% 0px' });
   root.querySelectorAll('[data-reveal], .split').forEach((el) => io.observe(el));
 }
-
-// ---------- Lueur qui suit la souris ----------
-const glow = document.getElementById('cursor-glow');
-let gx = 0, gy = 0, tx = 0, ty = 0;
-let glowRunning = false;
-window.addEventListener('pointermove', (e) => {
-  if (e.pointerType !== 'mouse') return;
-  tx = e.clientX; ty = e.clientY;
-  const card = e.target.closest?.('.card');
-  if (card) {
-    const r = card.getBoundingClientRect();
-    card.style.setProperty('--mx', `${e.clientX - r.left}px`);
-    card.style.setProperty('--my', `${e.clientY - r.top}px`);
-  }
-  if (!glowRunning && !reduced && glow) { glowRunning = true; requestAnimationFrame(glowLoop); }
-}, { passive: true });
-function glowLoop() {
-  gx += (tx - gx) * 0.14;
-  gy += (ty - gy) * 0.14;
-  glow.style.transform = `translate(${gx}px, ${gy}px)`;
-  if (Math.abs(tx - gx) + Math.abs(ty - gy) > 0.5) requestAnimationFrame(glowLoop);
-  else glowRunning = false;
-}
-
-// ---------- Boutons aimantes (souris seulement) ----------
-let magnet = null;
-document.addEventListener('pointermove', (e) => {
-  if (e.pointerType !== 'mouse' || reduced) return;
-  const b = e.target.closest?.('.btn');
-  if (magnet && magnet !== b) { magnet.style.translate = ''; magnet = null; }
-  if (!b || b.disabled) return;
-  const r = b.getBoundingClientRect();
-  const dx = e.clientX - (r.left + r.width / 2);
-  const dy = e.clientY - (r.top + r.height / 2);
-  magnet = b;
-  b.style.translate = `${dx * 0.14}px ${dy * 0.22}px`;
-}, { passive: true });
-
-// ---------- Egaliseur du header qui reagit aux notes ----------
-const bars = [...document.querySelectorAll('#eq i')];
-window.addEventListener('pl:note', (e) => {
-  const midi = e.detail.midi;
-  bars.forEach((b, i) => {
-    const h = 6 + Math.abs(Math.sin(midi * 0.7 + i * 1.3)) * 16;
-    b.style.animation = 'none';
-    b.style.height = `${h}px`;
-    clearTimeout(b._t);
-    b._t = setTimeout(() => { b.style.height = ''; b.style.animation = ''; }, 240 + i * 26);
-  });
-});
 
 // ---------- Compteurs qui defilent ----------
 export function countUp(root) {

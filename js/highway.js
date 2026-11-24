@@ -1,13 +1,14 @@
-// Les notes qui arrivent : chaque note est une barre de lumiere qui glisse vers sa touche.
-// Sa longueur, c'est sa duree. Main droite en cyan, main gauche en violet.
-// Quand la barre touche le clavier, c'est le moment de jouer.
+// Les notes qui arrivent, comme sur le rouleau d'un piano mecanique (pianola) : une bande de papier
+// defile vers le clavier, chaque note y est un trait de la couleur du crayon (vermillon a droite,
+// bleu a gauche) dont la longueur est la duree. Quand le trait atteint la barre de laiton, on joue.
 import * as THREE from 'three';
 import { isBlack } from './notes.js';
 import { STRIKE_Z, WHITE } from './piano3d.js';
+import { PAL } from './palette.js';
 
 const COLORS = {
-  R: new THREE.Color('#3ef2ff'),
-  L: new THREE.Color('#a98bff'),
+  R: new THREE.Color(PAL.right),
+  L: new THREE.Color(PAL.left),
 };
 const LANE_Y = WHITE.h / 2 + 0.12;
 const AHEAD = 90;   // distance visible devant le clavier
@@ -24,19 +25,22 @@ export class Highway {
     this.bars = null;
     this.caps = null;
     this.geo = new THREE.BoxGeometry(1, 1, 1);
-    this.mat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.92, depthWrite: false });
-    this.capMat = new THREE.MeshBasicMaterial({ color: '#ffffff', depthWrite: false });
+    // Le rouleau se pose par-dessus la caisse : au piano a queue, le pupitre et le couvercle le cacheraient
+    this.mat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, depthWrite: false, depthTest: false, toneMapped: false });
+    this.capMat = new THREE.MeshBasicMaterial({ color: '#ffffff', depthWrite: false, depthTest: false, toneMapped: false });
     this.#buildLane();
     this.unhook = piano.onFrame(() => this.#update());
   }
 
-  // La piste : un sol sombre, une ligne par do, et la ligne de frappe devant les touches
+  // Le rouleau : une bande de papier, un trait par do et par fa, la barre de laiton devant les touches
   #buildLane() {
     const W = this.piano.width + 1;
     const lane = new THREE.Mesh(
       new THREE.PlaneGeometry(W, AHEAD),
-      new THREE.MeshBasicMaterial({ color: '#060918', transparent: true, opacity: 0.82, depthWrite: false })
+      // Dans la passe transparente, apres les cordes du piano a queue : rien ne transparait a travers
+      new THREE.MeshBasicMaterial({ color: '#f6f1e5', transparent: true, opacity: 1, depthWrite: false, depthTest: false, toneMapped: false })
     );
+    lane.renderOrder = 1;
     lane.rotation.x = -Math.PI / 2;
     lane.position.set(0, LANE_Y - 0.13, STRIKE_Z - AHEAD / 2 - 0.2);
     this.group.add(lane);
@@ -50,14 +54,24 @@ export class Highway {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#2b3a7a', transparent: true, opacity: 0.55, depthWrite: false }));
+    this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: PAL.ink, transparent: true, opacity: 0.16, depthWrite: false, depthTest: false }));
+    this.lines.renderOrder = 2;
     this.group.add(this.lines);
+    // Les bords du rouleau
+    const edge = new THREE.MeshBasicMaterial({ color: PAL.ink, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false });
+    for (const sx of [-1, 1]) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.01, AHEAD), edge);
+      b.position.set(sx * W / 2, LANE_Y - 0.12, STRIKE_Z - AHEAD / 2 - 0.2);
+      this.group.add(b);
+    }
 
+    // La barre de lecture, en laiton, comme celle d'un pianola
     this.strike = new THREE.Mesh(
-      new THREE.BoxGeometry(W, 0.05, 0.08),
-      new THREE.MeshBasicMaterial({ color: new THREE.Color('#3ef2ff').multiplyScalar(2.4) })
+      new THREE.BoxGeometry(W + 0.4, 0.12, 0.16),
+      new THREE.MeshStandardMaterial({ color: PAL.brass, roughness: 0.32, metalness: 0.85, transparent: true, opacity: 1, depthTest: false })
     );
-    this.strike.position.set(0, LANE_Y - 0.1, STRIKE_Z - 0.25);
+    this.strike.renderOrder = 6;
+    this.strike.position.set(0, LANE_Y - 0.08, STRIKE_Z - 0.25);
     this.group.add(this.strike);
   }
 
@@ -77,9 +91,10 @@ export class Highway {
     const c = new THREE.Color();
     this.events.forEach((e, i) => {
       c.copy(COLORS[e.hand] || COLORS.R);
-      if (isBlack(e.midi)) c.multiplyScalar(0.72);
-      this.bars.setColorAt(i, c.clone().multiplyScalar(1.15));
-      this.caps.setColorAt(i, c.clone().multiplyScalar(2.6));
+      // Les touches noires : le meme crayon, appuye plus fort
+      if (isBlack(e.midi)) c.multiplyScalar(0.7);
+      this.bars.setColorAt(i, c);
+      this.caps.setColorAt(i, c.clone().multiplyScalar(0.55));
     });
     this.group.add(this.bars, this.caps);
     this.#update();
@@ -116,19 +131,19 @@ export class Highway {
       const x = this.piano.keyX(e.midi);
       const w = black ? 0.5 : 0.8;
       const len = nearC - far;
-      pos.set(x, LANE_Y + (black ? 0.08 : 0), (nearC + far) / 2);
-      scl.set(w, 0.22, len);
+      pos.set(x, LANE_Y + (black ? 0.04 : 0) - 0.05, (nearC + far) / 2);
+      scl.set(w, 0.08, len);
       m4.compose(pos, q, scl);
       this.bars.setMatrixAt(i, m4);
-      pos.set(x, LANE_Y + (black ? 0.08 : 0) + 0.02, nearC - 0.06);
-      scl.set(w + 0.04, 0.26, 0.12);
+      pos.set(x, LANE_Y + (black ? 0.04 : 0) - 0.04, nearC - 0.06);
+      scl.set(w, 0.1, 0.14);
       m4.compose(pos, q, scl);
       this.caps.setMatrixAt(i, m4);
-      // Note jouee : la barre devient verte ; ratee : elle s'eteint
+      // Note jouee : le trait passe au vert ; ratee : il reste en gris de crayon
       if (this.state[i] && !e._painted) {
-        c.set(this.state[i] === 1 ? '#3dffa8' : '#3a3f5c');
-        this.bars.setColorAt(i, c.clone().multiplyScalar(this.state[i] === 1 ? 1.3 : 1));
-        this.caps.setColorAt(i, c.clone().multiplyScalar(this.state[i] === 1 ? 2.6 : 1));
+        c.set(this.state[i] === 1 ? PAL.ok : '#bdb5a8');
+        this.bars.setColorAt(i, c);
+        this.caps.setColorAt(i, c.clone().multiplyScalar(this.state[i] === 1 ? 0.7 : 0.85));
         e._painted = true;
         colorDirty = true;
       }

@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { getContext, fxBus } from './audio.js';
+import { PAL } from './palette.js';
 
 const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
@@ -274,6 +275,23 @@ export class ConcertHall {
     this.floor0 = piano.floor?.position.y;
     if (piano.floor) piano.floor.position.y = this.hallFloor - 0.1;
     if (piano.grid) { this.grid0 = piano.grid.visible; piano.grid.visible = false; }
+    // Le studio de papier devient la nuit d'une salle : le fond, la brume, le ciel et le sol
+    // s'eteignent le temps du concert, et sont rendus tels quels a la fin
+    const sc = piano.scene;
+    this.bg0 = sc.background;
+    this.fog0 = sc.fog;
+    sc.background = new THREE.Color(PAL.night);
+    sc.fog = new THREE.FogExp2(PAL.night, 0.011);
+    if (piano.sky) {
+      this.sky0 = { i: piano.sky.intensity, c: piano.sky.color.clone(), g: piano.sky.groundColor.clone() };
+      piano.sky.intensity = 0.4;
+      piano.sky.color.set('#b8a58a');
+      piano.sky.groundColor.set('#1a130e');
+    }
+    if (piano.floor?.material?.color) {
+      this.floorCol0 = piano.floor.material.color.clone();
+      piano.floor.material.color.set('#14100d');
+    }
 
     // Projecteur : la vraie lumiere, le faisceau visible et la flaque au sol
     const top = new THREE.Vector3(-L * 0.06, floor + 200, -L * 0.22);
@@ -395,8 +413,10 @@ export class ConcertHall {
     this.confTop = top.clone().lerp(aim, 0.25);
     this.confRadius = radius * 0.8;
 
-    // La salle a sa lumiere : on garde l'ambiance d'origine pour la rendre a la fin
+    // La salle a sa lumiere : on garde l'ambiance d'origine pour la rendre a la fin. Le studio de papier
+    // est eclaire doucement ; la salle reprend les lumieres de scene et le halo du projecteur
     this.atmo0 = { ...piano.atmo };
+    this.stageAtmo = { ...this.atmo0, warm: 520, rim: 1100, fill: 110, bloom: 1.9 };
     this.unhook = piano.onFrame((dt) => this.update(dt));
   }
 
@@ -404,7 +424,8 @@ export class ConcertHall {
   dim() {
     this.phase = 'dim';
     const p = this.piano;
-    p.atmo = { ...this.atmo0, warm: this.atmo0.warm * 0.12, rim: this.atmo0.rim * 0.25, fill: this.atmo0.fill * 0.15, exposure: 1.05 };
+    const A = this.stageAtmo;
+    p.atmo = { ...A, warm: A.warm * 0.12, rim: A.rim * 0.25, fill: A.fill * 0.15, exposure: 1.05 };
     const ac = getContext();
     if (!sounds.murmur) sounds.murmur = noiseBuffer(ac, 4, 'brown');
     const mur = play(sounds.murmur, { gain: 0.05, fadeIn: 0.6, wet: 0.8, loop: true });
@@ -421,7 +442,8 @@ export class ConcertHall {
     this.phase = 'finale';
     this.finaleT = 0;
     const p = this.piano;
-    p.atmo = { ...this.atmo0, warm: this.atmo0.warm * 0.55, rim: this.atmo0.rim * 0.7, fill: this.atmo0.fill * 0.8 };
+    const A = this.stageAtmo;
+    p.atmo = { ...A, warm: A.warm * 0.55, rim: A.rim * 0.7, fill: A.fill * 0.8 };
     this.standing = acc >= 85;
     const strength = acc >= 95 ? 1 : acc >= 85 ? 0.85 : acc >= 70 ? 0.65 : 0.45;
     const ac = getContext();
@@ -541,6 +563,14 @@ export class ConcertHall {
     this.piano.scene.environmentIntensity = this.env0;
     if (this.piano.floor && this.floor0 != null) this.piano.floor.position.y = this.floor0;
     if (this.piano.grid && this.grid0 != null) this.piano.grid.visible = this.grid0;
+    this.piano.scene.background = this.bg0;
+    this.piano.scene.fog = this.fog0;
+    if (this.sky0) {
+      this.piano.sky.intensity = this.sky0.i;
+      this.piano.sky.color.copy(this.sky0.c);
+      this.piano.sky.groundColor.copy(this.sky0.g);
+    }
+    if (this.floorCol0) this.piano.floor.material.color.copy(this.floorCol0);
     this.piano.root.remove(this.group);
     this.group.traverse((o) => {
       o.geometry?.dispose();

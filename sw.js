@@ -4,19 +4,16 @@
 // La liste et la version sont regenerees par tools/precache.py.
 
 // PRECACHE-START
-const VERSION = 'pl-app-56869f87d4';
+const VERSION = 'pl-app-8317108a9c';
 const PRECACHE = [
   './',
   'css/fonts.css',
   'css/style.css',
   'favicon.svg',
-  'fonts/NotoMusic-latin-ext.woff2',
-  'fonts/NotoMusic-latin.woff2',
-  'fonts/NotoMusic-music.woff2',
-  'fonts/SpaceGrotesk-latin-ext.woff2',
-  'fonts/SpaceGrotesk-latin.woff2',
-  'fonts/Unbounded-latin-ext.woff2',
-  'fonts/Unbounded-latin.woff2',
+  'fonts/AtkinsonNext.woff2',
+  'fonts/BodoniModa-Italic.woff2',
+  'fonts/BodoniModa.woff2',
+  'fonts/BravuraText.woff2',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -56,8 +53,8 @@ const PRECACHE = [
   'js/main.js',
   'js/midi.js',
   'js/mount.js',
-  'js/note-fx.js',
   'js/notes.js',
+  'js/palette.js',
   'js/piano3d.js',
   'js/progress.js',
   'js/recorder.js',

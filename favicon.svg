@@ -1,20 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3ef2ff"/>
-      <stop offset="1" stop-color="#8b5cff"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="16" fill="#070914"/>
-  <rect x="9.5" y="14.5" width="45" height="35" rx="4" fill="none" stroke="url(#g)" stroke-width="3"/>
-  <g stroke="url(#g)" stroke-width="2">
-    <line x1="20.5" y1="16" x2="20.5" y2="48"/>
-    <line x1="32" y1="16" x2="32" y2="48"/>
-    <line x1="43.5" y1="16" x2="43.5" y2="48"/>
+  <!-- Trois touches a l'encre sur le papier ; le do entoure au crayon rouge -->
+  <rect width="64" height="64" rx="10" fill="#f3eee3"/>
+  <rect x="10.5" y="11.5" width="43" height="39" fill="#fbf8f1" stroke="#1c1814" stroke-width="3"/>
+  <g stroke="#1c1814" stroke-width="2.4">
+    <line x1="24.8" y1="12" x2="24.8" y2="50"/>
+    <line x1="39.2" y1="12" x2="39.2" y2="50"/>
   </g>
-  <g fill="url(#g)">
-    <rect x="16.5" y="16" width="8" height="18" rx="1.5"/>
-    <rect x="28" y="16" width="8" height="18" rx="1.5"/>
-    <rect x="39.5" y="16" width="8" height="18" rx="1.5"/>
+  <g fill="#1c1814">
+    <rect x="19.6" y="12" width="9" height="23"/>
+    <rect x="35.4" y="12" width="9" height="23"/>
   </g>
+  <path d="M20.6 37.6C15.4 36.4 11.9 39.6 12.3 43.3S16.8 49.2 20.4 48.6 25.3 44.4 23.6 40.6 18.8 37.1 16.2 38.6" fill="none" stroke="#c0391f" stroke-width="2.6" stroke-linecap="round"/>
 </svg>

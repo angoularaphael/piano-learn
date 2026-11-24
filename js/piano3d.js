@@ -1,29 +1,32 @@
-// Le piano 3D qui grandit avec l'eleve.
-// - Trois corps : clavier de lumiere, vrai clavier, piano a queue (voir grand.js).
-// - Sa plage de touches change en direct : les nouvelles touches sortent du noir.
-// - Les touches pas encore apprises restent dans l'ombre, sans nom ; une touche apprise s'allume pour de bon.
+// Le piano 3D qui grandit avec l'eleve, pose dans un studio clair.
+// - Trois corps : le clavier esquisse au crayon, le vrai clavier, le piano a queue (voir grand.js).
+// - Sa plage de touches change en direct : les nouvelles touches se dessinent.
+// - Au debut, les touches pas encore apprises ne sont qu'un trait de crayon sur le papier ;
+//   une touche apprise s'encre (ivoire, ebene) et le reste.
+// - Ce qu'il faut jouer prend la couleur du crayon du prof : vermillon a droite, bleu a gauche.
 // - Une touche descend des que le doigt la touche, le son part dans le meme instant.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { isBlack, noteName } from './notes.js';
 import { noteOn, noteOff, preload } from './audio.js';
-import { NoteFX } from './note-fx.js';
 import { createBloom } from './bloom.js';
 import { attach, detach, measureFrame, onQualityChange, lowPower, bloomAllowed } from './stage.js';
 import { buildGrand } from './grand.js';
+import { PAL } from './palette.js';
 
 export const WHITE = { w: 0.92, h: 0.6, l: 6 };
 export const BLACK = { w: 0.56, h: 0.5, l: 3.8 };
 export const STRIKE_Z = -WHITE.l / 2;
 const PRESS = { white: 0.075, black: 0.085 };
-const CYAN = new THREE.Color('#3ef2ff');
-const VIOLET = new THREE.Color('#8b5cff');
-const PINK = new THREE.Color('#ff4fd8');
-const IVORY = new THREE.Color('#eee8dc');
-const EBONY = new THREE.Color('#0a0a0e');
-const FROST = new THREE.Color('#d6ecff');      // touche blanche du clavier de lumiere : verre givre eclaire
-const NIGHT_BLACK = new THREE.Color('#06070f');
+const RED = new THREE.Color(PAL.right);
+const INK = new THREE.Color(PAL.ink);
+const IVORY = new THREE.Color('#f7f2e7');
+const EBONY = new THREE.Color('#15110e');
+const SKETCH_WHITE = new THREE.Color('#efe8dc');   // touche pas encore apprise : du papier, un trait de crayon
+const SKETCH_BLACK = new THREE.Color('#d8cfbf');   // noire pas encore apprise : une ombre hachuree
+const GRAPHITE = new THREE.Color('#5f584f');
+const STUDIO = new THREE.Color(PAL.studio);
 
 const ease = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 
@@ -40,7 +43,53 @@ function geometries() {
     memory: new THREE.BoxGeometry(WHITE.w * 0.62, 0.035, 0.05),
     finger: new THREE.PlaneGeometry(1, 1),
   };
+  planarUV(GEO.black, 1.1);
   return GEO;
+}
+
+// Coordonnees de texture a l'echelle du monde, face par face : les hachures gardent le meme pas et
+// le meme angle sur le dessus, l'avant et les flancs d'une touche noire
+function planarUV(geo, scale) {
+  const pos = geo.attributes.position;
+  const nor = geo.attributes.normal;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const nx = Math.abs(nor.getX(i));
+    const ny = Math.abs(nor.getY(i));
+    const nz = Math.abs(nor.getZ(i));
+    let u;
+    let v;
+    if (ny >= nx && ny >= nz) { u = pos.getX(i); v = pos.getZ(i); }
+    else if (nz >= nx) { u = pos.getX(i); v = pos.getY(i); }
+    else { u = pos.getZ(i); v = pos.getY(i); }
+    uv.setXY(i, u * scale, v * scale);
+  }
+  uv.needsUpdate = true;
+}
+
+// Les hachures au crayon d'une noire pas encore apprise : des traits de mine a 45 degres sur le papier
+let HATCH = null;
+function hatchTexture() {
+  if (HATCH) return HATCH;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, 128, 128);
+  g.lineCap = 'round';
+  for (let i = -8; i < 24; i++) {
+    g.strokeStyle = `rgba(40, 36, 32, ${0.78 + ((i * 37) % 10) / 45})`;
+    g.lineWidth = 3.4 + ((i * 13) % 5) / 5;
+    g.beginPath();
+    g.moveTo(i * 16 - 128, 128);
+    g.lineTo(i * 16, 0);
+    g.stroke();
+  }
+  HATCH = new THREE.CanvasTexture(c);
+  HATCH.wrapS = HATCH.wrapT = THREE.RepeatWrapping;
+  HATCH.colorSpace = THREE.SRGBColorSpace;
+  HATCH.anisotropy = 4;
+  return HATCH;
 }
 
 const labelCache = new Map();
@@ -52,21 +101,14 @@ function labelTexture(text, mode, mark) {
   const g = c.getContext('2d');
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.font = '700 38px Unbounded, system-ui, sans-serif';
-  if (mode === 'light') {
-    g.shadowColor = 'rgba(62,242,255,.55)';
-    g.shadowBlur = 6;
-    g.fillStyle = '#0b4f63';
-  } else {
-    g.fillStyle = '#3d4256';
-  }
+  g.font = '700 40px "Atkinson Hyperlegible Next", system-ui, sans-serif';
+  g.fillStyle = mode === 'light' ? '#3b342d' : '#4a433c';
   g.fillText(text, 64, 56);
   if (mark) {
-    g.shadowColor = '#ff4fd8';
-    g.shadowBlur = 12;
-    g.fillStyle = '#ff4fd8';
+    // Le do du milieu : un point de crayon rouge
+    g.fillStyle = PAL.right;
     g.beginPath();
-    g.arc(64, 104, 9, 0, Math.PI * 2);
+    g.arc(64, 102, 8, 0, Math.PI * 2);
     g.fill();
   }
   const tex = new THREE.CanvasTexture(c);
@@ -83,15 +125,22 @@ function handTexture(n, hand) {
   const c = document.createElement('canvas');
   c.width = c.height = 96;
   const g = c.getContext('2d');
-  g.fillStyle = hand === 'L' ? 'rgba(169,139,255,.92)' : 'rgba(62,242,255,.92)';
+  const col = hand === 'L' ? PAL.left : PAL.right;
+  g.fillStyle = 'rgba(248,244,236,.94)';
   g.beginPath();
   g.arc(48, 48, 40, 0, Math.PI * 2);
   g.fill();
-  g.fillStyle = '#04050b';
-  g.font = '800 50px Unbounded, system-ui, sans-serif';
+  g.strokeStyle = col;
+  g.lineWidth = 6;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.arc(48, 49, 37, -2.2, 3.9);
+  g.stroke();
+  g.fillStyle = col;
+  g.font = 'italic 600 58px "Bodoni Moda", Georgia, serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(String(n), 48, 53);
+  g.fillText(String(n), 48, 52);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   handCache.set(key, tex);
@@ -104,19 +153,25 @@ function fingerTexture(n) {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d');
-  const grd = g.createRadialGradient(64, 64, 20, 64, 64, 62);
-  grd.addColorStop(0, 'rgba(62,242,255,.95)');
-  grd.addColorStop(0.75, 'rgba(62,242,255,.55)');
-  grd.addColorStop(1, 'rgba(62,242,255,0)');
-  g.fillStyle = grd;
+  g.shadowColor = 'rgba(28,24,20,.28)';
+  g.shadowBlur = 10;
+  g.shadowOffsetY = 4;
+  g.fillStyle = '#f8f4ec';
   g.beginPath();
-  g.arc(64, 64, 62, 0, Math.PI * 2);
+  g.arc(64, 62, 50, 0, Math.PI * 2);
   g.fill();
-  g.fillStyle = '#04050b';
-  g.font = '800 64px Unbounded, system-ui, sans-serif';
+  g.shadowColor = 'transparent';
+  g.strokeStyle = PAL.right;
+  g.lineWidth = 7;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.arc(64, 63, 46, -2.4, 3.75);
+  g.stroke();
+  g.fillStyle = PAL.ink;
+  g.font = 'italic 600 74px "Bodoni Moda", Georgia, serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(String(n), 64, 70);
+  g.fillText(String(n), 64, 66);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   fingerCache.set(n, tex);
@@ -153,7 +208,6 @@ export class Piano3D {
     this.#setup();
     this.#buildKeys();
     this.#buildBody();
-    this.fx = new NoteFX(this.root, { speed: 8, grow: 12, maxHeight: 30, sparkSize: 0.4 });
     this.#bindPointer();
     this.resize(true);
     preload(this.low, this.high, Math.round((this.low + this.high) / 2));
@@ -176,36 +230,34 @@ export class Piano3D {
   #setup() {
     const r = attach(this.container, this);
     this.renderer = r;
-    r.toneMappingExposure = 0.85;
-    r.shadowMap.enabled = this.shadows && this.stage !== 'lumiere';
+    r.toneMappingExposure = 1;
+    r.shadowMap.enabled = this.shadows;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#05060d');
-    scene.fog = new THREE.FogExp2('#05060d', 0.011);
+    scene.background = STUDIO.clone();
+    scene.fog = new THREE.Fog(STUDIO.clone(), 95, 300);
     if (!Piano3D.env) {
       const pmrem = new THREE.PMREMGenerator(r);
       Piano3D.env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
       pmrem.dispose();
     }
     scene.environment = Piano3D.env;
-    scene.environmentIntensity = 0.18;
+    scene.environmentIntensity = 0.42;
     this.scene = scene;
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 600);
 
-    scene.add(new THREE.HemisphereLight('#9fb4ff', '#1a1030', 0.45));
-    const sun = new THREE.DirectionalLight('#ffffff', 0.9);
-    sun.position.set(-8, 30, 18);
+    this.sky = new THREE.HemisphereLight('#fffaf1', '#cfc4b1', 1.15);
+    scene.add(this.sky);
+    const sun = new THREE.DirectionalLight('#fff4e4', 1.7);
+    sun.position.set(-14, 40, 26);
     sun.castShadow = this.shadows;
     sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.radius = 4;
     Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -60, far: 140 });
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 0.02;
     scene.add(sun);
     this.sun = sun;
-    this.cyanLight = new THREE.PointLight('#3ef2ff', 120, 46, 1.8);
-    this.cyanLight.position.set(-14, 6, 6);
-    this.violetLight = new THREE.PointLight('#8b5cff', 140, 50, 1.8);
-    this.violetLight.position.set(14, 7, 2);
     // Lumiere chaude de scene, pour le piano a queue
     this.warm = new THREE.SpotLight('#ffe2b8', 0, 240, 0.42, 0.75, 1.2);
     this.warm.position.set(-8, 80, 40);
@@ -215,12 +267,12 @@ export class Piano3D {
     this.rim.target.position.set(0, -4, -24);
     this.fill = new THREE.PointLight('#ffe9cf', 0, 200, 1.3);
     this.fill.position.set(34, 46, 70);
-    scene.add(this.cyanLight, this.violetLight, this.warm, this.warm.target, this.rim, this.rim.target, this.fill);
+    scene.add(this.warm, this.warm.target, this.rim, this.rim.target, this.fill);
 
     // Sol leger a calculer : il couvre la moitie de l'ecran, chaque pixel compte
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(600, 600),
-      new THREE.MeshLambertMaterial({ color: '#080a16' })
+      new THREE.PlaneGeometry(900, 900),
+      new THREE.MeshLambertMaterial({ color: '#ebe5d8' })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = this.floorY;
@@ -229,8 +281,9 @@ export class Piano3D {
     const grid = new THREE.GridHelper(320, 160, '#17204a', '#141a3a');
     grid.position.y = this.floorY + 0.01;
     grid.material.transparent = true;
-    grid.material.opacity = 0.22;
+    grid.material.opacity = 0;
     grid.material.depthWrite = false;
+    grid.visible = false;
     scene.add(grid);
     this.grid = grid;
     this.floor = floor;
@@ -242,7 +295,7 @@ export class Piano3D {
     this.bodyGroup = new THREE.Group();
     this.root.add(this.bodyGroup);
 
-    this.bloom = createBloom(r, scene, this.camera, { strength: 0.6, radius: 0.45, threshold: 1.05 });
+    this.bloom = createBloom(r, scene, this.camera, { strength: 0.35, radius: 0.4, threshold: 3 });
   }
 
   // ---------- Touches ----------
@@ -276,9 +329,7 @@ export class Piano3D {
     mesh.userData.midi = midi;
     pivot.add(mesh);
 
-    const edgeMat = new THREE.LineBasicMaterial({
-      color: black ? VIOLET : CYAN, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
-    });
+    const edgeMat = new THREE.LineBasicMaterial({ color: GRAPHITE.clone(), transparent: true, opacity: 0, depthWrite: false });
     const edges = new THREE.LineSegments(black ? g.blackEdges : g.whiteEdges, edgeMat);
     edges.position.copy(mesh.position);
     pivot.add(edges);
@@ -292,12 +343,12 @@ export class Piano3D {
       pivot.add(label);
     }
 
-    // Trait de memoire : une petite lumiere sur le devant des touches apprises (corps reels)
+    // Trait de memoire : un coup de crayon sur le devant des touches apprises (corps reels)
     const memory = new THREE.Mesh(g.memory, new THREE.MeshBasicMaterial({
-      color: (midi % 12 === 0 ? PINK : CYAN).clone().multiplyScalar(2.2), transparent: true, opacity: 0, depthWrite: false,
+      color: (midi % 12 === 0 ? RED : INK).clone(), transparent: true, opacity: 0, depthWrite: false,
     }));
     memory.position.set(0, black ? WHITE.h / 2 + BLACK.h - 0.115 : WHITE.h / 2 + 0.02, black ? BLACK.l - 0.12 : WHITE.l - 0.1);
-    if (black) { memory.scale.set(0.55, 1, 1); memory.material.color.multiplyScalar(0.55); }
+    if (black) { memory.scale.set(0.55, 1, 1); memory.material.color.copy(IVORY); }
     pivot.add(memory);
 
     this.keysGroup.add(pivot);
@@ -319,15 +370,15 @@ export class Piano3D {
     const c = document.createElement('canvas');
     c.width = c.height = 96;
     const g = c.getContext('2d');
-    g.fillStyle = k.black ? '#8b5cff' : '#3ef2ff';
-    g.strokeStyle = k.black ? '#e2d6ff' : '#0b6e7a';
-    g.lineWidth = 4;
+    g.fillStyle = '#f8f4ec';
+    g.strokeStyle = PAL.ink;
+    g.lineWidth = 5;
     g.beginPath();
-    if (g.roundRect) g.roundRect(8, 8, 80, 80, 16); else g.rect(8, 8, 80, 80);
+    if (g.roundRect) g.roundRect(9, 9, 78, 78, 9); else g.rect(9, 9, 78, 78);
     g.fill();
     g.stroke();
-    g.fillStyle = k.black ? '#ffffff' : '#04050b';
-    g.font = '800 54px Unbounded, system-ui, sans-serif';
+    g.fillStyle = PAL.ink;
+    g.font = '800 52px "Atkinson Hyperlegible Next", system-ui, sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(letter, 48, 52);
@@ -379,11 +430,13 @@ export class Piano3D {
     const light = this.stage === 'lumiere';
     const m = k.mat;
     if (light) {
-      m.color.copy(k.black ? NIGHT_BLACK : FROST);
-      m.roughness = k.black ? 0.18 : 0.42;
-      m.metalness = k.black ? 0.3 : 0;
+      m.color.copy(k.black ? SKETCH_BLACK : SKETCH_WHITE);
+      m.map = k.black ? hatchTexture() : null;
+      m.roughness = 0.85;
+      m.metalness = 0;
       m.transparent = false;
     } else {
+      m.map = null;
       m.transparent = false;
       m.opacity = 1;
       m.color.copy(k.black ? EBONY : IVORY);
@@ -484,36 +537,16 @@ export class Piano3D {
       this.bodyGroup.add(m);
       return m;
     };
-    const neon = (c, k = 3) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) });
+    const ink = (c = PAL.ink) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c) });
 
     if (this.stage === 'lumiere') {
-      // Rien que de la lumiere : un rail devant, un rail derriere, une plaque de verre sombre
-      add(new THREE.BoxGeometry(W + 1.6, 0.045, 0.045), neon('#3ef2ff', 2.6), 0, -0.42, WHITE.l / 2 + 0.25, false);
-      add(new THREE.BoxGeometry(W + 1.6, 0.045, 0.045), neon('#8b5cff', 2.6), 0, 0.62, -WHITE.l / 2 - 0.2, false);
-      const glass = new THREE.MeshBasicMaterial({ color: '#0a0f24', transparent: true, opacity: 0.5, depthWrite: false });
-      add(new RoundedBoxGeometry(W + 1.4, 0.16, WHITE.l + 0.9, 2, 0.06), glass, 0, -0.42, 0.1, false);
-      // Table lumineuse : le clavier flotte sur sa propre lumiere
-      const glowTex = Piano3D.glowTexture || (Piano3D.glowTexture = (() => {
-        const c = document.createElement('canvas');
-        c.width = c.height = 128;
-        const g = c.getContext('2d');
-        const grd = g.createRadialGradient(64, 64, 4, 64, 64, 64);
-        grd.addColorStop(0, 'rgba(255,255,255,1)');
-        grd.addColorStop(0.45, 'rgba(255,255,255,.35)');
-        grd.addColorStop(1, 'rgba(255,255,255,0)');
-        g.fillStyle = grd;
-        g.fillRect(0, 0, 128, 128);
-        const t = new THREE.CanvasTexture(c);
-        t.userData.shared = true;
-        return t;
-      })());
-      const pool = new THREE.Mesh(new THREE.PlaneGeometry(W + 8, WHITE.l + 9), new THREE.MeshBasicMaterial({ map: glowTex, color: new THREE.Color('#3ef2ff').multiplyScalar(0.34), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-      pool.rotation.x = -Math.PI / 2;
-      pool.position.set(0, -0.52, 0.2);
-      this.bodyGroup.add(pool);
-      this.#halo(W, '#3ef2ff', 0.05);
+      // L'esquisse : le clavier dessine sur une feuille, deux traits d'encre pour le cadre
+      const sheet = new THREE.MeshLambertMaterial({ color: '#f6f1e6' });
+      add(new RoundedBoxGeometry(W + 2.2, 0.12, WHITE.l + 2.4, 2, 0.04), sheet, 0, -0.42, 0.25);
+      add(new THREE.BoxGeometry(W + 0.8, 0.03, 0.035), ink(), 0, -0.34, WHITE.l / 2 + 0.4, false);
+      add(new THREE.BoxGeometry(W + 0.8, 0.03, 0.035), ink(), 0, -0.34, -WHITE.l / 2 - 0.45, false);
     } else {
-      const body = new THREE.MeshStandardMaterial({ color: '#06070b', roughness: 0.34, metalness: 0.2 });
+      const body = new THREE.MeshStandardMaterial({ color: '#17120f', roughness: 0.3, metalness: 0.1 });
       // Feutre rouge derriere les touches, comme sur un vrai piano
       add(new THREE.BoxGeometry(W + 0.2, 0.32, 0.16), new THREE.MeshStandardMaterial({ color: '#6d0f1c', roughness: 1 }), 0, 0.12, -WHITE.l / 2 - 0.08);
       if (this.stage === 'queue') {
@@ -526,51 +559,36 @@ export class Piano3D {
         add(cheek, body, -(W / 2 + 0.7), -0.1, 0.3);
         add(cheek, body, W / 2 + 0.7, -0.1, 0.3);
         add(new RoundedBoxGeometry(W + 2.3, 2.2, 2.4, 3, 0.2), body, 0, 0.35, -WHITE.l / 2 - 1.25);
-        add(new THREE.BoxGeometry(W + 2.2, 0.04, 0.04), neon('#3ef2ff', 1.6), 0, -0.98, WHITE.l / 2 + 0.52, false);
+        // Un liseré de laiton sous le clavier, comme sur les beaux pianos droits
+        add(new THREE.BoxGeometry(W + 2.2, 0.05, 0.05), new THREE.MeshStandardMaterial({ color: PAL.brass, roughness: 0.35, metalness: 0.8 }), 0, -0.98, WHITE.l / 2 + 0.52, false);
         const footY = (this.floorY - 1) / 2;
         add(new RoundedBoxGeometry(Math.max(6, W * 0.5), Math.abs(this.floorY) - 1, 1.4, 3, 0.2), body, 0, footY, -WHITE.l / 2 - 1.1);
-        add(new THREE.BoxGeometry(0.06, Math.abs(this.floorY) - 1.2, 0.06), neon('#8b5cff', 2.5), 0, footY, -WHITE.l / 2 - 0.38, false);
-        this.#halo(W, '#3ef2ff', 0.014);
       }
     }
     this.#applyAtmosphere();
   }
 
-  #halo(W, color, opacity) {
-    const halo = new THREE.Mesh(
-      new THREE.CircleGeometry(W * 0.6 + 4, 64),
-      new THREE.MeshBasicMaterial({ color, map: Piano3D.glowTexture || null, transparent: true, opacity: opacity * 0.6, blending: THREE.AdditiveBlending, depthWrite: false })
-    );
-    halo.rotation.x = -Math.PI / 2;
-    halo.scale.set(1, 0.35, 1);
-    halo.position.set(0, (this.floorLevel ?? this.floorY) + 0.03, 0);
-    this.bodyGroup.add(halo);
-  }
-
-  // L'ambiance suit l'instrument : neon au debut, lumiere de scene pour le piano a queue
+  // L'ambiance suit l'instrument : le studio de papier, puis la lumiere de scene pour le piano a queue
   #applyAtmosphere() {
     const s = this.stage;
     this.atmo = {
-      grid: s === 'lumiere' ? 0.22 : s === 'clavier' ? 0.13 : 0.035,
-      neon: s === 'queue' ? 0 : 1,
-      warm: s === 'queue' ? 520 : 0,
-      rim: s === 'queue' ? 1100 : 0,
-      fill: s === 'queue' ? 110 : 0,
-      exposure: s === 'queue' ? 1 : 0.85,
-      bloom: s === 'queue' ? 1.9 : 1.05,
+      grid: 0,
+      warm: s === 'queue' ? 360 : 0,
+      rim: s === 'queue' ? 420 : 0,
+      fill: s === 'queue' ? 60 : 0,
+      exposure: 1,
+      bloom: 3,
     };
-    // Pas d'ombres pour le clavier de lumiere : il n'en a pas besoin, et l'image reste fluide
-    const wantShadows = this.shadows && s !== 'lumiere';
+    // Des ombres douces partout : c'est ce qui pose le piano dans le studio
+    const wantShadows = this.shadows;
     if (this.renderer.shadowMap.enabled !== wantShadows) {
       this.renderer.shadowMap.enabled = wantShadows;
       this.scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
     }
-    // Premiere construction : l'ambiance est posee tout de suite (pas de reflets de neon qui trainent)
+    // Premiere construction : l'ambiance est posee tout de suite, sans fondu
     if (!this.atmoReady) {
       this.atmoReady = true;
       const a = this.atmo;
-      this.cyanLight.intensity = 120 * a.neon;
-      this.violetLight.intensity = 140 * a.neon;
       this.warm.intensity = a.warm;
       this.rim.intensity = a.rim;
       this.fill.intensity = a.fill;
@@ -724,7 +742,7 @@ export class Piano3D {
   }
 
   colorFor(midi) {
-    return isBlack(midi) ? VIOLET : midi % 12 === 0 ? PINK : CYAN;
+    return midi % 12 === 0 ? RED : INK;
   }
 
   // Position (repere du piano) du dessus d'une touche, cote joueur
@@ -765,7 +783,7 @@ export class Piano3D {
     k.angle = (k.black ? PRESS.black : PRESS.white) * 0.85;
     k.pivot.rotation.x = k.angle;
     const p = new THREE.Vector3(k.x, k.black ? 0.8 : 0.32, k.black ? -WHITE.l / 2 + 0.2 : -WHITE.l / 2 + 0.25);
-    this.fx.start(midi, p, this.colorFor(midi), k.black ? 0.5 : 0.85);
+    void p;
     if (this.sound && !meta.silent) noteOn(midi, velocity);
     this.grand?.strike(midi, velocity);
     this.onNoteOn?.(midi, meta, velocity);
@@ -774,7 +792,6 @@ export class Piano3D {
   release(midi, meta = {}) {
     if (!this.pressed.has(midi)) return;
     this.pressed.delete(midi);
-    this.fx.end(midi);
     if (this.sound && !meta.silent) noteOff(midi);
     this.grand?.damp(midi);
     this.onNoteOff?.(midi, meta);
@@ -883,7 +900,9 @@ export class Piano3D {
         : { dir: [0, 1.05, 1], target: [center, 0.6, 0.4], d: fit(Math.max(width + 3, 21)) },
       top: { dir: [0, 1, 0.12], target: [center, 0, 0.6], d: fit(width + 4) },
       // Face au prof (on le voit de l'autre cote du piano) : pour ecouter ses explications
-      teacher: { dir: [-0.5, 0.5, -0.82], target: [0, 8.6, 13], d: 62 * (cam.aspect < 1 ? 1.5 : cam.aspect < 1.4 ? 1.15 : 1) },
+      // Au piano a queue, le couvercle ouvert boucherait la vue : on le regarde du cote des aigus, comme
+      // le public voit un pianiste, de trois quarts
+      teacher: { dir: this.stage === 'queue' ? [0.82, 0.42, -0.4] : [-0.5, 0.5, -0.82], target: [0, 8.6, 13], d: 62 * (cam.aspect < 1 ? 1.5 : cam.aspect < 1.4 ? 1.15 : 1) },
       // Au-dessus des mains, legerement incline : le clavier tel que l'eleve voit le sien
       hands: { dir: [0, 1, 0.12], target: [center, 0, -1.3], d: fit(width + 3) * 0.98 },
       // Les notes arrivent du fond : le clavier en bas, la piste qui monte vers l'horizon
@@ -946,23 +965,31 @@ export class Piano3D {
         key.pivot.visible = key.appear > 0.001 || key.appearDelay <= 0;
       }
 
-      const c = this.colorFor(midi);
       const hl = this.highlights.get(midi);
       const m = key.mat;
       m.color.copy(key.base);
       if (light) {
-        // Touche pas encore apprise : verre en veille. Apprise : elle s'eclaire de l'interieur.
-        if (!key.black) m.color.multiplyScalar(0.62 + 0.38 * key.knownT);
-        key.edgeMat.opacity = 0.14 + key.knownT * 0.5 + key.glow * 0.5 + key.flash * 0.4 + (hl ? 0.6 * pulse : 0);
-        key.memory.material.opacity = 0;
+        // Esquisse : la touche pas apprise est du papier cerne de crayon ; apprise, elle s'encre
+        m.color.lerp(key.black ? EBONY : IVORY, key.knownT);
+        key.edgeMat.color.copy(GRAPHITE).lerp(INK, key.knownT);
+        key.edgeMat.opacity = 0.8 + key.knownT * 0.15;
+        // Apprise, la touche garde un trait d'encre sur son bord (rouge pour les do)
+        key.memory.material.opacity = key.knownT * 0.85;
       } else {
-        key.edgeMat.opacity = hl ? 0.5 * pulse : 0;
-        key.memory.material.opacity = key.knownT * 0.95;
+        key.edgeMat.opacity = 0;
+        key.memory.material.opacity = key.knownT * 0.85;
       }
-      if (hl) m.color.lerp(hl, light ? 0.25 : 0.3);
-      m.emissive.copy(c).multiplyScalar(key.glow * (key.black ? 2.5 : 1.4) + key.flash * 0.9 + (light ? key.knownT * (key.black ? 0.16 : 0.22) : 0));
-      if (key.flashColor && key.flash > 0) m.emissive.copy(key.flashColor).multiplyScalar(key.flash * 1.2);
-      if (hl) m.emissive.add(hl.clone().multiplyScalar((light ? 0.55 : 0.35) * pulse));
+      // La touche a jouer : un lavis de la couleur du crayon, et son contour trace dans cette couleur
+      if (hl) {
+        m.color.lerp(hl, (key.black ? 0.55 : 0.42) + 0.12 * pulse);
+        key.edgeMat.color.copy(hl);
+        key.edgeMat.opacity = 0.75 + 0.25 * pulse;
+      }
+      // Sous le doigt, la touche s'assombrit a peine (l'ombre de la main)
+      if (key.glow > 0) m.color.multiplyScalar(1 - 0.12 * Math.min(1, key.glow));
+      // Juste / faux : la touche prend un instant la couleur de l'annotation
+      if (key.flashColor && key.flash > 0) m.color.lerp(key.flashColor, Math.min(0.78, key.flash * 0.6));
+      m.emissive.setRGB(0, 0, 0);
       if (key.label) {
         const show = this.labelsOn && key.knownT > 0.01;
         key.label.visible = show;
@@ -983,20 +1010,17 @@ export class Piano3D {
       s.material.opacity = sc;
     }
 
-    this.fx.update(dt);
     this.grand?.update(dt, t);
 
     // Ambiance (glisse en douceur quand l'instrument change)
     const a = this.atmo;
     const kA = Math.min(1, dt * 1.5);
-    this.grid.material.opacity += ((a.grid + Math.sin(t * 1.5) * 0.03 * a.grid * 4) - this.grid.material.opacity) * kA;
-    this.cyanLight.intensity += (120 * a.neon - this.cyanLight.intensity) * kA;
-    this.violetLight.intensity += (140 * a.neon - this.violetLight.intensity) * kA;
+    this.grid.material.opacity = 0;
     this.warm.intensity += (a.warm - this.warm.intensity) * kA;
     this.rim.intensity += (a.rim - this.rim.intensity) * kA;
     this.fill.intensity += (a.fill - this.fill.intensity) * kA;
     // Une lumiere eteinte coute quand meme sur chaque pixel : on la retire vraiment
-    for (const l of [this.cyanLight, this.violetLight, this.warm, this.rim, this.fill]) {
+    for (const l of [this.warm, this.rim, this.fill]) {
       const on = l.intensity > 0.5;
       if (l.visible !== on) l.visible = on;
     }
@@ -1040,7 +1064,6 @@ export class Piano3D {
       el.removeEventListener('lostpointercapture', this._onUp);
     }
     detach(this);
-    this.fx.dispose();
     this.bloom.dispose();
     this.#clearBody();
     for (const k of this.keys.values()) {

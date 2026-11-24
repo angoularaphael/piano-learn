@@ -108,7 +108,7 @@ export function renderTheoryList(app, subnav = '') {
     ${subnav}
     <div class="page-head">
       <div class="eyebrow" data-reveal>${t('La théorie')}</div>
-      <h1 data-split>${t('Comprendre <span class="grad-text">ce que tu joues</span>')}</h1>
+      <h1 data-split>${t('Comprendre <span class="pencil-word">ce que tu joues</span>')}</h1>
       <p class="lead" data-reveal>${fr(t('Une idée par fiche, quand tu en as besoin. {n} fiches ouvertes sur {total} ; les autres arrivent avec les paliers.', { n: FICHES.filter((f) => open(f, cur)).length, total: FICHES.length }))}</p>
     </div>
     ${byPalier.map(({ p, cards }) => `

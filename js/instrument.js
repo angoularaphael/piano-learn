@@ -1,19 +1,19 @@
 // L'instrument grandit avec l'eleve.
-// Au debut : quelques touches de lumiere et un son doux. Puis le clavier s'allonge, devient un vrai
-// clavier, puis un piano a queue ; les sons, la pedale, la transposition arrivent quand on en a besoin.
-// Chaque touche apprise reste allumee : le clavier lui-meme est la carte de la progression.
+// Au debut : quelques touches esquissees au crayon et un son doux. Puis le clavier s'allonge, devient
+// un vrai clavier, puis un piano a queue ; les sons, la pedale, la transposition arrivent quand on en a
+// besoin. Chaque touche apprise s'encre pour de bon : le clavier lui-meme est la carte de la progression.
 import { INSTRUMENTS } from './audio.js';
 import { lang, t } from './i18n.js';
 import { hasKeyboard } from './kbd-ui.js';
 
 export const STAGES = {
   lumiere: {
-    id: 'lumiere', palier: 1, nom: 'Le clavier de lumière',
-    desc: 'Le clavier de tes premières leçons. Chaque note que tu apprends s’allume et reste allumée.',
+    id: 'lumiere', palier: 1, nom: 'Le clavier au crayon',
+    desc: 'Le clavier de tes premières leçons, esquissé au crayon. Chaque note que tu apprends s’encre pour de bon.',
   },
   clavier: {
     id: 'clavier', palier: 3, nom: 'Le vrai clavier',
-    desc: 'La lumière prend corps : ivoire, ébène, feutre rouge. Un clavier comme le tien.',
+    desc: 'L’esquisse prend corps : ivoire, ébène, feutre rouge. Un clavier comme le tien.',
   },
   queue: {
     id: 'queue', palier: 6, nom: 'Le piano à queue',
@@ -35,8 +35,8 @@ export const FEATURES = {
 // En anglais : memes cles, autres mots
 if (lang() === 'en') {
   const S = {
-    lumiere: ['The light keyboard', 'The keyboard of your first lessons. Every note you learn lights up and stays lit.'],
-    clavier: ['The real keyboard', 'The light takes shape: ivory, ebony, red felt. A keyboard like yours.'],
+    lumiere: ['The pencil keyboard', 'The keyboard of your first lessons, sketched in pencil. Every note you learn is inked for good.'],
+    clavier: ['The real keyboard', 'The sketch takes shape: ivory, ebony, red felt. A keyboard like yours.'],
     queue: ['The grand piano', 'The concert grand, lid open. You can see the strings vibrate under your fingers.'],
   };
   const F = {

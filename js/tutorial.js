@@ -1,6 +1,7 @@
 // Les morceaux en cascade : les notes glissent vers leurs touches.
 // « Écouter » : le piano joue tout seul. « Jouer » : chaque note attend que tu la joues (au micro,
 // a l'ecran, au clavier ou sur un piano numerique) ; la main que tu ne travailles pas est jouee pour toi.
+import { PAL, handColor } from './palette.js';
 import { mountPiano } from './mount.js';
 import { Highway } from './highway.js';
 import { parseScore, beatsPerBar } from './score.js';
@@ -218,7 +219,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     const st = learn[si];
     if (!st) { next.innerHTML = ''; piano.hideFinger(); piano.clearHighlights(); return; }
     piano.clearHighlights();
-    st.notes.forEach((n) => piano.highlight(n.midi, n.hand === 'L' ? '#a98bff' : '#3ef2ff'));
+    st.notes.forEach((n) => piano.highlight(n.midi, handColor(n.hand)));
     const n0 = st.notes[0];
     piano.showFinger(n0.midi, n0.finger);
     sheet?.focus(st.notes.map((n) => n.i));
@@ -236,7 +237,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       if (!hit) continue;
       st.got.add(hit.midi);
       markNote(hit.i, true);
-      piano.flash(hit.midi, '#3dffa8');
+      piano.flash(hit.midi, PAL.ok);
       if (fromMic || st.notes.every((n) => st.got.has(n.midi))) {
         st.done = true;
         st.notes.forEach((n) => { markNote(n.i, true); if (discover(n.midi)) { piano.discover(n.midi); fresh.push(n.midi); } });
@@ -249,7 +250,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     }
     const at = performance.now();
     if (at - lastWrong > 180) { errors++; lastWrong = at; combo = 0; }
-    piano.flash(midi, '#ff5470');
+    piano.flash(midi, PAL.graphite);
   }
 
   // Une note jouee par l'eleve
@@ -267,7 +268,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     if (hit) {
       st.got.add(hit.midi);
       markNote(hit.i, true);
-      piano.flash(hit.midi, '#3dffa8');
+      piano.flash(hit.midi, PAL.ok);
       const done = fromMic || st.notes.every((n) => st.got.has(n.midi));
       if (done) {
         st.notes.forEach((n) => {
@@ -285,7 +286,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     // Fausse note (une seule fois par accord)
     const at = performance.now();
     if (at - lastWrong > 180) { errors++; lastWrong = at; }
-    piano.flash(midi, '#ff5470');
+    piano.flash(midi, PAL.graphite);
   }
 
   // Boucle du morceau
@@ -315,7 +316,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       const waited = performance.now() - waitStart;
       if (waited > 4500 && hintLevel === 0) {
         hintLevel = 1;
-        say(t('Cherche {notes}, la touche qui brille.', { notes: st.notes.map((n) => (lang() === 'en' ? noteName(n.midi) : noteName(n.midi).toLowerCase())).join(t(' et ')) }));
+        say(t('Cherche {notes}, la touche en couleur.', { notes: st.notes.map((n) => (lang() === 'en' ? noteName(n.midi) : noteName(n.midi).toLowerCase())).join(t(' et ')) }));
       } else if (waited > 9000 && hintLevel === 1) {
         hintLevel = 2;
         say(t('Écoute-la, puis joue-la.'));

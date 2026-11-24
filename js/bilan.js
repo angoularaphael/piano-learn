@@ -1,6 +1,7 @@
 // Ton niveau : avant que le prof commence, on situe l'eleve.
 // Debutant : pas de test, on part du debut. Intermediaire ou confirme : quelques questions, puis de
 // courts tests joues (micro, ecran, clavier d'ordinateur ou piano numerique) qui le placent au bon palier.
+import { PAL, handColor } from './palette.js';
 import { hasKeyboard } from './kbd-ui.js';
 import { mountPiano } from './mount.js';
 import { noteName } from './notes.js';
@@ -74,7 +75,7 @@ export function renderBilan(app, { next = null } = {}) {
     <div class="bilan">
       <div class="bilan-head">
         <div class="eyebrow" data-reveal>${t('Avant ta première leçon')}</div>
-        <h1 data-split>${t('Où en es-tu <span class="grad-text">au piano</span> ?')}</h1>
+        <h1 data-split>${t('Où en es-tu <span class="pencil-word">au piano</span> ?')}</h1>
         <div class="bilan-dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div>
       </div>
       <div class="bilan-body" id="body"></div>
@@ -274,14 +275,14 @@ export function renderBilan(app, { next = null } = {}) {
         const hit = st.midis.find((n) => (fromMic ? sameNote(midi, n) : midi === n));
         if (hit != null) {
           got.add(hit);
-          m.piano?.flash(midi, '#3dffa8');
+          m.piano?.flash(midi, PAL.ok);
           if (st.midis.every((n) => got.has(n))) {
             st.midis.forEach((n) => { if (discover(n)) learned.add(n); });
             advance(true);
           }
           return;
         }
-        m.piano?.flash(midi, '#ff5470');
+        m.piano?.flash(midi, PAL.graphite);
         tries++;
         if (tries >= 2) advance(false);
       },
@@ -289,7 +290,7 @@ export function renderBilan(app, { next = null } = {}) {
         if (over) return;
         const st = steps[i];
         if (st.midis.length < 2 || midis.join() !== st.midis.join()) return;
-        st.midis.forEach((n) => { m.piano?.flash(n, '#3dffa8'); if (discover(n)) learned.add(n); });
+        st.midis.forEach((n) => { m.piano?.flash(n, PAL.ok); if (discover(n)) learned.add(n); });
         advance(true);
       },
       giveUp() { if (!over) { over = true; clearTimeout(timer); done(false); } },
@@ -347,8 +348,8 @@ export function renderBilan(app, { next = null } = {}) {
         let best = -1;
         let dist = 0.32;
         times.forEach((x, k) => { const dd = Math.abs(x - at); if (!hits[k] && dd < dist) { dist = dd; best = k; } });
-        if (best >= 0) { hits[best] = true; marks[best].classList.add('ok'); m.piano?.flash(midi, '#3dffa8'); }
-        else m.piano?.flash(midi, '#ff5470');
+        if (best >= 0) { hits[best] = true; marks[best].classList.add('ok'); m.piano?.flash(midi, PAL.ok); }
+        else m.piano?.flash(midi, PAL.graphite);
       },
       giveUp() { if (!over) { over = true; ticks.forEach(clearTimeout); cancelAnimationFrame(raf); done(false); } },
       stop() { over = true; ticks.forEach(clearTimeout); cancelAnimationFrame(raf); },
@@ -381,7 +382,7 @@ export function renderBilan(app, { next = null } = {}) {
         <h2>${p === 1 ? fr(t('On commence au tout début')) : fr(t('Tu commences au palier {n}', { n: p }))}</h2>
         <p class="lead">${fr(p === 1 ? t('Premier palier : Découverte. Le prof te montre où sont les notes, puis tes premiers airs arrivent très vite.') : t('Palier {n} : {titre}. Les paliers d’avant restent ouverts si tu veux revoir quelque chose.', { n: p, titre: pal.titre }))}</p>
         ${results.length ? `<ul class="t-results">${results.map((r) => `<li class="${r.pass ? 'ok' : 'ko'}"><i></i>${esc(r.test.titre)}<span>${r.pass ? t('acquis') : t('on travaille ça')}</span></li>`).join('')}</ul>` : ''}
-        ${learned.size ? `<p class="hint">${fr(learned.size > 1 ? t('{n} notes sont déjà allumées sur ton clavier.', { n: learned.size }) : t('{n} note est déjà allumée sur ton clavier.', { n: learned.size }))}</p>` : ''}
+        ${learned.size ? `<p class="hint">${fr(learned.size > 1 ? t('{n} notes sont déjà encrées sur ton clavier.', { n: learned.size }) : t('{n} note est déjà encrée sur ton clavier.', { n: learned.size }))}</p>` : ''}
         <p class="hint">${fr(t('Ton instrument : <strong>{instrument}</strong>', { instrument: esc(stage.nom) }))}</p>
         <div class="result-actions">
           <a class="btn" href="${target}">${goLabel}</a>

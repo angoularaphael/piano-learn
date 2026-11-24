@@ -2,6 +2,7 @@
 // Chaque jeu s'ouvre au palier ou il devient utile, donne de l'XP et compte dans la seance du jour.
 // Apres chaque reponse, un petit dessin montre ce qui s'est passe (la note monte, les deux touches de
 // l'intervalle, les trois notes de l'accord) : on apprend aussi en se trompant.
+import { PAL, handColor } from './palette.js';
 import { noteOn, noteOff, tick, getContext } from './audio.js';
 import { getState, completeEar, earBest, knownKeys } from './progress.js';
 import { currentPalier } from './data/paliers.js';
@@ -51,7 +52,7 @@ function miniKeys(low, high, marks = {}) {
   const W = 22;
   const H = 70;
   const xOf = (m) => whites.indexOf(m) * W;
-  let svg = `<svg class="mini-kb" viewBox="0 0 ${whites.length * W} ${H}" aria-hidden="true">`;
+  let svg = `<svg class="ear-kb" viewBox="0 0 ${whites.length * W} ${H}" aria-hidden="true">`;
   whites.forEach((m) => { svg += `<rect class="w ${marks[m] || ''}" x="${xOf(m) + 1}" y="1" width="${W - 2}" height="${H - 2}" rx="3"/>`; });
   for (let m = low; m <= high; m++) {
     if (!isBlack(m)) continue;
@@ -186,7 +187,7 @@ export function renderEarList(app, subnav = '') {
     ${subnav}
     <div class="page-head">
       <div class="eyebrow" data-reveal>${t('L’oreille')}</div>
-      <h1 data-split>${t('Entraîne <span class="grad-text">ton oreille</span>')}</h1>
+      <h1 data-split>${t('Entraîne <span class="pencil-word">ton oreille</span>')}</h1>
       <p class="lead" data-reveal>${fr(t('Quelques minutes, sans regarder le clavier. C’est l’oreille qui fait les musiciens : elle te dira bientôt quand une note est juste, avant même que le site te le dise.'))}</p>
     </div>
     <div class="grid ear-grid">
@@ -325,7 +326,7 @@ export function renderEarGame(app, id) {
     if (target == null || st.busy) return;
     if (midi === target) {
       st.busy = true;
-      piano?.flash(midi, '#3dffa8');
+      piano?.flash(midi, PAL.ok);
       record(tries === 0 || tries === 1);
       say(tries ? `${t('Trouvé : c’était {note}.', { note: nom(target) })} ${tries === 1 ? t('Au deuxième essai, ça compte.') : t('Ça viendra plus vite.')}` : t('Juste du premier coup : {note}.', { note: nom(target) }));
       target = null;
@@ -333,7 +334,7 @@ export function renderEarGame(app, id) {
       return;
     }
     tries++;
-    piano?.flash(midi, '#ff5470');
+    piano?.flash(midi, PAL.graphite);
     if (tries >= 3) {
       st.busy = true;
       record(false);
