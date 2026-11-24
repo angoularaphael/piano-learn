@@ -356,6 +356,43 @@ export class Piano3D {
     this.labels.forEach((l) => { l.visible = v; });
   }
 
+  // Affiche la lettre du clavier d'ordinateur sur chaque touche (map midi -> lettre), ou rien si null
+  setKeyLetters(map) {
+    (this.letters || []).forEach((m) => { m.parent.remove(m); m.material.map.dispose(); m.material.dispose(); });
+    this.letters = [];
+    if (!map) return;
+    this.letterGeoW ||= new THREE.PlaneGeometry(0.84, 0.84);
+    this.letterGeoB ||= new THREE.PlaneGeometry(0.52, 0.52);
+    for (const [midiStr, letter] of Object.entries(map)) {
+      const midi = Number(midiStr);
+      const k = this.keys.get(midi);
+      if (!k || !letter) continue;
+      const c = document.createElement('canvas');
+      c.width = c.height = 96;
+      const g = c.getContext('2d');
+      g.fillStyle = k.black ? '#8b5cff' : '#3ef2ff';
+      g.strokeStyle = k.black ? '#e2d6ff' : '#0b6e7a';
+      g.lineWidth = 4;
+      g.beginPath();
+      g.roundRect(8, 8, 80, 80, 16);
+      g.fill();
+      g.stroke();
+      g.fillStyle = k.black ? '#ffffff' : '#04050b';
+      g.font = '800 54px Unbounded, system-ui, sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(letter, 48, 52);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const m = new THREE.Mesh(k.black ? this.letterGeoB : this.letterGeoW, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2;
+      if (k.black) m.position.set(0, WHITE.h / 2 + BLACK.h - 0.12 + 0.004, BLACK.l - 0.55);
+      else m.position.set(0, WHITE.h / 2 + 0.004, WHITE.l - 1.85);
+      k.pivot.add(m);
+      this.letters.push(m);
+    }
+  }
+
   setView(view) {
     this.view = view;
     this.resize();

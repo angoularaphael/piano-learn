@@ -1,5 +1,5 @@
 import { Piano3D } from './piano3d.js';
-import { KEYBOARD_MAP, noteName } from './notes.js';
+import { KEYBOARD_MAP, noteName, LAYOUTS, getLayout, setLayout, detectLayout, letterMap } from './notes.js';
 import { unlockAudio } from './audio.js';
 import { getState, onChange, levelInfo, unlockBadge, resetProgress } from './progress.js';
 import { PALIERS, palierStatus, isUnlocked } from './data/paliers.js';
@@ -172,11 +172,30 @@ function pagePiano() {
     <div class="piano-tools">
       <label class="chip-toggle"><input type="checkbox" id="opt-labels" checked> Nom des notes</label>
       <label class="chip-toggle"><input type="checkbox" id="opt-top"> Vue du dessus</label>
+      <label class="chip-toggle"><input type="checkbox" id="opt-letters"> Lettres du clavier</label>
       <span class="now-playing grad-text" id="now"></span>
     </div>
-    <p class="hint"><kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> jouent do ré mi fa sol la si do, la rangée du dessus joue les touches noires. Le point rose marque le do du milieu.</p>
+    <div class="layout-pick" id="layout-pick" role="radiogroup" aria-label="Disposition du clavier">
+      <span class="hint">Ton clavier :</span>
+      ${Object.entries(LAYOUTS).map(([id, l]) => `<button type="button" class="seg" data-layout="${id}" role="radio">${l.nom}</button>`).join('')}
+    </div>
+    <p class="hint" id="kbd-hint"></p>
   `;
   const now = document.getElementById('now');
+  const hintEl = document.getElementById('kbd-hint');
+  const lettersOpt = document.getElementById('opt-letters');
+  lettersOpt.checked = window.matchMedia('(hover: hover)').matches;
+  let layout = getLayout();
+  const kb = (codes) => codes.map((c) => `<kbd>${LAYOUTS[layout].keys[c]}</kbd>`).join(' ');
+  const applyLayout = () => {
+    document.querySelectorAll('#layout-pick .seg').forEach((b) => {
+      b.classList.toggle('on', b.dataset.layout === layout);
+      b.setAttribute('aria-checked', b.dataset.layout === layout);
+    });
+    hintEl.innerHTML = `${kb(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'])} jouent do ré mi fa sol la si do.
+      ${kb(['KeyW', 'KeyE', 'KeyT', 'KeyY', 'KeyU'])} jouent les touches noires. Le point rose marque le do du milieu.`;
+    m.piano?.setKeyLetters(lettersOpt.checked ? letterMap(layout) : null);
+  };
   const m = mountPiano(document.getElementById('piano'), {
     onNoteOn: (midi) => {
       now.textContent = noteName(midi);
@@ -189,6 +208,17 @@ function pagePiano() {
   if (!m.piano) return () => {};
   document.getElementById('opt-labels').addEventListener('change', (e) => m.piano.setLabelsVisible(e.target.checked));
   document.getElementById('opt-top').addEventListener('change', (e) => m.piano.setView(e.target.checked ? 'top' : 'front'));
+  lettersOpt.addEventListener('change', applyLayout);
+  document.getElementById('layout-pick').addEventListener('click', (e) => {
+    const b = e.target.closest('.seg');
+    if (!b) return;
+    layout = b.dataset.layout;
+    setLayout(layout);
+    applyLayout();
+  });
+  applyLayout();
+  // Detection automatique de la vraie disposition (Chrome, Edge)
+  detectLayout().then((found) => { if (found !== layout) { layout = found; applyLayout(); } });
   return () => m.dispose();
 }
 

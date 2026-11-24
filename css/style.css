@@ -402,3 +402,12 @@ kbd { font-family: var(--display); font-size: .7em; padding: .15rem .45rem; bord
 .result-xp { font-family: var(--display); font-weight: 800; font-size: 2.6rem; background: linear-gradient(90deg, var(--gold), #ff9d4d); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .new-badge { margin: .8rem 0 0; font-weight: 600; color: var(--cyan); }
 .song-go { margin-top: .6rem; padding: .6rem 1.1rem; font-size: .9rem; align-self: flex-start; }
+.layout-pick { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: 0 0 .8rem; }
+.layout-pick .hint { margin-right: .3rem; }
+.seg {
+  font: inherit; font-family: var(--display); font-size: .7rem; letter-spacing: .1em; cursor: pointer;
+  padding: .45rem .8rem; border-radius: 99px; border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .03); color: var(--muted); transition: all .25s var(--ease);
+}
+.seg:hover { color: var(--ink); border-color: rgba(62, 242, 255, .4); }
+.seg.on { color: #04050b; background: var(--grad); border-color: transparent; box-shadow: 0 0 16px rgba(62, 242, 255, .4); }
