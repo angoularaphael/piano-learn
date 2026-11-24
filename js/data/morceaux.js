@@ -24,6 +24,18 @@ export const MORCEAUX = [
     texte: 'Version piano du vrai refrain de Mood, au tempo du morceau. La phrase qui pose, c\'est do dièse, fa dièse, la : « est-ce que t\'as capté le mood ».',
     demo: moodL2bDemo(),
   },
+  {
+    id: 'rush-e',
+    titre: 'Rush E',
+    auteur: 'Sheet Music Boss',
+    palier: 8,
+    type: 'actuel',
+    libre: true,
+    lecon: null,
+    tempo: 172,
+    texte: 'Rush E, version piano. Ça part sur des mi répétés, vite. Accroche-toi, je ne ralentis pas.',
+    demo: rushEDemo(),
+  },
   { id: 'clair-de-lune', titre: 'Au clair de la lune', auteur: 'Traditionnel', palier: 1, type: 'classique', lecon: '1-7' },
   { id: 'ah-vous-dirai-je', titre: 'Ah ! vous dirai-je, maman', auteur: 'Traditionnel', palier: 2, type: 'classique', lecon: '2-3' },
   { id: 'frere-jacques', titre: 'Frère Jacques', auteur: 'Traditionnel', palier: 2, type: 'classique', lecon: '2-6' },
@@ -123,4 +135,35 @@ function moodL2bDemo() {
     [66, 1], [61, 0.5], [66, 0.5], [69, 2],
   ];
   return [...bebe, ...hook, ...bouche, ...bebe, ...hook, ...milieu, ...hook, ...bouche];
+}
+
+function rushEDemo() {
+  const mi = (n) => Array.from({ length: n }, () => [64, 0.25]);
+  return [
+    ...mi(16),
+    ...mi(8),
+    [65, 0.25], [64, 0.25], [63, 0.25], [64, 1],
+    [69, 0.5], [72, 1],
+    [74, 0.25], [74, 0.25], [74, 0.25], [74, 0.25], [74, 0.25], [72, 0.25], [71, 0.5],
+    [74, 0.25], [72, 0.25], [72, 0.25], [72, 0.25], [72, 0.25], [72, 0.25], [71, 0.25], [69, 0.25],
+    [72, 0.5], [71, 0.25], [71, 0.25], [71, 0.25], [71, 0.5],
+    [66, 0.5], [71, 0.5], [68, 1.5],
+    ...mi(16),
+    ...mi(6),
+    [65, 0.25], [64, 0.25], [63, 0.25], [64, 1],
+    [60, 0.25], [64, 0.25], [69, 0.5], [72, 1],
+    [74, 0.25], [72, 0.25], [71, 0.25], [74, 0.25], [72, 0.25], [71, 0.25], [69, 0.25], [72, 0.5],
+    [71, 0.25], [69, 0.25], [68, 0.25], [71, 0.25], [69, 0.25], [64, 0.25], [60, 0.5],
+    [65, 0.25], [64, 0.25], [62, 0.25], [60, 0.25], [59, 0.25],
+    [57, 0.25], [68, 0.25], [71, 0.25], [69, 1],
+    [62, 0.25], [61, 0.25], [62, 0.25], [64, 0.25], [65, 0.25], [64, 0.25], [62, 0.25], [65, 0.25],
+    [64, 0.25], [62, 0.25], [60, 0.25], [62, 0.25], [64, 1],
+    [60, 0.5], [59, 0.25], [58, 0.25], [60, 0.25], [62, 0.25], [60, 0.25], [59, 0.25],
+    [62, 0.25], [60, 0.25], [57, 0.25], [60, 0.25], [64, 0.5],
+    [69, 0.25], [64, 0.25], [60, 0.5],
+    [62, 0.25], [61, 0.25], [62, 0.25], [64, 0.25], [65, 0.25], [64, 0.25], [62, 0.25], [65, 0.25],
+    [64, 0.25], [62, 0.25], [60, 0.25], [62, 0.25], [64, 0.5], [69, 1],
+    [62, 0.5], [65, 0.25], [64, 0.25], [60, 0.5],
+    [62, 0.5], [59, 0.25], [57, 0.25], [64, 0.5], [69, 2],
+  ];
 }
