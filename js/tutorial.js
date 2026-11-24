@@ -15,6 +15,7 @@ import { tick } from './audio.js';
 import { fr, esc, DOIGTS } from './text.js';
 import { keepAwake } from './awake.js';
 import { Sheet } from './sheet.js';
+import { kbdControlsHTML, bindKbdControls } from './kbd-ui.js';
 
 const HANDS = { R: 'Main droite', L: 'Main gauche', RL: 'Les deux' };
 const WINDOW = 0.32;   // tolerance en mode rythme, en temps (environ 0,2 s a 100 a la noire)
@@ -76,6 +77,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       <div class="seg" id="display" role="group" aria-label="Affichage">${Object.entries(VIEWS).map(([k, v]) => `<button data-d="${k}" class="${k === display ? 'on' : ''}" ${k !== 'notes' && !canSheet ? 'disabled title="La partition arrive au palier 4"' : ''}>${k !== 'notes' && !canSheet ? LOCK : ''}${v}</button>`).join('')}</div>
       <label class="speed">Vitesse <input type="range" id="speed" min="40" max="100" step="5" value="${Math.round((settings.vitesse || 1) * 100)}"><output id="speed-out">${Math.round((settings.vitesse || 1) * 100)} %</output></label>
     </div>
+    ${kbdControlsHTML()}
     ${locked ? `<p class="hint locked-note">${fr(`Ce morceau s’ouvre au palier ${song.palier}. Tu peux déjà l’écouter.`)}</p>` : ''}
     ${song.histoire ? `<p class="story" data-reveal>${fr(esc(song.histoire))}</p>` : ''}
   `;
@@ -130,11 +132,13 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     toast.classList.add('show');
   };
 
+  let kbd = { setShift() {} };
   const m = mountPiano($('#stage'), {
     low: range[0], high: range[1], stage: instr.stage, known, view: 'highway', focus: need,
     floorY: instr.stage === 'queue' ? -31 : -6,
     labels: instr.features.has('cacher-noms') ? settings.noms : true,
     pedal: () => instr.features.has('pedale'),
+    onShift: (s) => kbd.setShift(s),
     onNoteOn: (midi, meta) => {
       if (meta?.auto) return;
       listener?.mute(600);
@@ -143,6 +147,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   });
   if (!m.piano) return () => {};
   const piano = m.piano;
+  kbd = bindKbdControls(app, piano);
   keepAwake(true);
   const beatsPerSecond = () => ((song.tempo || 90) * scale) / 60;
   const hw = new Highway(piano, { speed: 7 / ((song.tempo || 90) / 60) });

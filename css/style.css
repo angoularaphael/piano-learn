@@ -739,3 +739,5 @@ input[type="range"] { accent-color: var(--cyan); width: 140px; cursor: pointer; 
   .split .w > span, [data-reveal] { transform: none; opacity: 1; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
 }
+.kbd-tools { margin-top: 1rem; }
+.kbd-tools .layout-pick { margin-top: .6rem; }
