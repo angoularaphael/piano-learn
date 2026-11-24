@@ -193,16 +193,22 @@ function pagePiano() {
 }
 
 function pageLecon(id) {
-  const out = renderLesson(app, id);
+  const out = renderLesson(app, id, 'lecon');
+  if (out === null) return pageIntrouvable();
+  return out;
+}
+
+function pageMorceau(id) {
+  const out = renderLesson(app, id, 'morceau');
   if (out === null) return pageIntrouvable();
   return out;
 }
 
 function pageMorceaux() {
-  const { lessonsDone } = getState();
+  const { lessonsDone, songsDone } = getState();
   const cards = MORCEAUX.map((s, i) => {
     const open = s.libre || isUnlocked(s.palier - 1, lessonsDone);
-    const done = s.lecon && lessonsDone[s.lecon];
+    const done = (s.demo && songsDone[s.id]) || (s.lecon && lessonsDone[s.lecon]);
     let seed = s.id.length * 7;
     const wave = Array.from({ length: 22 }, (_, k) => {
       seed = (seed * 9301 + 49297) % 233280;
@@ -211,7 +217,9 @@ function pageMorceaux() {
     const tagEtat = !open ? '<span class="tag grey">Bloqué</span>'
       : s.libre ? '<span class="tag">Libre</span>'
       : done ? '<span class="tag gold">Réussi</span>' : '';
+    const tagPiano = s.demo ? '<span class="tag gold">Version piano</span>' : '';
     const action = !open ? ''
+      : s.demo ? `<a class="btn ghost song-go" href="#/morceau/${s.id}">Jouer la version piano</a>`
       : s.lecon ? `<a class="btn ghost song-go" href="#/lecon/${s.lecon}">Jouer avec le prof</a>`
       : '<span class="hint">Notes bientôt disponibles</span>';
     return `
@@ -222,6 +230,7 @@ function pageMorceaux() {
         <div class="meta">
           <span class="tag">Palier ${s.palier}</span>
           <span class="tag ${s.type === 'actuel' ? 'gold' : 'grey'}">${s.type === 'actuel' ? 'Actuel' : 'Classique'}</span>
+          ${tagPiano}
           ${tagEtat}
         </div>
         ${action}
@@ -303,7 +312,9 @@ function render(observe = true) {
   if (cleanup) { cleanup(); cleanup = null; }
   const [name = '', param] = location.hash.replace(/^#\/?/, '').split('/');
   document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === name));
-  const page = name === 'lecon' ? () => pageLecon(param) : ROUTES[name] || pageIntrouvable;
+  const page = name === 'lecon' ? () => pageLecon(param)
+    : name === 'morceau' ? () => pageMorceau(param)
+    : ROUTES[name] || pageIntrouvable;
   window.scrollTo(0, 0);
   const result = page();
   if (typeof result === 'function') cleanup = result;

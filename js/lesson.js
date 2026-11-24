@@ -1,24 +1,33 @@
 // Page d'une lecon : le prof montre, puis l'eleve joue et le site ecoute.
 import { mountPiano } from './main.js';
 import { noteName } from './notes.js';
-import { getState, unlockBadge, completeLesson } from './progress.js';
+import { getState, unlockBadge, completeLesson, completeSong } from './progress.js';
 import { PALIERS, palierStatus } from './data/paliers.js';
+import { MORCEAUX } from './data/morceaux.js';
 import { sameNote } from './listen.js';
 import { countUp } from './fx.js';
 
 const DOIGTS = ['', 'pouce', 'index', 'majeur', 'annulaire', 'auriculaire'];
 
-export function renderLesson(app, id) {
-  const palier = PALIERS.find((p) => p.lecons.some((l) => l.id === id));
-  const lecon = palier?.lecons.find((l) => l.id === id);
+export function renderLesson(app, id, kind = 'lecon') {
+  const song = kind === 'morceau' ? MORCEAUX.find((s) => s.id === id) : null;
+  const palier = song
+    ? PALIERS.find((p) => p.id === song.palier)
+    : PALIERS.find((p) => p.lecons.some((l) => l.id === id));
+  const lecon = song || palier?.lecons.find((l) => l.id === id);
   if (!lecon) return null;
   const demo = lecon.demo || [];
   const all = PALIERS.flatMap((p) => p.lecons);
-  const next = all[all.findIndex((l) => l.id === id) + 1];
+  const next = song ? null : all[all.findIndex((l) => l.id === id) + 1];
+  const crumb = song
+    ? `<a href="#/morceaux">Morceaux</a> / Version piano`
+    : `<a href="#/parcours">Parcours</a> / Palier ${palier.id} - ${palier.titre}`;
+  const titre = song ? `${lecon.titre} <span class="grad-text">piano</span>` : lecon.titre;
+  const tempo = lecon.tempo || 96;
 
   app.innerHTML = `
-    <p class="hint" data-reveal><a href="#/parcours">Parcours</a> / Palier ${palier.id} - ${palier.titre}</p>
-    <h1 data-split style="font-size:clamp(1.8rem,4.5vw,3.2rem)">${lecon.titre}</h1>
+    <p class="hint" data-reveal>${crumb}</p>
+    <h1 data-split style="font-size:clamp(1.8rem,4.5vw,3.2rem)">${titre}</h1>
     <div class="stage" data-reveal>
       <div class="piano-wrap stage-3d" id="stage"></div>
       <div class="bubble" id="bubble">
@@ -107,7 +116,7 @@ export function renderLesson(app, id) {
     playBtn.textContent = 'Arrêter';
     say(lecon.texte);
     const done = await teacher.playSequence(demo, {
-      tempo: 96,
+      tempo,
       onNote: (i) => chips.forEach((c, k) => { c.classList.toggle('on', k === i); c.classList.toggle('past', k < i); }),
     });
     clearChips();
@@ -218,11 +227,11 @@ export function renderLesson(app, id) {
     stopPlay();
     clearChips();
     chips.forEach((c) => c.classList.add('ok'));
-    const { stars, gained } = completeLesson(id, acc);
+    const { stars, gained } = song ? completeSong(id, acc) : completeLesson(id, acc);
     const fresh = [];
     if (unlockBadge('premiere-lecon')) fresh.push('C\'est parti');
     if (stars === 3 && unlockBadge('trois-etoiles')) fresh.push('Sans faute');
-    if (palier.id === 1 && palierStatus(palier, getState().lessonsDone).complete && unlockBadge('palier-1')) fresh.push('Les bases');
+    if (!song && palier.id === 1 && palierStatus(palier, getState().lessonsDone).complete && unlockBadge('palier-1')) fresh.push('Les bases');
     if (getState().streak >= 7 && unlockBadge('serie-7')) fresh.push('Une semaine');
 
     say(acc >= 95 ? 'Parfait, rien à redire !' : acc >= 80 ? 'Très bien joué. Encore un essai pour les trois étoiles ?' : 'C\'est validé. Rejoue-la quand tu veux pour faire mieux.');
@@ -234,14 +243,14 @@ export function renderLesson(app, id) {
 
     result.innerHTML = `
       <div class="result-card">
-        <div class="eyebrow" style="justify-content:center">Leçon terminée</div>
+        <div class="eyebrow" style="justify-content:center">${song ? 'Morceau terminé' : 'Leçon terminée'}</div>
         <div class="stars">${[1, 2, 3].map((n) => `<i class="${n <= stars ? 'got' : ''}" style="--n:${n}"></i>`).join('')}</div>
         <div class="result-xp">+<span data-count="${gained}">0</span> XP</div>
         <p class="hint" style="margin:.2rem 0 0">Précision : ${acc} %</p>
         ${fresh.length ? `<p class="new-badge">Nouveau badge : ${fresh.join(', ')}</p>` : ''}
         <div class="hero-actions" style="justify-content:center;margin-top:1.4rem">
           <button class="btn ghost" id="again">Recommencer</button>
-          ${next ? `<a class="btn" href="#/lecon/${next.id}">Leçon suivante</a>` : '<a class="btn" href="#/parcours">Retour au parcours</a>'}
+          ${next ? `<a class="btn" href="#/lecon/${next.id}">Leçon suivante</a>` : `<a class="btn" href="${song ? '#/morceaux' : '#/parcours'}">${song ? 'Retour aux morceaux' : 'Retour au parcours'}</a>`}
         </div>
       </div>`;
     result.hidden = false;

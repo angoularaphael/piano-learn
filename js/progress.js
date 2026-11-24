@@ -64,17 +64,25 @@ function touchDay() {
   if (state.streak > 1) state.xp += 10 * Math.min(state.streak, 7);
 }
 
-export function completeLesson(id, accuracy) {
+function completeEntry(bag, id, accuracy, firstXp) {
   const stars = accuracy >= 95 ? 3 : accuracy >= 80 ? 2 : 1;
-  const prev = state.lessonsDone[id];
+  const prev = bag[id];
   const firstTime = !prev;
-  state.lessonsDone[id] = {
+  bag[id] = {
     stars: Math.max(stars, prev?.stars || 0),
     best: Math.max(accuracy, prev?.best || 0),
   };
-  const gained = (firstTime ? 50 : 10) + Math.round(accuracy / 2);
+  const gained = (firstTime ? firstXp : 10) + Math.round(accuracy / 2);
   addXp(gained);
   return { stars, gained };
+}
+
+export function completeLesson(id, accuracy) {
+  return completeEntry(state.lessonsDone, id, accuracy, 50);
+}
+
+export function completeSong(id, accuracy) {
+  return completeEntry(state.songsDone, id, accuracy, 80);
 }
 
 export function unlockBadge(id) {
