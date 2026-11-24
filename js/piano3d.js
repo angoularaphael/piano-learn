@@ -19,14 +19,15 @@ export const WHITE = { w: 0.92, h: 0.6, l: 6 };
 export const BLACK = { w: 0.56, h: 0.5, l: 3.8 };
 export const STRIKE_Z = -WHITE.l / 2;
 const PRESS = { white: 0.075, black: 0.085 };
-const RED = new THREE.Color(PAL.right);
-const INK = new THREE.Color(PAL.ink);
+// L'encre posee sur les touches est une vraie encre (sombre) dans toutes les palettes ; le rouge du do
+// suit la couleur d'action de la palette (PAL est relu a chaque construction)
+const INK = new THREE.Color('#1c1814');
+const accent = () => new THREE.Color(PAL.right);
 const IVORY = new THREE.Color('#f7f2e7');
 const EBONY = new THREE.Color('#15110e');
 const SKETCH_WHITE = new THREE.Color('#efe8dc');   // touche pas encore apprise : du papier, un trait de crayon
 const SKETCH_BLACK = new THREE.Color('#d8cfbf');   // noire pas encore apprise : une ombre hachuree
 const GRAPHITE = new THREE.Color('#5f584f');
-const STUDIO = new THREE.Color(PAL.studio);
 
 const ease = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
 
@@ -94,7 +95,7 @@ function hatchTexture() {
 
 const labelCache = new Map();
 function labelTexture(text, mode, mark) {
-  const key = `${text}|${mode}|${mark ? 1 : 0}`;
+  const key = `${text}|${mode}|${mark ? PAL.right : 0}`;
   if (labelCache.has(key)) return labelCache.get(key);
   const c = document.createElement('canvas');
   c.width = c.height = 128;
@@ -120,7 +121,7 @@ function labelTexture(text, mode, mark) {
 
 const handCache = new Map();
 function handTexture(n, hand) {
-  const key = `${n}${hand}`;
+  const key = `${n}${hand}${PAL.left}${PAL.right}`;
   if (handCache.has(key)) return handCache.get(key);
   const c = document.createElement('canvas');
   c.width = c.height = 96;
@@ -149,7 +150,8 @@ function handTexture(n, hand) {
 
 const fingerCache = new Map();
 function fingerTexture(n) {
-  if (fingerCache.has(n)) return fingerCache.get(n);
+  const key = `${n}${PAL.right}`;
+  if (fingerCache.has(key)) return fingerCache.get(key);
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d');
@@ -167,14 +169,14 @@ function fingerTexture(n) {
   g.beginPath();
   g.arc(64, 63, 46, -2.4, 3.75);
   g.stroke();
-  g.fillStyle = PAL.ink;
+  g.fillStyle = '#1c1814';
   g.font = 'italic 600 74px "Bodoni Moda", Georgia, serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.fillText(String(n), 64, 66);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  fingerCache.set(n, tex);
+  fingerCache.set(key, tex);
   return tex;
 }
 
@@ -234,21 +236,23 @@ export class Piano3D {
     r.shadowMap.enabled = this.shadows;
 
     const scene = new THREE.Scene();
-    scene.background = STUDIO.clone();
-    scene.fog = new THREE.Fog(STUDIO.clone(), 95, 300);
+    // Le studio prend la palette : papier clair, ou nuit pour les palettes sombres
+    const L = PAL.light;
+    scene.background = new THREE.Color(PAL.studio);
+    scene.fog = new THREE.Fog(new THREE.Color(PAL.studio), 95, 300);
     if (!Piano3D.env) {
       const pmrem = new THREE.PMREMGenerator(r);
       Piano3D.env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
       pmrem.dispose();
     }
     scene.environment = Piano3D.env;
-    scene.environmentIntensity = 0.42;
+    scene.environmentIntensity = L.env;
     this.scene = scene;
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 600);
 
-    this.sky = new THREE.HemisphereLight('#fffaf1', '#cfc4b1', 1.15);
+    this.sky = new THREE.HemisphereLight(L.sky, L.ground, L.hemi);
     scene.add(this.sky);
-    const sun = new THREE.DirectionalLight('#fff4e4', 1.7);
+    const sun = new THREE.DirectionalLight('#fff4e4', L.sun);
     sun.position.set(-14, 40, 26);
     sun.castShadow = this.shadows;
     sun.shadow.mapSize.set(1024, 1024);
@@ -272,7 +276,7 @@ export class Piano3D {
     // Sol leger a calculer : il couvre la moitie de l'ecran, chaque pixel compte
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(900, 900),
-      new THREE.MeshLambertMaterial({ color: '#ebe5d8' })
+      new THREE.MeshLambertMaterial({ color: PAL.floor })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = this.floorY;
@@ -345,7 +349,7 @@ export class Piano3D {
 
     // Trait de memoire : un coup de crayon sur le devant des touches apprises (corps reels)
     const memory = new THREE.Mesh(g.memory, new THREE.MeshBasicMaterial({
-      color: (midi % 12 === 0 ? RED : INK).clone(), transparent: true, opacity: 0, depthWrite: false,
+      color: midi % 12 === 0 ? accent() : INK.clone(), transparent: true, opacity: 0, depthWrite: false,
     }));
     memory.position.set(0, black ? WHITE.h / 2 + BLACK.h - 0.115 : WHITE.h / 2 + 0.02, black ? BLACK.l - 0.12 : WHITE.l - 0.1);
     if (black) { memory.scale.set(0.55, 1, 1); memory.material.color.copy(IVORY); }
@@ -537,7 +541,7 @@ export class Piano3D {
       this.bodyGroup.add(m);
       return m;
     };
-    const ink = (c = PAL.ink) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c) });
+    const ink = (c = '#1c1814') => new THREE.MeshBasicMaterial({ color: new THREE.Color(c) });
 
     if (this.stage === 'lumiere') {
       // L'esquisse : le clavier dessine sur une feuille, deux traits d'encre pour le cadre
@@ -573,9 +577,9 @@ export class Piano3D {
     const s = this.stage;
     this.atmo = {
       grid: 0,
-      warm: s === 'queue' ? 360 : 0,
-      rim: s === 'queue' ? 420 : 0,
-      fill: s === 'queue' ? 60 : 0,
+      warm: s === 'queue' ? 360 : PAL.light.warm,
+      rim: s === 'queue' ? 420 : PAL.light.rim,
+      fill: s === 'queue' ? 60 : PAL.light.fill,
       exposure: 1,
       bloom: 3,
     };
@@ -742,7 +746,7 @@ export class Piano3D {
   }
 
   colorFor(midi) {
-    return midi % 12 === 0 ? RED : INK;
+    return midi % 12 === 0 ? accent() : INK;
   }
 
   // Position (repere du piano) du dessus d'une touche, cote joueur
@@ -902,7 +906,7 @@ export class Piano3D {
       // Face au prof (on le voit de l'autre cote du piano) : pour ecouter ses explications
       // Au piano a queue, le couvercle ouvert boucherait la vue : on le regarde du cote des aigus, comme
       // le public voit un pianiste, de trois quarts
-      teacher: { dir: this.stage === 'queue' ? [0.82, 0.42, -0.4] : [-0.5, 0.5, -0.82], target: [0, 8.6, 13], d: 62 * (cam.aspect < 1 ? 1.5 : cam.aspect < 1.4 ? 1.15 : 1) },
+      teacher: { dir: this.stage === 'queue' ? [0.82, 0.42, -0.4] : [-0.5, 0.5, -0.82], target: this.teacherTarget || [0, 10.8, 14], d: 66 * (cam.aspect < 1 ? 1.5 : cam.aspect < 1.4 ? 1.15 : 1) },
       // Au-dessus des mains, legerement incline : le clavier tel que l'eleve voit le sien
       hands: { dir: [0, 1, 0.12], target: [center, 0, -1.3], d: fit(width + 3) * 0.98 },
       // Les notes arrivent du fond : le clavier en bas, la piste qui monte vers l'horizon

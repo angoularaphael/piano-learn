@@ -10,7 +10,7 @@
 import { isBlack, noteName } from './notes.js';
 import { noteOn, noteOff } from './audio.js';
 import { lang } from './i18n.js';
-import { PAL } from './palette.js';
+import { PAL, rgb } from './palette.js';
 
 // Debut de la Lettre a Elise, en boucle
 const MELODY = [
@@ -28,7 +28,7 @@ const BLACK_SHIFT = { 1: -0.1, 3: 0.1, 6: -0.14, 8: 0, 10: 0.14 };
 const ZB = -G.len / 2;
 const ZF = G.len / 2;
 
-const PAPER = '#f8f4ec';
+const VARNISH = '#f8f4ec'; // le reflet du vernis, la reserve de papier sur une noire
 const IVORY = '#fffdf8';
 const IVORY_SHADE = '#e2d8c6';
 const EBONY = '#211b17';
@@ -41,16 +41,17 @@ const hash = (i) => {
   return s - Math.floor(s);
 };
 
-// Le grain du graphite : un motif de bruit, fixe sur le papier comme une vraie mine
-function graphite(g) {
+// Le grain du graphite : un motif de bruit, fixe sur le papier comme une vraie mine (de la couleur de
+// l'encre de la palette : mine de plomb sur papier clair, craie sur papier sombre)
+function graphite(g, [r, gg, b]) {
   const c = document.createElement('canvas');
   c.width = c.height = 96;
   const x = c.getContext('2d');
   const img = x.createImageData(96, 96);
   for (let i = 0; i < 96 * 96; i++) {
-    img.data[i * 4] = 50;
-    img.data[i * 4 + 1] = 46;
-    img.data[i * 4 + 2] = 42;
+    img.data[i * 4] = r;
+    img.data[i * 4 + 1] = gg;
+    img.data[i * 4 + 2] = b;
     img.data[i * 4 + 3] = 130 + Math.random() * 125;
   }
   x.putImageData(img, 0, 0);
@@ -111,7 +112,10 @@ export function createHeroScene(container, { unfold = false, known = [] } = {}) 
   container.appendChild(canvas);
   const g = canvas.getContext('2d');
   if (!g) return { dispose() { canvas.remove(); }, unfold() {} };
-  const grain = graphite(g);
+  // Le papier de la planche et la mine du crayon viennent de la palette
+  const PAPER = PAL.paperHi;
+  const lead = rgb(PAL.ink);
+  const grain = graphite(g, PAL.ink === '#1c1814' ? [50, 46, 42] : lead);
   const knownSet = new Set(known);
 
   let W = 1;
@@ -364,7 +368,7 @@ export function createHeroScene(container, { unfold = false, known = [] } = {}) 
     // Un fil de lumiere sur l'arete avant d'une noire encree : le vernis
     if (k.ink > 0.5 && p >= 1) {
       g.globalAlpha = 0.35 * k.ink;
-      g.strokeStyle = PAPER;
+      g.strokeStyle = VARNISH;
       g.lineWidth = 0.8 * dpr;
       g.beginPath();
       g.moveTo(t3[0], t3[1]);
@@ -476,7 +480,7 @@ export function createHeroScene(container, { unfold = false, known = [] } = {}) 
       g.rect(at[0] - tw / 2 - 4, y - fs * 1.2, (tw + 8) * reveal, fs * 1.6);
       g.clip();
       g.globalAlpha = alpha;
-      g.fillStyle = k.black && (k.ink > 0.5 || k.flash > 0.3) ? PAPER : k.color;
+      g.fillStyle = k.black && (k.ink > 0.5 || k.flash > 0.3) ? VARNISH : k.color;
       g.fillText(lb.text, at[0], y);
       g.restore();
     }

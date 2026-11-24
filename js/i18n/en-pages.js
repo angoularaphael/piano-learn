@@ -71,7 +71,7 @@ export const EN_PAGES = {
   'morceau': 'song',
   'morceaux': 'songs',
   'Rien ne quitte ton appareil : l’écoute au micro et ta progression restent dans ton navigateur.': 'Nothing leaves your device: what the mic hears and your progress stay in your browser.',
-  'Sons de piano : Salamander Grand Piano, Alexander Holm (CC-BY 3.0). Polices : Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text (SIL OFL). Le prof 3D et les dessins sont faits ici, en code.': 'Piano sounds: Salamander Grand Piano by Alexander Holm (CC-BY 3.0). Fonts: Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text (SIL OFL). The 3D teacher and the drawings are made here, in code.',
+  'Sons de piano : Salamander Grand Piano, Alexander Holm (CC-BY 3.0). Profs 3D : Microsoft Rocketbox (licence MIT). Polices : Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text (SIL OFL). Les dessins sont faits ici, en code.': 'Piano sounds: Salamander Grand Piano by Alexander Holm (CC-BY 3.0). 3D teachers: Microsoft Rocketbox (MIT licence). Fonts: Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text (SIL OFL). The drawings are made here, in code.',
 
   // ---------- Parcours ----------
   'À faire': 'Up next',
@@ -316,7 +316,7 @@ export const EN_PAGES = {
   'pour débuter, ou pour reprendre': 'for beginners, and for coming back',
   'Apprends le piano, <em data-pencil="under">une touche</em> après l’autre': 'Learn piano <em data-pencil="under">one key</em> at a time',
   'Planche I.': 'Plate I.',
-  'Il joue l’exercice lentement sur son piano. Tu vois ses doigts, et chaque touche qu’il joue prend la couleur de sa main.': 'They play the exercise slowly on their piano. You watch their fingers, and every key they play takes the colour of their hand.',
+  'Le prof joue l’exercice lentement sur son piano. Tu vois ses doigts, et chaque touche jouée prend la couleur de sa main.': 'They play the exercise slowly on their piano. You watch their fingers, and every key they play takes the colour of their hand.',
   'Table des matières': 'Contents',
   'Huit paliers, <em>de la première note au concert</em>': 'Eight levels, <em>from the first note to the concert</em>',
   'Il grandit <em>avec toi</em>': 'It grows <em>with you</em>',
@@ -325,4 +325,7 @@ export const EN_PAGES = {
   'leçons avec le prof': 'lessons with the teacher',
   'jeux d’oreille et fiches': 'ear games and theory cards',
   'Planche {n}.': 'Plate {n}.',
+  'Proposé par l’agence <b>EAM</b>': 'Brought to you by <b>EAM</b> Agency',
+  'Couleurs du site': 'Site colours',
+  'Couleurs': 'Colours',
 };

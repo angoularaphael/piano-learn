@@ -1,2 +1,6 @@
+# Piano Learn
+# Conçu et développé par Eddy Etame — designed and built by Eddy Etame
+# Une réalisation de l'agence EAM — brought to you by EAM Agency : https://eam-agency.vercel.app
+
 User-agent: *
 Disallow: /

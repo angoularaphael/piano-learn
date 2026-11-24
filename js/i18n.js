@@ -44,6 +44,18 @@ export function t(fr, vars) {
   return vars ? s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? '')) : s;
 }
 
+// Le prof a l'ecran est une femme ou un homme (reglage 'prof') : en francais, les phrases qui le designent
+// s'accordent (« la prof », « Regarder la prof »). En anglais, « the teacher » ne change pas.
+const FEM = {
+  'Le prof': 'La prof',
+  'Regarder le prof': 'Regarder la prof',
+  'Revoir le prof': 'Revoir la prof',
+  'Voix du prof': 'Voix de la prof',
+  'Le prof s’installe au piano': 'La prof s’installe au piano',
+  'Le prof n’a pas pu venir (connexion ?). Tu peux quand même jouer : appuie sur « À toi de jouer ».': 'La prof n’a pas pu venir (connexion ?). Tu peux quand même jouer : appuie sur « À toi de jouer ».',
+};
+export const tp = (fr, vars) => t(lang() === 'fr' && getSettings().prof !== 'homme' && FEM[fr] ? FEM[fr] : fr, vars);
+
 export const L = (o) => (o && typeof o === 'object' && !Array.isArray(o) ? o[lang()] ?? o.fr : o);
 export const locale = () => (lang() === 'en' ? 'en-GB' : 'fr-FR');
 export const missingKeys = () => [...missing];

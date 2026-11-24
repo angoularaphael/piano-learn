@@ -249,4 +249,8 @@ export const EN_PLAY = {
   'Nouveau son : {nom}': 'New sound: {nom}',
   'Ton navigateur n’arrive pas à afficher la 3D.': 'Your browser can’t display 3D.',
   'Une note sur la portée': 'A note on the staff',
+  'Ton prof': 'Your teacher',
+  'Prof': 'Teacher',
+  'Elle': 'Her',
+  'Lui': 'Him',
 };

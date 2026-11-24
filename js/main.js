@@ -28,6 +28,7 @@ import { FICHES } from './data/theorie.js';
 import { sessionSummary, reminderICS, reminderGoogle } from './session.js';
 import { exportData, importData, validData } from './progress.js';
 import { t, lang, setLang, locale } from './i18n.js';
+import { THEMES, THEME_IDS, themeId, setTheme, applyTheme } from './palette.js';
 
 const app = document.getElementById('app');
 let cleanup = null;
@@ -46,8 +47,40 @@ function translateShell() {
   nav?.setAttribute('aria-label', t('Navigation principale'));
   const NAV = { parcours: t('Parcours'), piano: t('Mon piano'), morceaux: t('Morceaux'), profil: t('Profil') };
   nav?.querySelectorAll('a[data-route]').forEach((a) => { if (NAV[a.dataset.route]) a.textContent = NAV[a.dataset.route]; });
+  const colophon = document.getElementById('colophon');
+  if (colophon) colophon.innerHTML = t('Proposé par l’agence <b>EAM</b>');
 }
 translateShell();
+
+// ---------- Les palettes ----------
+// Un rond par palette (son papier et sa couleur d'action) ; le rond de la palette en cours est cercle.
+// Changer de palette redessine la page ou l'on est, au meme endroit, sans rejouer les apparitions.
+applyTheme();
+function buildPaletteSwitch() {
+  const box = document.getElementById('palette-switch');
+  if (!box) return;
+  box.setAttribute('aria-label', t('Couleurs du site'));
+  box.innerHTML = `<span>${t('Couleurs')}</span>${THEME_IDS.map((id) => {
+    const th = THEMES[id];
+    const name = th.nom[lang()] || th.nom.fr;
+    return `<button type="button" data-theme-id="${id}" aria-pressed="${id === themeId()}" title="${name}" aria-label="${name}" style="--sw-paper:${th.paper};--sw-accent:${th.right};--sw-ink:${th.ink}"><i></i></button>`;
+  }).join('')}`;
+  // Sur telephone, le selecteur se replie sur la palette en cours : un toucher l'ouvre, un autre choisit
+  box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    const narrow = window.matchMedia('(max-width: 560px)').matches;
+    if (narrow && b.dataset.themeId === themeId()) { box.classList.toggle('open'); return; }
+    box.classList.remove('open');
+    setTheme(b.dataset.themeId);
+  }));
+}
+buildPaletteSwitch();
+window.addEventListener('themechange', () => {
+  buildPaletteSwitch();
+  const y = window.scrollY;
+  render({ entered: false });
+  app.querySelectorAll('[data-reveal], .split').forEach((el) => el.classList.add('in'));
+  requestAnimationFrame(() => window.scrollTo(0, y));
+});
 
 // ---------- Barre d'XP et son de l'instrument ----------
 function refreshXp() {
@@ -222,7 +255,7 @@ function pageAccueil(_, { entered }) {
       </div>
       <ol class="movements">
         ${[
-          [t('Le prof montre'), t('Il joue l’exercice lentement sur son piano. Tu vois ses doigts, et chaque touche qu’il joue prend la couleur de sa main.')],
+          [t('Le prof montre'), t('Le prof joue l’exercice lentement sur son piano. Tu vois ses doigts, et chaque touche jouée prend la couleur de sa main.')],
           [t('Tu joues chez toi'), t('Sur ton vrai piano : pose le téléphone sur le pupitre, le site t’écoute au micro. Ou joue à l’écran.')],
           [t('Le site attend'), t('Il attend la bonne note, sans chrono. Il t’aide si tu hésites. Chaque leçon réussie rapporte de l’XP.')],
         ].map(([title, d], i) => `<li data-reveal style="--d:${i * 90}ms"><b>${ROMAN[i]}</b><h3>${title}</h3><p>${fr(d)}</p></li>`).join('')}
@@ -278,7 +311,7 @@ function pageAccueil(_, { entered }) {
 function footer() {
   return `<footer class="foot">
     <p>${fr(t('Rien ne quitte ton appareil : l’écoute au micro et ta progression restent dans ton navigateur.'))}</p>
-    <p class="credits">${fr(t('Sons de piano : Salamander Grand Piano, Alexander Holm (CC-BY 3.0). Polices : Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text (SIL OFL). Le prof 3D et les dessins sont faits ici, en code.'))}</p>
+    <p class="credits">${fr(t('Sons de piano : Salamander Grand Piano, Alexander Holm (CC-BY 3.0). Profs 3D : Microsoft Rocketbox (licence MIT). Polices : Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text (SIL OFL). Les dessins sont faits ici, en code.'))}</p>
   </footer>`;
 }
 

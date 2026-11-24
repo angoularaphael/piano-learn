@@ -18,7 +18,7 @@ import { fr, esc, DOIGTS, BRAND } from './text.js';
 import { keepAwake } from './awake.js';
 import { Sheet } from './sheet.js';
 import { kbdControlsHTML, bindKbdControls } from './kbd-ui.js';
-import { t, lang } from './i18n.js';
+import { t, lang, tp } from './i18n.js';
 
 const HANDS = { R: t('Main droite'), L: t('Main gauche'), RL: t('Les deux') };
 const WINDOW = 0.32;   // tolerance en mode rythme, en temps (environ 0,2 s a 100 a la noire)
@@ -66,7 +66,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       </div>
       <div class="sheet-panel" id="sheet" hidden></div>
       <div class="countdown" id="countdown"></div>
-      ${lecon?.texte || song.intro ? `<div class="bubble" id="bubble"><span class="bubble-who">${t('Le prof')}</span><p id="bubble-text">${fr(esc(lecon?.texte || song.intro))}</p></div>` : ''}
+      ${lecon?.texte || song.intro ? `<div class="bubble" id="bubble"><span class="bubble-who">${tp('Le prof')}</span><p id="bubble-text">${fr(esc(lecon?.texte || song.intro))}</p></div>` : ''}
       <div class="toast" id="toast" aria-live="polite"></div>
       <div class="concert-card" id="concert-card" hidden></div>
       <div class="result" id="result" hidden></div>

@@ -4,7 +4,7 @@
 // La liste et la version sont regenerees par tools/precache.py.
 
 // PRECACHE-START
-const VERSION = 'pl-app-8317108a9c';
+const VERSION = 'pl-app-9c8c3e9612';
 const PRECACHE = [
   './',
   'css/fonts.css',
@@ -64,7 +64,7 @@ const PRECACHE = [
   'js/sheet.js',
   'js/staff.js',
   'js/stage.js',
-  'js/teacher-body.js',
+  'js/teacher-model.js',
   'js/teacher.js',
   'js/text.js',
   'js/theory.js',
@@ -103,6 +103,7 @@ const PRECACHE = [
   'sounds/piano/Fs7.mp3',
   'vendor/three/addons/environments/RoomEnvironment.js',
   'vendor/three/addons/geometries/RoundedBoxGeometry.js',
+  'vendor/three/addons/loaders/GLTFLoader.js',
   'vendor/three/addons/postprocessing/EffectComposer.js',
   'vendor/three/addons/postprocessing/MaskPass.js',
   'vendor/three/addons/postprocessing/OutputPass.js',
@@ -118,7 +119,7 @@ const PRECACHE = [
 ];
 // PRECACHE-END
 
-const HEAVY = /\/(vendor|sounds|fonts|icons)\//;
+const HEAVY = /\/(vendor|sounds|fonts|icons|models)\//;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -6,16 +6,13 @@ import { isBlack } from './notes.js';
 import { STRIKE_Z, WHITE } from './piano3d.js';
 import { PAL } from './palette.js';
 
-const COLORS = {
-  R: new THREE.Color(PAL.right),
-  L: new THREE.Color(PAL.left),
-};
 const LANE_Y = WHITE.h / 2 + 0.12;
 const AHEAD = 90;   // distance visible devant le clavier
 
 export class Highway {
   constructor(piano, { speed = 5 } = {}) {
     this.piano = piano;
+    this.colors = { R: new THREE.Color(PAL.right), L: new THREE.Color(PAL.left) };
     this.speed = speed;            // unites par temps
     this.now = 0;
     this.group = new THREE.Group();
@@ -38,7 +35,7 @@ export class Highway {
     const lane = new THREE.Mesh(
       new THREE.PlaneGeometry(W, AHEAD),
       // Dans la passe transparente, apres les cordes du piano a queue : rien ne transparait a travers
-      new THREE.MeshBasicMaterial({ color: '#f6f1e5', transparent: true, opacity: 1, depthWrite: false, depthTest: false, toneMapped: false })
+      new THREE.MeshBasicMaterial({ color: PAL.paperHi, transparent: true, opacity: 1, depthWrite: false, depthTest: false, toneMapped: false })
     );
     lane.renderOrder = 1;
     lane.rotation.x = -Math.PI / 2;
@@ -90,7 +87,7 @@ export class Highway {
     this.caps.renderOrder = 5;
     const c = new THREE.Color();
     this.events.forEach((e, i) => {
-      c.copy(COLORS[e.hand] || COLORS.R);
+      c.copy(this.colors[e.hand] || this.colors.R);
       // Les touches noires : le meme crayon, appuye plus fort
       if (isBlack(e.midi)) c.multiplyScalar(0.7);
       this.bars.setColorAt(i, c);
@@ -141,7 +138,7 @@ export class Highway {
       this.caps.setMatrixAt(i, m4);
       // Note jouee : le trait passe au vert ; ratee : il reste en gris de crayon
       if (this.state[i] && !e._painted) {
-        c.set(this.state[i] === 1 ? PAL.ok : '#bdb5a8');
+        c.set(this.state[i] === 1 ? PAL.ok : PAL.graphite);
         this.bars.setColorAt(i, c);
         this.caps.setColorAt(i, c.clone().multiplyScalar(this.state[i] === 1 ? 0.7 : 0.85));
         e._painted = true;

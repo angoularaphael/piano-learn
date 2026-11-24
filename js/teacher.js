@@ -1,14 +1,14 @@
-// Le prof 3D : un mannequin de porcelaine assis au piano, qui joue avec les bons doigts.
-// Son corps est fait maison (teacher-body.js). Pose procedurale : on part de la pose de repos
-// a chaque image, on assoit le corps, puis on place poignets et doigts sur les touches
-// (IK en espace monde). Il regarde la touche jouee, ou l'eleve quand il lui parle.
+// Le prof 3D : une vraie personne assise au piano, qui joue avec les bons doigts (teacher-model.js).
+// Pose procedurale : on part de la pose de repos a chaque image, on assoit le corps, puis on place
+// poignets et doigts sur les touches (IK en espace monde, independante du squelette). Il regarde la touche
+// jouee, ou l'eleve quand il lui parle ; ses yeux finissent le geste de la tete ; son visage cligne,
+// sourit quand c'est juste, s'inquiete quand c'est faux, se concentre quand il joue, remue les levres
+// quand il parle (voix du prof).
 import * as THREE from 'three';
 import { isBlack } from './notes.js';
-import { buildTeacherBody, FINGERS, HAND_COLOR, GLOW } from './teacher-body.js';
-import { PAL } from './palette.js';
+import { loadTeacherModel, FINGERS, MOODS } from './teacher-model.js';
 
 const M = 42.5; // unites du piano par metre (1 touche blanche = 2,35 cm)
-const RED = new THREE.Color(PAL.right); // le crayon rouge : le temps qui tombe, l'oreille qui ecoute
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -77,19 +77,22 @@ function ccd(links, effector, target, iterations = 12, maxStep = 0.6) {
   }
 }
 
-// Le corps est construit une seule fois et garde pour toutes les lecons
-let model = null;
-export function preloadTeacher() {
-  if (!model) {
-    model = buildTeacherBody();
-    model.userData.hips = model.userData.body.bones.Hips.position.clone();
-  }
-  return Promise.resolve(model);
+// Regard droit devant (vers le clavier) pour un lacet et un tangage donnes, en espace monde
+function gazeBasis(yaw, pitch, out = new THREE.Quaternion()) {
+  const face = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+  const side = new THREE.Vector3(0, 1, 0).cross(face).normalize();
+  const up = face.clone().cross(side).normalize();
+  return out.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, face));
+}
+
+// Le prof est charge une seule fois (par choix de prof) et garde pour toutes les lecons
+export function preloadTeacher(choice) {
+  return loadTeacherModel(choice);
 }
 
 export class Teacher {
   static async load(piano, opts) {
-    const model = await preloadTeacher();
+    const model = await loadTeacherModel();
     return new Teacher(piano, model, opts);
   }
 
@@ -106,7 +109,11 @@ export class Teacher {
     this.beat = null;           // { t0, ms } pendant qu'il joue : le collier bat la mesure
     this.playing = false;
     this.ears = null;           // niveau du micro quand il t'ecoute (null = il n'ecoute pas)
-    this.earLevel = 0;
+    this.mood = 'idle';         // humeur passagere (feel), puis retour a l'humeur de fond
+    this.moodUntil = 0;
+    this.blinkT = 0;
+    this.nextBlink = 1.5 + Math.random() * 2;
+    this.morph = {};
 
     const shadows = piano.shadows;
     model.traverse((o) => {
@@ -117,12 +124,9 @@ export class Teacher {
 
     this.body = model.userData.body;
     this.bones = this.body.bones;
-    // Pose de repos : tous les os sont droits (rotation nulle), seule leur position compte
-    this.rest = new Map();
-    Object.values(this.bones).forEach((b) => {
-      b.quaternion.identity();
-      this.rest.set(b, new THREE.Quaternion());
-    });
+    // Pose de repos : celle du fichier (bras ecartes), d'ou repart chaque image
+    this.rest = this.body.rest;
+    for (const [bone, q] of this.rest) bone.quaternion.copy(q);
     this.bones.Hips.position.copy(model.userData.hips);
 
     // Assis face au piano, entre les deux mains
@@ -136,6 +140,14 @@ export class Teacher {
     model.position.add(this.hipsTarget.clone().sub(hips));
     model.updateMatrixWorld(true);
     this.restHips = this.bones.Hips.position.clone();
+    // La camera du prof se cadre sur sa vraie taille : entre son visage et ses mains
+    const headY = piano.root.worldToLocal(wpos(this.bones.Head, new THREE.Vector3())).y;
+    piano.teacherTarget = [0, headY - 7.2, 14];
+    if (piano.view === 'teacher') piano.resize();
+    // Orientation de la tete et du cou quand il regarde droit devant : on y rapporte chaque regard
+    const ahead = gazeBasis(0, 0).invert();
+    this.headFix = ahead.clone().multiply(this.bones.Head.getWorldQuaternion(new THREE.Quaternion()));
+    this.neckFix = ahead.clone().multiply(this.bones.Neck.getWorldQuaternion(new THREE.Quaternion()));
 
     // Banc
     const floorY = piano.floorY;
@@ -160,8 +172,8 @@ export class Teacher {
     piano.root.add(bench);
     this.bench = bench;
 
-    // Eclairage du prof : une lampe de studio chaude, au-dessus et devant lui
-    const spot = new THREE.SpotLight('#fff1de', 300, 160, 0.45, 0.8, 1.4);
+    // Eclairage du prof : une lampe de studio presque blanche (une lumiere chaude rougit la peau)
+    const spot = new THREE.SpotLight('#fffaf4', 230, 160, 0.45, 0.8, 1.4);
     spot.position.set(-20, 70, -30);
     spot.target.position.set(0, 0, 16);
     bench.add(spot, spot.target);
@@ -345,12 +357,16 @@ export class Teacher {
     return i >= 0 ? { finger: i + 1, hand: hand.side === 'Right' ? 'droite' : 'gauche' } : null;
   }
 
-  // Reactions : hochement + sourire, ou tete qui dit non + regard qui encourage
-  nod() { this.nodT = 1; this.body.face.feel('happy', 1.9); }
-  shake() { this.shakeT = 1; this.body.face.feel('sorry', 1.9); }
-  feel(expr, seconds) { this.body.face.feel(expr, seconds); }
+  // Reactions : hochement + sourire, ou tete qui dit non + sourcils qui encouragent
+  nod() { this.nodT = 1; this.feel('happy', 1.9); }
+  shake() { this.shakeT = 1; this.feel('sorry', 1.9); }
+  feel(expr, seconds = 1.6) {
+    if (!MOODS[expr]) return;
+    this.mood = expr;
+    this.moodUntil = this.time + seconds;
+  }
 
-  // Ses oreilles rougissent quand le micro t'ecoute, et suivent ce qu'il entend
+  // Quand le micro t'ecoute, il tend l'oreille : sourcils leves, visage attentif
   listen(on) { this.ears = on ? 0 : null; }
   hear(level) { if (this.ears !== null) this.ears = level; }
 
@@ -407,39 +423,59 @@ export class Teacher {
     if (this.nodT > 0) { this.nodT = Math.max(0, this.nodT - dt * 1.4); pitch -= Math.sin(this.nodT * Math.PI * 4) * 0.2; }
     if (this.shakeT > 0) { this.shakeT = Math.max(0, this.shakeT - dt * 1.2); yaw += Math.sin(this.shakeT * Math.PI * 6) * 0.26; }
     const face = V(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
-    const side = V(0, 1, 0).cross(face).normalize();
-    const up = face.clone().cross(side).normalize();
-    const want = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, face));
+    const want = gazeBasis(yaw, pitch);
     // Le cou prend un tiers du mouvement, la tete le reste
-    setWorldQuat(b.Neck, b.Neck.getWorldQuaternion(new THREE.Quaternion()).slerp(want, 0.35));
-    setWorldQuat(b.Head, want);
+    setWorldQuat(b.Neck, b.Neck.getWorldQuaternion(new THREE.Quaternion()).slerp(want.clone().multiply(this.neckFix), 0.35));
+    setWorldQuat(b.Head, want.clone().multiply(this.headFix));
 
     // Mains
     for (const hand of Object.values(this.hands)) this.#poseHand(hand, dt);
 
-    // Les yeux finissent le geste de la tete : ce qui reste de l'ecart, vu depuis le visage
-    const local = lookDir.applyQuaternion(want.invert());
-    const lx = THREE.MathUtils.clamp(local.x * 34, -15, 15);
-    const ly = THREE.MathUtils.clamp(-local.y * 30, -12, 14);
-    this.body.face.update(dt, lx, ly, this.playing ? 'focus' : 'idle');
+    // Les yeux finissent le geste de la tete : ils tournent vers la cible, dans la limite d'un regard naturel
+    const ang = face.angleTo(lookDir);
+    if (ang > 1e-3) {
+      const qEye = new THREE.Quaternion().setFromUnitVectors(face, lookDir);
+      if (ang > 0.42) qEye.slerp(new THREE.Quaternion(), 1 - 0.42 / ang);
+      for (const eye of [b.LeftEye, b.RightEye]) if (eye) rotateWorld(eye, qEye);
+    }
 
-    // L'encre : le doigt qui joue prend la couleur de sa main, le collier rougit sur le temps,
-    // les oreilles rougissent quand il t'ecoute (le rouge de l'enregistrement)
-    const glow = this.body.uniforms.uGlow.value;
-    for (const hand of Object.values(this.hands)) {
-      const c = HAND_COLOR[hand.side];
-      for (let i = 0; i < 5; i++) glow[GLOW.finger(hand.side, i)].set(c.r, c.g, c.b, hand.resting ? 0 : Math.min(1, hand.press[i] * 1.15));
-    }
-    let pulse = 0;
-    if (this.beat) {
-      const e = performance.now() - this.beat.t0;
-      if (e >= 0) pulse = 0.85 * Math.exp(-((e / this.beat.ms) % 1) * 6);
-    }
-    glow[GLOW.collar].set(RED.r, RED.g, RED.b, pulse);
+    this.#face(dt);
+  }
+
+  // Le visage : l'humeur du moment, le clignement, les levres quand la voix du prof parle
+  #face(dt) {
     const listening = this.ears !== null && this.ears !== undefined;
-    const earWant = listening ? 0.55 + Math.min(1, this.ears * 3) * 0.45 : this.body.face.expr === 'happy' ? 0.3 : 0;
-    this.earLevel += (earWant - this.earLevel) * (1 - Math.exp(-dt * 12));
-    glow[GLOW.ears].set(RED.r, RED.g, RED.b, this.earLevel);
+    const base = listening ? 'listen' : this.playing ? 'focus' : 'idle';
+    if (this.time > this.moodUntil) this.mood = base;
+    const want = { ...MOODS[this.mood] };
+    this.nextBlink -= dt;
+    let blink = 0;
+    if (this.nextBlink <= 0) {
+      this.blinkT += dt / 0.17;
+      blink = Math.sin(Math.min(1, this.blinkT) * Math.PI);
+      if (this.blinkT >= 1) { this.blinkT = 0; this.nextBlink = 2 + Math.random() * 3.5; }
+    }
+    want.AK_09_EyeBlinkLeft = Math.max(want.AK_09_EyeBlinkLeft || 0, blink);
+    want.AK_10_EyeBlinkRight = Math.max(want.AK_10_EyeBlinkRight || 0, blink);
+    if (typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking) {
+      // Il parle : la machoire et les levres suivent un rythme de syllabes
+      const t = this.time * 10.5;
+      const open = Math.max(0, Math.sin(t) * 0.6 + Math.sin(t * 2.3 + 0.7) * 0.4);
+      want.AK_25_JawOpen = Math.max(want.AK_25_JawOpen || 0, 0.04 + open * 0.2);
+      want.AA_VI_10_aa = open * 0.35;
+      want.AA_VI_13_O = Math.max(0, Math.sin(t * 0.61 + 2)) * 0.25;
+      want.AA_VI_11_E = Math.max(0, Math.sin(t * 0.83 + 4)) * 0.2;
+      want.AA_VI_01_PP = Math.sin(t * 1.7) > 0.9 ? 0.5 : 0;
+    }
+    const k = 1 - Math.exp(-dt * 10);
+    for (const name of this.body.morphNames) {
+      const target = want[name] || 0;
+      const cur = this.morph[name] || 0;
+      const v = name.includes('Blink') ? target : cur + (target - cur) * k;
+      if (v === cur) continue;
+      this.morph[name] = v;
+      this.body.setMorph(name, v);
+    }
   }
 
   #poseHand(hand, dt) {
@@ -501,6 +537,7 @@ export class Teacher {
   }
 
   dispose() {
+    this.piano.teacherTarget = null;
     this.stop();
     this.unhook?.();
     this.piano.root.remove(this.model);

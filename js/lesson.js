@@ -15,7 +15,7 @@ import { speak, hush, voiceAvailable } from './voice.js';
 import { fr, esc, DOIGTS } from './text.js';
 import { renderPlayer } from './tutorial.js';
 import { hasKeyboard } from './kbd-ui.js';
-import { t, lang } from './i18n.js';
+import { t, tp, lang } from './i18n.js';
 import { Sheet } from './sheet.js';
 import { keepAwake } from './awake.js';
 
@@ -102,10 +102,10 @@ export function renderLesson(app, id) {
     <div class="stage" data-reveal style="--d:120ms">
       <div class="piano-wrap stage-3d" id="stage"></div>
       <div class="bubble" id="bubble">
-        <span class="bubble-who">${t('Le prof')}</span>
+        <span class="bubble-who">${tp('Le prof')}</span>
         <p id="bubble-text">${fr(esc(lecon.texte || ''))}</p>
       </div>
-      <div class="stage-loading" id="stage-loading"><span></span>${t('Le prof s’installe au piano')}</div>
+      <div class="stage-loading" id="stage-loading"><span></span>${tp('Le prof s’installe au piano')}</div>
       <div class="toast" id="toast" aria-live="polite"></div>
       <div class="result" id="result" hidden></div>
     </div>
@@ -117,12 +117,13 @@ export function renderLesson(app, id) {
     ${withSheet ? `<div class="lesson-sheet" id="lesson-sheet" aria-label="${t('La partition de l’exercice')}"></div>` : ''}
     <div class="seq" id="seq" ${withSheet ? 'hidden' : ''} aria-label="${t('Les notes de l’exercice')}">${steps.map((s) => `<span>${s.notes.map((n) => noteName(n.midi)).join('+')}</span>`).join('')}</div>
     <div class="lesson-controls">
-      <button class="btn ghost" id="watch" disabled>${t('Regarder le prof')}</button>
+      <button class="btn ghost" id="watch" disabled>${tp('Regarder le prof')}</button>
       <button class="btn" id="go">${t('À toi de jouer')}</button>
       <div class="toggles">
-        <div class="seg" id="views" role="group" aria-label="${t('Caméra')}"><button data-v="teacher" class="on">${t('Le prof')}</button><button data-v="hands">${t('Ses mains')}</button></div>
+        <div class="seg" id="views" role="group" aria-label="${t('Caméra')}"><button data-v="teacher" class="on">${tp('Le prof')}</button><button data-v="hands">${t('Ses mains')}</button></div>
+        <div class="seg" id="prof-pick" role="group" aria-label="${t('Ton prof')}"><span class="seg-label">${t('Prof')}</span><button data-prof="femme" class="${settings.prof !== 'homme' ? 'on' : ''}">${t('Elle')}</button><button data-prof="homme" class="${settings.prof === 'homme' ? 'on' : ''}">${t('Lui')}</button></div>
         ${canHideNames ? `<label class="chip-toggle"><input type="checkbox" id="opt-labels" ${settings.noms ? 'checked' : ''}> ${t('Nom des notes')}</label>` : ''}
-        ${voiceAvailable() ? `<label class="chip-toggle"><input type="checkbox" id="opt-voice" ${settings.voix ? 'checked' : ''}> ${t('Voix du prof')}</label>` : ''}
+        ${voiceAvailable() ? `<label class="chip-toggle"><input type="checkbox" id="opt-voice" ${settings.voix ? 'checked' : ''}> ${tp('Voix du prof')}</label>` : ''}
       </div>
     </div>
     <p class="hint lesson-tip">${fr(hasKeyboard() ? t('Pose ton téléphone ou ta tablette sur le pupitre : le site écoute ton piano au micro. Pas de piano sous la main ? Joue sur les touches à l’écran ou sur ton clavier d’ordinateur.') : t('Pose ton téléphone ou ta tablette sur le pupitre : le site écoute ton piano au micro. Pas de piano sous la main ? Joue sur les touches à l’écran.'))}</p>
@@ -203,12 +204,36 @@ export function renderLesson(app, id) {
     watchBtn.disabled = false;
   }).catch((e) => {
     console.error(e);
-    $('#stage-loading').innerHTML = fr(t('Le prof n’a pas pu venir (connexion ?). Tu peux quand même jouer : appuie sur « À toi de jouer ».'));
+    $('#stage-loading').innerHTML = fr(tp('Le prof n’a pas pu venir (connexion ?). Tu peux quand même jouer : appuie sur « À toi de jouer ».'));
     setTimeout(() => $('#stage-loading')?.classList.add('done'), 3200);
   });
 
   $('#opt-labels')?.addEventListener('change', (e) => { setSetting('noms', e.target.checked); });
   $('#opt-voice')?.addEventListener('change', (e) => { setSetting('voix', e.target.checked); if (!e.target.checked) hush(); });
+  // Changer de prof : l'autre s'installe au piano, sans quitter la lecon
+  $('#prof-pick')?.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-prof]');
+    if (!b || b.classList.contains('on')) return;
+    setSetting('prof', b.dataset.prof);
+    app.querySelectorAll('.bubble-who').forEach((el) => { el.textContent = tp('Le prof'); });
+    const viewBtn = app.querySelector('#views button[data-v="teacher"]');
+    if (viewBtn) viewBtn.textContent = tp('Le prof');
+    if (!watchBtn.dataset.playing) watchBtn.textContent = tp('Regarder le prof');
+    const voice = $('#opt-voice');
+    if (voice) voice.parentElement.lastChild.textContent = ` ${tp('Voix du prof')}`;
+    $('#prof-pick').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    const old = teacher;
+    teacher = null;
+    old?.stop();
+    old?.dispose();
+    watchBtn.disabled = true;
+    import('./teacher.js').then(({ Teacher }) => Teacher.load(piano, { main: lecon.main })).then((tt) => {
+      if (!alive) { tt.dispose(); return; }
+      teacher = tt;
+      if (window.__piano) window.__teacher = tt;
+      watchBtn.disabled = false;
+    }).catch((err) => console.error(err));
+  });
   views.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-v]');
     if (b) setView(b.dataset.v);
@@ -363,7 +388,7 @@ export function renderLesson(app, id) {
     if (mode === 'play') { stopPlay(); say(t('On reprend quand tu veux.'), { voice: false }); return; }
     teacher?.stop();
     delete watchBtn.dataset.playing;
-    watchBtn.textContent = teacher ? t('Revoir le prof') : t('Regarder le prof');
+    watchBtn.textContent = teacher ? tp('Revoir le prof') : tp('Regarder le prof');
     result.hidden = true;
     mode = 'play';
     idx = 0;

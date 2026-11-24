@@ -17,8 +17,10 @@ Le plan complet est dans PLAN.md.
 
 - `js/main.js` : routeur et pages (accueil en page de titre, séance du jour, parcours, mon piano et son studio, morceaux, profil, réglages).
 - `js/hero-scene.js` : la planche de l'accueil, un clavier dessiné au crayon en vraie perspective (Canvas 2D) qui s'encre quand on le joue.
-- `css/style.css` + `js/palette.js` : « L'édition », la partition que le prof annote (papier, encre, crayon rouge pour la main droite,
-  bleu pour la gauche ; Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text dans `fonts/`, licence SIL OFL).
+- `css/style.css` + `js/palette.js` : quatre palettes complètes à comparer en direct (le sélecteur en bas à gauche) :
+  Édition (papier, encre, crayon rouge et bleu), Laque (noir laqué, ivoire, or), Nuit (bleu nuit, ivoire, or d'EAM),
+  Studio (gris clair, noir, orange). La 3D, le rouleau et les dessins suivent la palette ; le certificat reste imprimable.
+  Polices : Bodoni Moda, Atkinson Hyperlegible Next, Bravura Text dans `fonts/`, licence SIL OFL.
 - `js/instrument.js` : ce que chaque palier débloque (plage de touches, corps de l'instrument, sons, fonctions).
 - `js/piano3d.js` : le piano 3D dans un studio de papier (trois corps, touches apprises encrées, plage qui s'agrandit en direct).
 - `js/grand.js` : le piano à queue (caisse, couvercle, cadre doré, cordes qui vibrent, étouffoirs, pédales).
@@ -27,8 +29,10 @@ Le plan complet est dans PLAN.md.
 - `js/lesson.js` : une leçon (le prof montre, l'élève rejoue note par note, aide si on hésite).
 - `js/tutorial.js` + `js/highway.js` : les morceaux sur un rouleau de pianola (Écouter, Jouer, En rythme, Concert).
 - `js/sheet.js` : la partition (portée qui défile, dièses et bécarres par mesure, la note à jouer entourée au crayon).
-- `js/teacher.js` + `js/teacher-body.js` : le prof 3D, fait maison (mannequin de porcelaine, visage dessiné à l'encre,
-  doigts qui prennent la couleur de leur main, regard qui suit), qui joue avec les doigtés de la partition.
+- `js/teacher.js` + `js/teacher-model.js` : le prof 3D, une vraie personne au choix (une femme ou un homme, avatars
+  Microsoft Rocketbox sous licence MIT, `models/`), posé au piano par IK : doigts sur les bonnes touches, regard qui suit,
+  visage qui cligne, sourit, s'inquiète et parle avec la voix du prof. Les modèles se régénèrent depuis les FBX Rocketbox
+  avec Blender (textures réduites en WebP, 24 expressions gardées).
 - `js/concert.js` + `js/certificate.js` : la salle de concert du palier 8 et le certificat de fin de parcours.
 - `js/recorder.js` : enregistrer ses prises, les réécouter, les exporter en MIDI ou en vidéo.
 - `js/session.js` : la séance du jour (oreille, leçon, révision, plaisir), la série et son joker, le rappel d'agenda.

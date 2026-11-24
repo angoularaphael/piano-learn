@@ -32,6 +32,8 @@ const DEFAULT_SETTINGS = {
   affichage: null,   // notes | mix | partition (morceaux)
   rappel: '18:30',   // heure du rappel quotidien (fichier calendrier)
   langue: null,      // fr | en (null = celle du navigateur)
+  theme: 'edition',  // palette de couleurs (js/palette.js)
+  prof: 'femme',     // le prof 3D : femme | homme
 };
 
 function read(key, fallback) {

@@ -8,6 +8,8 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#f3eee3">
   <meta name="color-scheme" content="light">
+  <!-- La palette choisie s'applique avant le premier affichage (sinon l'ancienne clignote) -->
+  <script>try{var t=JSON.parse(localStorage.getItem('piano-learn-settings-v1')||'{}').theme;if(t&&t!=='edition')document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -66,6 +68,14 @@
   </header>
 
   <main id="app" class="app"></main>
+
+  <!-- Au bas de chaque page, quelle qu'elle soit : l'agence qui signe le site -->
+  <footer class="colophon">
+    <a href="https://eam-agency.vercel.app" target="_blank" rel="noopener" id="colophon">Proposé par l’agence <b>EAM</b></a>
+  </footer>
+
+  <!-- Les palettes, a comparer en direct : un rond par palette, en bas a gauche -->
+  <div class="palette-switch" id="palette-switch" role="group" aria-label="Couleurs du site"></div>
 
   <script type="module" src="js/main.js"></script>
 </body>
