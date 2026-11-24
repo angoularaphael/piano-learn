@@ -8,8 +8,10 @@ export const MORCEAUX = [
     type: 'actuel',
     libre: true,
     lecon: null,
-    tempo: 150,
-    texte: 'Version piano complète d\'Industry Baby, au tempo du morceau. Riff, refrain, couplet, refrain. Main droite, suis-moi jusqu\'au bout.',
+    // Le morceau tourne a 150 BPM, mais cette transcription est notee en demi-temps :
+    // 75 ici redonne la vraie vitesse (refrain : environ une note toutes les 0,8 temps a 150).
+    tempo: 75,
+    texte: 'Industry Baby à sa vraie vitesse, en mi bémol mineur comme l\'original. Riff, refrain, couplet, refrain. Main droite, suis-moi jusqu\'au bout.',
     demo: industryBabyDemo(),
   },
   {
@@ -20,6 +22,7 @@ export const MORCEAUX = [
     type: 'actuel',
     libre: true,
     lecon: null,
+    brouillon: true, // ne ressemble pas assez a l'original : cache en attendant des notes fiables
     tempo: 124,
     texte: 'Version piano du vrai refrain de Mood, au tempo du morceau. La phrase qui pose, c\'est do dièse, fa dièse, la : « est-ce que t\'as capté le mood ».',
     demo: moodL2bDemo(),
@@ -45,7 +48,7 @@ export const MORCEAUX = [
     libre: true,
     lecon: null,
     tempo: 138,
-    texte: 'Axel F, la version Crazy Frog. Le riff commence sur le fa : fa, sol dièse, fa fa, la dièse. Main droite, au tempo du morceau.',
+    texte: 'Axel F, version Crazy Frog, en ré mineur à 138 BPM. Le riff : ré... fa, ré ré sol ré do. Puis ré... la, ré ré si bémol la fa. Et la fin qui monte au ré aigu.',
     demo: axelFDemo(),
   },
   { id: 'clair-de-lune', titre: 'Au clair de la lune', auteur: 'Traditionnel', palier: 1, type: 'classique', lecon: '1-7' },
@@ -56,7 +59,7 @@ export const MORCEAUX = [
   { id: 'lettre-elise', titre: 'Lettre à Élise', auteur: 'Beethoven', palier: 6, type: 'classique' },
   { id: 'canon', titre: 'Canon en ré', auteur: 'Pachelbel', palier: 7, type: 'classique' },
   { id: 'gymnopedie', titre: 'Gymnopédie n°1', auteur: 'Satie', palier: 8, type: 'classique' },
-];
+].filter((m) => !m.brouillon);
 
 // D# mineur, 150 BPM. Riff + refrains + couplet Jack + outro.
 function industryBabyDemo() {
@@ -181,25 +184,15 @@ function rushEDemo() {
 }
 
 function axelFDemo() {
+  // Re mineur. Noires = 1 temps. Le riff tient sur trois mesures, puis une note longue.
+  const D = 62, F = 65, G = 67, C = 60, A = 69, Bb = 70, D5 = 74, A3 = 57, E = 64;
   const riff = [
-    [65, 0.25], [68, 0.25], [65, 0.5], [65, 0.5], [70, 0.5], [65, 0.5], [63, 0.5], [65, 0.5],
-    [72, 0.5], [65, 0.5], [65, 0.5], [73, 0.5], [72, 0.5], [68, 0.5], [65, 0.5], [72, 0.5],
-    [65, 0.5], [65, 0.5], [63, 0.5], [63, 0.5], [60, 0.5], [67, 0.5], [65, 1],
+    [D, 1], [F, 0.75], [D, 0.5], [D, 0.25], [G, 0.5], [D, 0.5], [C, 0.5],
+    [D, 1], [A, 0.75], [D, 0.5], [D, 0.25], [Bb, 0.5], [A, 0.5], [F, 0.5],
+    [D, 0.5], [A, 0.5], [D5, 0.5], [D, 0.25], [C, 0.5], [C, 0.25], [A3, 0.5], [E, 0.5],
+    [D, 2.5],
   ];
-  const arp = [
-    [65, 0.5], [69, 0.5], [72, 0.5], [65, 0.5], [69, 0.5], [72, 0.5],
-    [63, 0.5], [67, 0.5], [70, 0.5], [63, 0.5], [67, 0.5], [70, 0.5],
-    [62, 0.5], [65, 0.5], [70, 0.5], [62, 0.5], [65, 0.5], [70, 0.5],
-    [65, 0.5], [69, 0.5], [72, 1],
-  ];
-  const ding = [
-    [68, 0.5], [63, 0.5], [68, 0.5], [63, 0.5],
-    [68, 0.5], [63, 0.5], [68, 0.5], [63, 0.5],
-    [68, 0.5], [63, 0.5], [68, 0.5], [63, 0.5],
-    [68, 0.5], [63, 0.5], [68, 1],
-    [63, 0.5], [60, 0.5], [70, 0.5], [68, 0.5],
-    [70, 0.5], [72, 0.5], [75, 0.5], [72, 0.5],
-    [70, 0.5], [68, 0.5], [63, 1],
-  ];
-  return [...riff, ...riff, ...arp, ...riff, ...ding, ...riff, ...riff];
+  // Reprise une octave plus haut, comme le synthe dans la version Crazy Frog
+  const haut = riff.map(([m, d]) => [m + 12, d]);
+  return [...riff, ...riff, ...haut, ...riff];
 }
