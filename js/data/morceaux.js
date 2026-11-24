@@ -14,19 +14,7 @@ export const MORCEAUX = [
     texte: 'Industry Baby à sa vraie vitesse, en mi bémol mineur comme l\'original. Riff, refrain, couplet, refrain. Main droite, suis-moi jusqu\'au bout.',
     demo: industryBabyDemo(),
   },
-  {
-    id: 'mood-l2b',
-    titre: 'Mood',
-    auteur: 'R2, D2 (L2B), kulturr',
-    palier: 3,
-    type: 'actuel',
-    libre: true,
-    lecon: null,
-    brouillon: true, // ne ressemble pas assez a l'original : cache en attendant des notes fiables
-    tempo: 124,
-    texte: 'Version piano du vrai refrain de Mood, au tempo du morceau. La phrase qui pose, c\'est do dièse, fa dièse, la : « est-ce que t\'as capté le mood ».',
-    demo: moodL2bDemo(),
-  },
+
   {
     id: 'rush-e',
     titre: 'Rush E',
@@ -124,32 +112,6 @@ function industryBabyDemo() {
     ...baby, ...baby,
     ...riff(63), ...riff(70), ...riff(75), [75, 2],
   ];
-}
-
-// Fa# mineur, 124 BPM. Melodie du refrain (preview audio) : A / F# puis le crochet C# C# C# F# A.
-function moodL2bDemo() {
-  const bebe = [
-    [69, 0.5], [69, 0.5], [69, 0.5], [66, 1.5],
-    [61, 0.5], [61, 0.5], [64, 0.5], [66, 0.5],
-    [64, 0.5], [66, 1], [64, 0.5], [66, 1.5],
-  ];
-  const hook = [
-    [61, 0.5], [61, 0.5], [61, 0.5], [61, 0.5],
-    [66, 0.5], [69, 1.5],
-    [69, 0.5], [69, 1.5],
-  ];
-  const milieu = [
-    [69, 0.5], [69, 0.5], [61, 1],
-    [61, 0.5], [61, 0.5], [64, 0.5], [64, 0.5],
-    [66, 0.5], [66, 0.5], [68, 1],
-    [73, 0.5], [69, 0.5], [69, 0.5], [69, 1],
-    [68, 0.5], [66, 0.5], [69, 2],
-  ];
-  const bouche = [
-    [69, 0.5], [68, 0.5], [66, 0.5], [64, 0.5],
-    [66, 1], [61, 0.5], [66, 0.5], [69, 2],
-  ];
-  return [...bebe, ...hook, ...bouche, ...bebe, ...hook, ...milieu, ...hook, ...bouche];
 }
 
 function rushEDemo() {
