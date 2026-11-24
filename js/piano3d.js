@@ -77,7 +77,7 @@ export class Piano3D {
     r.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2));
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1;
+    r.toneMappingExposure = 0.8;
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     this.container.appendChild(r.domElement);
@@ -88,13 +88,13 @@ export class Piano3D {
     scene.fog = new THREE.FogExp2('#05060d', 0.012);
     const pmrem = new THREE.PMREMGenerator(r);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environmentIntensity = 0.25;
+    scene.environmentIntensity = 0.15;
     this.scene = scene;
 
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.1, 500);
 
-    scene.add(new THREE.HemisphereLight('#9fb4ff', '#1a1030', 0.7));
-    const sun = new THREE.DirectionalLight('#ffffff', 1.6);
+    scene.add(new THREE.HemisphereLight('#9fb4ff', '#1a1030', 0.45));
+    const sun = new THREE.DirectionalLight('#ffffff', 0.9);
     sun.position.set(-8, 22, 14);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -127,7 +127,7 @@ export class Piano3D {
     this.root = new THREE.Group();
     scene.add(this.root);
 
-    this.bloom = createBloom(r, scene, this.camera, { strength: 0.9, radius: 0.55, threshold: 0.92 });
+    this.bloom = createBloom(r, scene, this.camera, { strength: 0.6, radius: 0.45, threshold: 1.1 });
   }
 
   #buildKeys() {
@@ -150,7 +150,7 @@ export class Piano3D {
     for (const p of positions) {
       const pivot = new THREE.Group();
       pivot.position.set(p.x - offset, 0, -WHITE.l / 2);
-      const base = new THREE.Color(p.black ? '#0b0c14' : '#d9dfee');
+      const base = new THREE.Color(p.black ? '#0b0c14' : '#aab2c6');
       const mat = new THREE.MeshPhysicalMaterial({
         color: base.clone(),
         roughness: p.black ? 0.22 : 0.3,
@@ -281,7 +281,7 @@ export class Piano3D {
     return v;
   }
 
-  press(midi, velocity = 0.8) {
+  press(midi, velocity = 0.8, meta = {}) {
     const k = this.keys.get(midi);
     if (!k || this.pressed.has(midi)) return;
     this.pressed.add(midi);
@@ -290,7 +290,7 @@ export class Piano3D {
     const p = new THREE.Vector3(k.x, k.black ? 0.8 : 0.32, k.black ? -WHITE.l / 2 + 0.2 : -WHITE.l / 2 + 0.25);
     this.fx.start(midi, p, this.colorFor(midi), k.black ? 0.5 : 0.85);
     if (this.sound) noteOn(midi, velocity);
-    this.onNoteOn?.(midi);
+    this.onNoteOn?.(midi, meta);
   }
 
   release(midi) {

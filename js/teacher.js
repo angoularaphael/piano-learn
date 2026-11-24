@@ -94,7 +94,7 @@ export class Teacher {
       if (o.material.name.includes('Joints')) {
         o.material = new THREE.MeshPhysicalMaterial({ color: '#0e1430', emissive: new THREE.Color('#3ef2ff'), emissiveIntensity: 0.22, roughness: 0.3, metalness: 0.4, clearcoat: 1 });
       } else {
-        o.material = new THREE.MeshPhysicalMaterial({ color: '#c9d2ea', metalness: 0.15, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.1, iridescence: 0.6, iridescenceIOR: 1.4 });
+        o.material = new THREE.MeshPhysicalMaterial({ color: '#9ea8c4', metalness: 0.2, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.1, iridescence: 0.6, iridescenceIOR: 1.4 });
       }
     });
 
@@ -136,10 +136,10 @@ export class Teacher {
     this.bench = bench;
 
     // Eclairage du prof : douche de lumiere devant, liseré violet derriere
-    const spot = new THREE.SpotLight('#dfe8ff', 900, 160, 0.5, 0.6, 1.4);
+    const spot = new THREE.SpotLight('#dfe8ff', 380, 160, 0.45, 0.7, 1.4);
     spot.position.set(-20, 70, -30);
     spot.target.position.set(0, 0, 16);
-    const rim = new THREE.PointLight('#8b5cff', 260, 70, 1.6);
+    const rim = new THREE.PointLight('#8b5cff', 140, 70, 1.6);
     rim.position.set(14, 30, 40);
     bench.add(spot, spot.target, rim);
     spot.position.z -= bench.position.z;
@@ -225,7 +225,7 @@ export class Teacher {
     hand.pressTarget[finger] = 1;
     this.lookTarget.copy(this.piano.keyTop(midi) || this.lookTarget);
     const travel = hand.wrist.distanceTo(hand.wristTarget) > 0.5 ? 180 : 90;
-    setTimeout(() => this.piano.press(midi), travel);
+    setTimeout(() => this.piano.press(midi, 0.8, { teacher: true }), travel);
     setTimeout(() => {
       this.piano.release(midi);
       hand.pressTarget[finger] = 0;
@@ -248,6 +248,13 @@ export class Teacher {
 
   stop() {
     this.stopped = true;
+  }
+
+  // Numero du doigt (1 = pouce) pour une note, d'apres la position actuelle des mains
+  fingerHint(midi) {
+    const hand = this.hands[midi >= 60 ? 'Right' : 'Left'];
+    const i = hand.fingerKey.indexOf(midi);
+    return i >= 0 ? { finger: i + 1, hand: hand.side === 'Right' ? 'droite' : 'gauche' } : null;
   }
 
   nod() { this.nodT = 1; }
