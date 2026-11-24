@@ -167,7 +167,7 @@ export const PALIERS = [
     lecons: [
       {
         id: '4-1', titre: 'La portée', type: 'demo', main: 'droite', tempo: 80,
-        texte: 'Cinq lignes, quatre interlignes : c’est la portée. Plus la note est haut, plus elle est aiguë. Do s’écrit sous la portée sur sa petite ligne, mi sur la première ligne, fa juste au-dessus, sol sur la deuxième.',
+        texte: 'Cinq lignes, quatre interlignes : c’est la portée. Plus une note est placée haut, plus elle est aiguë. Do s’écrit sous la portée sur sa petite ligne, mi sur la première ligne, fa juste au-dessus, sol sur la deuxième.',
         apres: 'Tu viens de lire ta première partition : le début de « Frère Jacques », note par note.',
         droite: 'C4:1/1 D4:1/2 E4:1/3 C4:1/1 | C4:1/1 D4:1/2 E4:1/3 C4:1/1 | E4:1/3 F4:1/4 G4:2/5 | E4:1/3 F4:1/4 G4:2/5',
       },
@@ -327,7 +327,7 @@ export const PALIERS = [
       },
       {
         id: '7-2', titre: 'Fa et sol', type: 'demo', main: 'gauche', tempo: 66,
-        texte: 'Pour l’accord de fa, garde l’auriculaire sur do : l’index et le pouce montent d’une touche, sur fa et la. Pour l’accord de sol, l’auriculaire descend sur si, le majeur sur ré, le pouce sur sol. Puis retour à do.',
+        texte: 'Pour l’accord de fa, garde l’auriculaire sur do, puis pose l’index sur fa et le pouce sur la, une touche au-dessus de mi et sol. Pour l’accord de sol, l’auriculaire descend sur si, le majeur sur ré, le pouce sur sol. Puis retour à do.',
         apres: 'Do, fa, sol, do : avec ces trois accords, on accompagne des centaines de chansons.',
         gauche: 'C3+E3+G3:4/5+3+1 | C3+F3+A3:4/5+2+1 | B2+D3+G3:4/5+3+1 | C3+E3+G3:4/5+3+1',
       },

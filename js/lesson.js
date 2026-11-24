@@ -246,6 +246,7 @@ export function renderLesson(app, id) {
       });
     }
     piano.setHandMap(hand);
+    listener?.expectChord(st.notes.length > 1 ? st.notes.map((n) => n.midi) : null);
     focusOn(st.notes.map((n) => n.midi));
     const main = first.hand === 'L' ? 'gauche' : 'droite';
     const doigt = first.finger ? `, avec ${first.finger === 1 ? 'le pouce' : `le ${DOIGTS[first.finger]}`} de la main ${main}` : '';
@@ -279,10 +280,11 @@ export function renderLesson(app, id) {
     const st = step();
     if (!st) return;
     const fromMic = source === 'mic';
+    // Au micro, un accord se verifie en entier (handleChord) : une note seule ne compte ni pour ni contre
+    if (fromMic && st.notes.length > 1) return;
     const match = st.notes.find((n) => (fromMic ? sameNote(midi, n.midi) : midi === n.midi));
     if (match) {
       got.add(match.midi);
-      // Au micro, un accord est reconnu des qu'une de ses notes est entendue
       const complete = fromMic || st.notes.every((n) => got.has(n.midi));
       if (fromMic) piano.flash(match.midi, '#3dffa8');
       if (!complete) return;
@@ -321,6 +323,15 @@ export function renderLesson(app, id) {
     armHesitation();
   }
 
+  // Accord entendu au micro, verifie note par note
+  function handleChord(midis) {
+    const st = step();
+    if (mode !== 'play' || !st || st.notes.length < 2) return;
+    if (midis.join() !== st.notes.map((n) => n.midi).join()) return;
+    st.notes.forEach((n) => got.add(n.midi));
+    handle(st.notes[0].midi, 'chord');
+  }
+
   goBtn.addEventListener('click', async () => {
     if (mode === 'play') { stopPlay(); say('On reprend quand tu veux.', { voice: false }); return; }
     teacher?.stop();
@@ -353,11 +364,14 @@ export function renderLesson(app, id) {
       },
       onLevel: (v) => { meter.style.width = `${Math.round(v * 100)}%`; },
       onPitch: (midi) => { if (midi == null) heard.textContent = '–'; },
+      onChord: (midis) => { heard.textContent = midis.map((x) => noteName(x)).join(' + '); handleChord(midis); },
     });
     try {
       await l.start();
       if (mode !== 'play' || !alive) { l.stop(); return; }
       listener = l;
+      const cur = step();
+      listener.expectChord(cur && cur.notes.length > 1 ? cur.notes.map((n) => n.midi) : null);
       listenBar.hidden = false;
     } catch (e) {
       showToast(`<b>Micro non disponible</b><span>${fr('Joue sur les touches à l’écran, ou autorise le micro dans ton navigateur.')}</span>`);

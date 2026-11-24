@@ -1,0 +1,18 @@
+{
+  "name": "Piano Learn · apprendre le piano",
+  "short_name": "Piano Learn",
+  "description": "Un prof de piano en 3D : il montre, tu joues sur ton piano, le site écoute. Ton instrument grandit avec toi.",
+  "lang": "fr",
+  "start_url": "./#/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04050b",
+  "theme_color": "#04050b",
+  "categories": ["education", "music"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

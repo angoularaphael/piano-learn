@@ -6,8 +6,8 @@
 // - Plusieurs instruments, debloques au fil du parcours : feutre, droit, concert, electrique, orgue, clavecin.
 import { frequency } from './notes.js';
 
-const SAMPLE_URL = 'https://tonejs.github.io/audio/salamander/';
-const CACHE_NAME = 'pl-piano-v1';
+const SAMPLE_URL = new URL('../sounds/piano/', import.meta.url).href;
+const CACHE_NAME = 'pl-piano-v2';
 const NAMES = ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B'];
 // Un echantillon toutes les trois notes, du la grave (21) au do aigu (108)
 const SAMPLE_MIDIS = [];

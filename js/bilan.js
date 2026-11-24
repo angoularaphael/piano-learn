@@ -33,7 +33,7 @@ const TESTS = [
   { id: 'gauche', palier: 3, titre: 'La main gauche', consigne: 'Côté grave, à la main gauche : joue ces notes.', steps: 'C3 D3 E3 F3 G3 C3', show: 'names' },
   { id: 'lecture', palier: 4, titre: 'Lire la partition', consigne: 'Joue la note écrite sur la portée.', steps: 'E4 G4 C5 D4 A4 F3 A3', show: 'staff' },
   { id: 'rythme', palier: 5, titre: 'Le rythme', consigne: 'Joue n’importe quelle touche à chaque note, en même temps que le repère, avec le métronome.', rythme: [1, 1, 0.5, 0.5, 1, 2, 1, 0.5, 0.5, 2], show: 'rythme' },
-  { id: 'deux-mains', palier: 6, titre: 'Les deux mains', consigne: 'Joue les deux notes ensemble, une à chaque main.', steps: 'C3+C4 E3+G4 G3+E4 C3+C5', show: 'names' },
+  { id: 'deux-mains', palier: 6, titre: 'Les deux mains', consigne: 'Joue les deux notes ensemble, une à chaque main.', steps: 'C3+E4 F3+A4 G3+B4 C3+A4', show: 'names' },
   { id: 'accords', palier: 7, titre: 'Les accords', consigne: 'Joue chaque accord : les trois notes ensemble.', steps: 'C4+E4+G4 F4+A4+C5 G3+B3+D4', show: 'chords' },
 ];
 
@@ -216,6 +216,7 @@ export function renderBilan(app, { next = null } = {}) {
     if (!alive || listener) return;
     const l = new Listener({
       onNote: (midi) => { const h = body.querySelector('#t-heard'); if (h) h.textContent = nom(midi); runner?.input(midi, 'mic'); },
+      onChord: (midis) => { const h = body.querySelector('#t-heard'); if (h) h.textContent = midis.map(nom).join(' + '); runner?.chord?.(midis); },
       onLevel: (v) => { const mt = body.querySelector('#t-meter'); if (mt) mt.style.width = `${Math.round(v * 100)}%`; },
     });
     try {
@@ -249,6 +250,7 @@ export function renderBilan(app, { next = null } = {}) {
       prompt.innerHTML = `${progress}<div class="t-target ${test.show}">${main}</div>`;
       clearTimeout(timer);
       timer = setTimeout(() => fail(), 14000);
+      listener?.expectChord(st.midis.length > 1 ? st.midis : null);
     };
     const advance = (good) => {
       steps[i].ok = good;
@@ -264,12 +266,13 @@ export function renderBilan(app, { next = null } = {}) {
         if (over) return;
         const st = steps[i];
         const fromMic = source === 'mic';
+        // Au micro, un accord se verifie en entier (voir chord) : une note seule ne compte ni pour ni contre
+        if (fromMic && st.midis.length > 1) return;
         const hit = st.midis.find((t) => (fromMic ? sameNote(midi, t) : midi === t));
         if (hit != null) {
           got.add(hit);
           m.piano?.flash(midi, '#3dffa8');
-          // Au micro, un accord est accepte des qu'une de ses notes est reconnue
-          if (fromMic || st.midis.every((t) => got.has(t))) {
+          if (st.midis.every((t) => got.has(t))) {
             st.midis.forEach((t) => { if (discover(t)) learned.add(t); });
             advance(true);
           }
@@ -279,8 +282,15 @@ export function renderBilan(app, { next = null } = {}) {
         tries++;
         if (tries >= 2) advance(false);
       },
+      chord(midis) {
+        if (over) return;
+        const st = steps[i];
+        if (st.midis.length < 2 || midis.join() !== st.midis.join()) return;
+        st.midis.forEach((t) => { m.piano?.flash(t, '#3dffa8'); if (discover(t)) learned.add(t); });
+        advance(true);
+      },
       giveUp() { if (!over) { over = true; clearTimeout(timer); done(false); } },
-      stop() { over = true; clearTimeout(timer); },
+      stop() { over = true; clearTimeout(timer); listener?.expectChord(null); },
     };
   }
 

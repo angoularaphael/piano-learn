@@ -181,6 +181,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     st.notes.forEach((n) => piano.highlight(n.midi, n.hand === 'L' ? '#a98bff' : '#3ef2ff'));
     const n0 = st.notes[0];
     piano.showFinger(n0.midi, n0.finger);
+    listener?.expectChord(st.notes.length > 1 ? st.notes.map((n) => n.midi) : null);
     next.innerHTML = `<b>${st.notes.map((n) => noteName(n.midi)).join(' + ')}</b>${n0.finger ? `<span>${n0.finger === 1 ? 'pouce' : DOIGTS[n0.finger]} · main ${n0.hand === 'L' ? 'gauche' : 'droite'}</span>` : ''}`;
   }
 
@@ -219,6 +220,8 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     // On accepte une note un peu en avance (jusqu'a un temps et demi)
     if (st.start - now > 1.5) return;
     const fromMic = source === 'mic';
+    // Au micro, un accord se verifie en entier (onChord) : une note seule ne compte ni pour ni contre
+    if (fromMic && st.notes.length > 1 && source !== 'chord') return;
     const hit = st.notes.find((n) => (fromMic ? sameNote(midi, n.midi) : midi === n.midi) && !st.got.has(n.midi));
     if (hit) {
       st.got.add(hit.midi);
@@ -363,6 +366,12 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     if (mode !== 'joue' && mode !== 'rythme') return;
     const l = new Listener({
       onNote: (midi) => { heard.textContent = noteName(midi); onPlayed(midi, 'mic'); },
+      onChord: (midis) => {
+        heard.textContent = midis.map((x) => noteName(x)).join(' + ');
+        const st = learn[si];
+        if (mode !== 'joue' || !st || midis.join() !== st.notes.map((n) => n.midi).join()) return;
+        st.notes.forEach((n) => onPlayed(n.midi, 'touch'));
+      },
       onLevel: (v) => { meter.style.width = `${Math.round(v * 100)}%`; },
       onPitch: (midi) => { if (midi == null) heard.textContent = '–'; },
     });

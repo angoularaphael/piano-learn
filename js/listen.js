@@ -1,6 +1,9 @@
 // Ecoute au micro : reconnait la note jouee sur un vrai piano.
 // Tout se passe dans le navigateur, rien n'est envoye nulle part.
 import { unlockAudio, getContext } from './audio.js';
+import { chordPresent } from './chord.js';
+
+export { chordPresent };
 
 const TUNE_KEY = 'piano-learn-tuning';
 
@@ -41,8 +44,10 @@ export function yin(buf, sr, minF = 60, maxF = 2200, threshold = 0.15) {
 }
 
 export class Listener {
-  constructor({ onNote, onLevel, onPitch } = {}) {
+  constructor({ onNote, onLevel, onPitch, onChord } = {}) {
     this.onNote = onNote;
+    this.onChord = onChord;
+    this.chord = null;
     this.onLevel = onLevel;
     this.onPitch = onPitch;
     this.tuning = Number(localStorage.getItem(TUNE_KEY) || 0); // decalage en cents du piano
@@ -70,6 +75,12 @@ export class Listener {
     src.connect(hp).connect(this.analyser);
     this.hp = hp;
     this.buf = new Float32Array(this.analyser.fftSize);
+    // Second analyseur, tres fin en frequence, pour verifier les accords note par note
+    this.chordAnalyser = this.ctx.createAnalyser();
+    this.chordAnalyser.fftSize = 16384;
+    this.chordAnalyser.smoothingTimeConstant = 0.25;
+    hp.connect(this.chordAnalyser);
+    this.spec = new Float32Array(this.chordAnalyser.frequencyBinCount);
 
     this.floor = 0.004;
     this.floorSamples = [];
@@ -80,6 +91,11 @@ export class Listener {
     this.stable = { midi: null, count: 0 };
     this.running = true;
     this.timer = setInterval(() => this.#tick(), 25);
+  }
+
+  // Annonce l'accord attendu (null pour revenir aux notes seules)
+  expectChord(midis) {
+    this.chord = midis && midis.length > 1 ? { midis: [...midis], hits: 0 } : null;
   }
 
   // Ignore le micro un moment (quand le prof ou le piano 3D font du son)
@@ -114,6 +130,21 @@ export class Listener {
     // Attaque : le volume monte d'un coup
     const onset = loud && rms > this.prevRms * 1.45 && rms - this.prevRms > this.floor * 0.5 && now - this.lastOnset > 110;
     this.prevRms = rms * 0.6 + this.prevRms * 0.4;
+
+    // Accord attendu : deux verifications de suite pour etre sur
+    if (this.chord && loud && !muted) {
+      this.chordAnalyser.getFloatFrequencyData(this.spec);
+      const binHz = this.ctx.sampleRate / this.chordAnalyser.fftSize;
+      if (chordPresent(this.spec, binHz, this.chord.midis, this.tuning)) {
+        this.chord.hits++;
+        if (this.chord.hits >= 2) {
+          const midis = this.chord.midis;
+          this.chord.hits = -12;   // un temps de pause avant de pouvoir reconnaitre le meme accord
+          this.onChord?.(midis);
+        }
+      } else if (this.chord.hits > 0) this.chord.hits = 0;
+      else if (this.chord.hits < 0) this.chord.hits++;
+    }
 
     if (!loud) {
       this.current = null;
@@ -181,7 +212,7 @@ export class Listener {
   stop() {
     this.running = false;
     clearInterval(this.timer);
-    try { this.src?.disconnect(); this.hp?.disconnect(); } catch (e) { /* deja deconnecte */ }
+    try { this.src?.disconnect(); this.hp?.disconnect(); this.chordAnalyser?.disconnect(); } catch (e) { /* deja deconnecte */ }
     this.stream?.getTracks().forEach((t) => t.stop());
   }
 }

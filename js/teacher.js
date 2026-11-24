@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isBlack } from './notes.js';
 
-const MODEL_URL = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Xbot.glb';
+const MODEL_URL = new URL('../vendor/models/xbot.glb', import.meta.url).href;
 const M = 42.5; // unites du piano par metre (1 touche blanche = 2,35 cm)
 
 const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];

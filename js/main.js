@@ -16,6 +16,7 @@ import { renderPlayer } from './tutorial.js';
 import { renderBilan, needsBilan } from './bilan.js';
 import { connectMidi, midiSupported, midiInputs, autoConnectMidi, onMidiDevices } from './midi.js';
 import { speak, voiceAvailable } from './voice.js';
+import { registerOffline, canInstall, isInstalled, isIOS, install, offlineReady, onInstallChange } from './app-install.js';
 import { fr, esc, plural } from './text.js';
 
 const app = document.getElementById('app');
@@ -637,6 +638,11 @@ function pageReglages() {
         <label class="chip-toggle"><input type="checkbox" id="set-vibration" ${s.vibration ? 'checked' : ''}> Petite vibration sous le doigt (Android)</label>
         ${instr.features.has('cacher-noms') ? `<label class="chip-toggle"><input type="checkbox" id="set-noms" ${s.noms ? 'checked' : ''}> Nom des notes sur les touches</label>` : ''}
       </section>
+      <section class="card set" data-reveal style="--d:330ms">
+        <h3>L’application</h3>
+        <p class="hint">${fr('Installe le site sur ta tablette ou ton téléphone : il s’ouvre en plein écran, et il marche même sans réseau, posé sur le pupitre.')}</p>
+        <div class="mic-test"><button class="btn small" id="install-btn" hidden>Installer</button><span class="hint" id="install-state"></span></div>
+      </section>
       <section class="card set danger" data-reveal style="--d:360ms">
         <h3>Ta progression</h3>
         <p class="hint">${fr('Elle est gardée dans ce navigateur. La remettre à zéro efface les leçons, les notes apprises, l’XP et les badges.')}</p>
@@ -698,7 +704,21 @@ function pageReglages() {
     try { showMidi(await connectMidi()); } catch (e) { if (midiList) midiList.textContent = 'Accès refusé.'; }
   });
 
-  return () => { listener?.stop(); offAudio(); offMidi(); };
+  const installBtn = $('install-btn');
+  const installState = $('install-state');
+  const refreshInstall = async () => {
+    const ready = await offlineReady();
+    installBtn.hidden = !canInstall() || isInstalled();
+    installState.textContent = fr(isInstalled() ? 'Installée sur cet appareil.'
+      : canInstall() ? (ready ? 'Prête à marcher hors ligne.' : '')
+      : isIOS() ? 'Sur iPhone et iPad : touche Partager, puis « Sur l’écran d’accueil ».'
+      : `Ton navigateur propose l’installation dans son menu.${ready ? ' Le site marche déjà hors ligne.' : ''}`);
+  };
+  installBtn.addEventListener('click', () => install().then(refreshInstall));
+  const offInstall = onInstallChange(refreshInstall);
+  refreshInstall();
+
+  return () => { listener?.stop(); offAudio(); offMidi(); offInstall(); };
 }
 
 // ---------- Morceau, lecon, 404 ----------
@@ -788,3 +808,4 @@ function idle() {
 
 window.addEventListener('hashchange', () => route());
 route();
+registerOffline();
