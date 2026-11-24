@@ -1,6 +1,8 @@
 // Effets d'interface : la touche d'entree, les transitions de page, les apparitions, les lueurs.
 import { noteOn, noteOff, unlockAudio } from './audio.js';
 import { discover, unlockBadge } from './progress.js';
+import { noteName } from './notes.js';
+import { t } from './i18n.js';
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -13,9 +15,15 @@ export function playGate() {
   let seen = false;
   try { seen = sessionStorage.getItem('pl-gate') === '1'; } catch (e) { /* stockage bloque */ }
   if (seen) { gate.remove(); return Promise.resolve(false); }
+  // index.html l'ecrit en francais : on le met dans la langue de l'eleve avant de le montrer
+  const c = gate.querySelector('[data-midi="60"]');
+  c.setAttribute('aria-label', t('Do. Touche-le pour entrer.'));
+  c.querySelector('span').textContent = noteName(60);
+  const hint = gate.querySelector('.gate-hint');
+  hint.textContent = t('Touche le do pour entrer');
+  gate.querySelector('.gate-sub').textContent = t('Le son s’allume avec lui');
   gate.hidden = false;
   document.body.classList.add('gated');
-  const hint = gate.querySelector('.gate-hint');
   return new Promise((resolve) => {
     let done = false;
     const open = (midi) => {
@@ -45,7 +53,7 @@ export function playGate() {
         unlockAudio();
         noteOn(midi, 0.6);
         setTimeout(() => noteOff(midi), 350);
-        hint.textContent = 'Presque. Le do, c’est la blanche juste à gauche des deux noires.';
+        hint.textContent = t('Presque. Le do, c’est la blanche juste à gauche des deux noires.');
         gate.classList.remove('nudge');
         void gate.offsetWidth;
         gate.classList.add('nudge');
@@ -194,8 +202,8 @@ export function countUp(root) {
     if (reduced || !end) { el.textContent = end; return; }
     const start = performance.now();
     const dur = 1100;
-    const step = (t) => {
-      const p = Math.min(1, (t - start) / dur);
+    const step = (now) => {
+      const p = Math.min(1, (now - start) / dur);
       el.textContent = Math.round(end * (1 - Math.pow(1 - p, 3)));
       if (p < 1) requestAnimationFrame(step);
     };

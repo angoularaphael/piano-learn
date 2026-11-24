@@ -10,6 +10,7 @@ import { getState, dailyDone, dayKey, streakInfo } from './progress.js';
 import { PALIERS, currentPalier, nextLesson, lessonUnlocked } from './data/paliers.js';
 import { SONGS, songOpen } from './data/library.js';
 import { gamesOpen } from './ear.js';
+import { t } from './i18n.js';
 
 // Tirage stable pour la journee
 function seeded(seed) {
@@ -32,11 +33,11 @@ export function todayPlan() {
   // 1. L'oreille : les jeux de ton niveau tournent d'un jour a l'autre
   const games = gamesOpen(cur);
   const game = pickOne(games);
-  if (game) plan.push({ key: `oreille:${game.id}`, kind: 'oreille', step: 'Échauffer l’oreille', label: game.titre, href: `#/oreille/${game.id}`, min: 2 });
+  if (game) plan.push({ key: `oreille:${game.id}`, kind: 'oreille', step: t('Échauffer l’oreille'), label: game.titre, href: `#/oreille/${game.id}`, min: 2 });
 
   // 2. Apprendre
   const nxt = nextLesson(state);
-  if (nxt) plan.push({ key: `lecon:${nxt.lecon.id}`, kind: 'apprendre', step: 'Apprendre', label: nxt.lecon.titre, href: `#/lecon/${nxt.lecon.id}`, min: 5 });
+  if (nxt) plan.push({ key: `lecon:${nxt.lecon.id}`, kind: 'apprendre', step: t('Apprendre'), label: nxt.lecon.titre, href: `#/lecon/${nxt.lecon.id}`, min: 5 });
 
   // 3. Revoir : d'abord ce qui n'a pas ses trois etoiles
   const done = [];
@@ -46,13 +47,13 @@ export function todayPlan() {
   }));
   const weak = done.filter((x) => x.d.stars < 3);
   const review = pickOne(weak.length ? weak : done);
-  if (review) plan.push({ key: `lecon:${review.l.id}`, kind: 'revoir', step: 'Revoir', label: review.l.titre, href: `#/lecon/${review.l.id}`, min: 2 });
+  if (review) plan.push({ key: `lecon:${review.l.id}`, kind: 'revoir', step: t('Réviser'), label: review.l.titre, href: `#/lecon/${review.l.id}`, min: 2 });
 
   // 4. Plaisir : un morceau ouvert (les nouveaux d'abord)
   const open = SONGS.filter((s) => songOpen(s, cur) && !s.lecon);
   const fresh = open.filter((s) => !state.songsDone[s.id]);
   const song = pickOne(fresh.length ? fresh : open);
-  if (song) plan.push({ key: `morceau:${song.id}`, kind: 'plaisir', step: 'Te faire plaisir', label: song.titre, href: `#/morceau/${song.id}`, min: 2 });
+  if (song) plan.push({ key: `morceau:${song.id}`, kind: 'plaisir', step: t('Te faire plaisir'), label: song.titre, href: `#/morceau/${song.id}`, min: 2 });
 
   const doneKeys = new Set(dailyDone());
   plan.forEach((s) => { s.done = doneKeys.has(s.key); });

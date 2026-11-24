@@ -7,13 +7,13 @@ import { getState } from './progress.js';
 import { parseScore } from './score.js';
 import { Sheet } from './sheet.js';
 import { noteOn, noteOff, getContext } from './audio.js';
-import { L } from './i18n.js';
+import { L, t, lang } from './i18n.js';
 import { fr, esc } from './text.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- Dessins ----------
-const WHITE_NAMES = ['do', 'ré', 'mi', 'fa', 'sol', 'la', 'si'];
+const WHITE_NAMES = lang() === 'en' ? ['C', 'D', 'E', 'F', 'G', 'A', 'B'] : ['do', 'ré', 'mi', 'fa', 'sol', 'la', 'si'];
 
 function drawKeyboard() {
   const W = 30;
@@ -27,7 +27,7 @@ function drawKeyboard() {
     const x = 1 + (k + o + 1) * W - W * 0.32;
     s += `<rect class="b ${k < 2 ? 'two' : 'three'}" x="${x}" y="1" width="${W * 0.64}" height="${H * 0.6}" rx="3"/>`;
   }));
-  s += `<text class="cap" x="${1 + 1.5 * W}" y="${H + 26}">2 noires</text><text class="cap" x="${1 + 5 * W}" y="${H + 26}">3 noires</text>`;
+  s += `<text class="cap" x="${1 + 1.5 * W}" y="${H + 26}">${t('2 noires')}</text><text class="cap" x="${1 + 5 * W}" y="${H + 26}">${t('3 noires')}</text>`;
   return `${s}</svg>`;
 }
 
@@ -36,8 +36,9 @@ function drawStaff() {
   const S = 14;
   const lines = [0, 1, 2, 3, 4].map((i) => `<line x1="10" x2="430" y1="${top + i * S}" y2="${top + i * S}"/>`).join('');
   // Notes sur les lignes (mi sol si re fa) puis dans les interlignes (fa la do mi), cle de sol
-  const onLines = ['mi', 'sol', 'si', 'ré', 'fa'];
-  const inSpaces = ['fa', 'la', 'do', 'mi'];
+  const en = lang() === 'en';
+  const onLines = en ? ['E', 'G', 'B', 'D', 'F'] : ['mi', 'sol', 'si', 'ré', 'fa'];
+  const inSpaces = en ? ['F', 'A', 'C', 'E'] : ['fa', 'la', 'do', 'mi'];
   let notes = '';
   onLines.forEach((n, i) => {
     const x = 90 + i * 34;
@@ -51,12 +52,12 @@ function drawStaff() {
   });
   return `<svg class="th-art th-staff" viewBox="0 0 440 ${top + 4 * S + 44}" aria-hidden="true">${lines}
     <text class="clef" x="14" y="${top + 4 * S + 10}">\u{1D11E}</text>${notes}
-    <text class="cap" x="158" y="16">sur les lignes</text><text class="cap" x="340" y="16">dans les interlignes</text></svg>`;
+    <text class="cap" x="158" y="16">${t('sur les lignes')}</text><text class="cap" x="340" y="16">${t('dans les interlignes')}</text></svg>`;
 }
 
 function drawRhythm() {
   // Une ronde = 2 blanches = 4 noires = 8 croches
-  const rows = [[1, 'ronde', 4], [2, 'blanche', 2], [4, 'noire', 1], [8, 'croche', 0.5]];
+  const rows = [[1, t('ronde'), 4], [2, t('blanche'), 2], [4, t('noire'), 1], [8, t('croche'), 0.5]];
   const width = 440;
   let s = `<svg class="th-art th-rhythm" viewBox="0 0 ${width} 250" aria-hidden="true">`;
   rows.forEach(([n, name, beats], r) => {
@@ -68,7 +69,7 @@ function drawRhythm() {
       if (beats < 4) s += `<line class="st" x1="${x + 7}" y1="${y}" x2="${x + 7}" y2="${y - 34}"/>`;
       if (beats === 0.5) s += `<path class="fl" d="M ${x + 7} ${y - 34} c 1 6 9 7 8 15 c 3 -7 -3 -12 -8 -14 z"/>`;
     }
-    s += `<text class="nm" x="10" y="${y + 5}">${name}</text><text class="cap" x="10" y="${y + 21}">${beats >= 1 ? `${beats} temps` : '½ temps'}</text>`;
+    s += `<text class="nm" x="10" y="${y + 5}">${name}</text><text class="cap" x="10" y="${y + 21}">${beats > 1 ? t('{n} temps', { n: beats }) : beats === 1 ? t('1 temps') : t('½ temps')}</text>`;
   });
   return `${s}</svg>`;
 }
@@ -92,7 +93,7 @@ function drawHands() {
     return `${g}</g>`;
   };
   return `<svg class="th-art th-hands" viewBox="0 0 440 230" aria-hidden="true">${hand(120, true, 'left')}${hand(320, false, 'right')}
-    <text class="cap" x="120" y="226">main gauche</text><text class="cap" x="320" y="226">main droite</text></svg>`;
+    <text class="cap" x="120" y="226">${t('main gauche')}</text><text class="cap" x="320" y="226">${t('main droite')}</text></svg>`;
 }
 
 const ART = { clavier: drawKeyboard, portee: drawStaff, rythme: drawRhythm, mains: drawHands };
@@ -106,17 +107,17 @@ export function renderTheoryList(app, subnav = '') {
   app.innerHTML = `
     ${subnav}
     <div class="page-head">
-      <div class="eyebrow" data-reveal>La théorie</div>
-      <h1 data-split>Comprendre <span class="grad-text">ce que tu joues</span></h1>
-      <p class="lead" data-reveal>${fr(`Une idée par fiche, quand tu en as besoin. ${FICHES.filter((f) => open(f, cur)).length} fiches ouvertes sur ${FICHES.length} ; les autres arrivent avec les paliers.`)}</p>
+      <div class="eyebrow" data-reveal>${t('La théorie')}</div>
+      <h1 data-split>${t('Comprendre <span class="grad-text">ce que tu joues</span>')}</h1>
+      <p class="lead" data-reveal>${fr(t('Une idée par fiche, quand tu en as besoin. {n} fiches ouvertes sur {total} ; les autres arrivent avec les paliers.', { n: FICHES.filter((f) => open(f, cur)).length, total: FICHES.length }))}</p>
     </div>
     ${byPalier.map(({ p, cards }) => `
       <section class="th-group" data-reveal>
-        <h2 class="th-group-title"><span>Palier ${p.id}</span> ${esc(p.titre)}</h2>
+        <h2 class="th-group-title"><span>${t('Palier {n}', { n: p.id })}</span> ${esc(p.titre)}</h2>
         <div class="grid th-grid">
           ${cards.map((f) => (open(f, cur)
             ? `<a class="card th-card" href="#/theorie/${f.id}"><h3>${esc(L(f.titre))}</h3><p class="hint">${fr(esc(L(f.resume)))}</p></a>`
-            : `<div class="card th-card locked" aria-disabled="true"><h3>${esc(L(f.titre))}</h3><p class="hint">Palier ${f.palier}</p></div>`)).join('')}
+            : `<div class="card th-card locked" aria-disabled="true"><h3>${esc(L(f.titre))}</h3><p class="hint">${t('Palier {n}', { n: f.palier })}</p></div>`)).join('')}
         </div>
       </section>`).join('')}`;
   return () => {};
@@ -128,7 +129,7 @@ export function renderTheoryCard(app, id) {
   const i = FICHES.findIndex((f) => f.id === id);
   const f = FICHES[i];
   if (!f || !open(f, cur)) {
-    app.innerHTML = `<div class="page-head"><h1>${f ? 'Cette fiche arrive plus tard' : 'Fiche introuvable'}</h1><p class="lead">${fr(f ? `Elle s’ouvre au palier ${f.palier}.` : '')}</p><a class="btn" href="#/theorie">Toutes les fiches</a></div>`;
+    app.innerHTML = `<div class="page-head"><h1>${f ? t('Cette fiche arrive plus tard') : t('Fiche introuvable')}</h1><p class="lead">${fr(f ? t('Elle s’ouvre au palier {n}.', { n: f.palier }) : '')}</p><a class="btn" href="#/theorie">${t('Toutes les fiches')}</a></div>`;
     return () => {};
   }
   const prev = FICHES.slice(0, i).reverse().find((x) => open(x, cur));
@@ -136,7 +137,7 @@ export function renderTheoryCard(app, id) {
   const score = f.exemple ? parseScore(f.exemple) : null;
   app.innerHTML = `
     <div class="lesson-head">
-      <p class="crumbs" data-reveal><a href="#/theorie">La théorie</a><i></i><span>Palier ${f.palier}</span></p>
+      <p class="crumbs" data-reveal><a href="#/theorie">${t('La théorie')}</a><i></i><span>${t('Palier {n}', { n: f.palier })}</span></p>
       <h1 data-split class="lesson-title">${esc(L(f.titre))}</h1>
       <p class="lead" data-reveal>${fr(esc(L(f.resume)))}</p>
     </div>
@@ -145,10 +146,10 @@ export function renderTheoryCard(app, id) {
       <div class="th-body">${L(f.corps).map((para) => `<p>${fr(esc(para))}</p>`).join('')}</div>
       ${score ? `
         <div class="th-example">
-          <div class="th-example-head"><span class="eyebrow">L’exemple</span><button class="btn small" id="th-play">Écouter</button></div>
+          <div class="th-example-head"><span class="eyebrow">${t('L’exemple')}</span><button class="btn small" id="th-play">${t('Écouter')}</button></div>
           <div class="lesson-sheet" id="th-staff"></div>
         </div>` : ''}
-      <aside class="th-keep"><span class="eyebrow">À retenir</span><p>${fr(esc(L(f.retenir)))}</p></aside>
+      <aside class="th-keep"><span class="eyebrow">${t('À retenir')}</span><p>${fr(esc(L(f.retenir)))}</p></aside>
     </article>
     <nav class="th-nav">
       ${prev ? `<a class="btn ghost" href="#/theorie/${prev.id}">← ${esc(L(prev.titre))}</a>` : '<span></span>'}
@@ -165,7 +166,7 @@ export function renderTheoryCard(app, id) {
       if (playing) { playing = false; return; }
       getContext().resume?.();
       playing = true;
-      btn.textContent = 'Arrêter';
+      btn.textContent = t('Arrêter');
       sheet.reset();
       const beat = 60000 / 84;
       const t0 = performance.now();
@@ -183,7 +184,7 @@ export function renderTheoryCard(app, id) {
       if (!alive) return;
       sheet.focus([]);
       playing = false;
-      btn.textContent = 'Écouter';
+      btn.textContent = t('Écouter');
     });
   }
   return () => { alive = false; playing = false; sheet?.dispose(); };

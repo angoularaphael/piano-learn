@@ -1,7 +1,11 @@
 // Les paliers du parcours, avec leur ordre de deblocage.
 // Le contenu des lecons vit dans curriculum.js ; ici on calcule ce qui est ouvert, fait, ou a venir.
-import { PALIERS as CURRICULUM } from './curriculum.js';
+import { PALIERS as CURRICULUM_FR } from './curriculum.js';
+import { PALIERS as CURRICULUM_EN } from './en/curriculum.js';
 import { PALIERS_EQUIPE } from './paliers-equipe.js';
+import { lang } from '../i18n.js';
+
+const CURRICULUM = lang() === 'en' ? CURRICULUM_EN : CURRICULUM_FR;
 
 // Squelette des 8 paliers : sert tant qu'un palier n'a pas encore son contenu complet
 const SKELETON = [
@@ -14,6 +18,18 @@ const SKELETON = [
   { id: 7, titre: 'Les accords', resume: 'Do, fa, sol majeur, et accompagner une mélodie.' },
   { id: 8, titre: 'Aller plus loin', resume: 'Dièses, bémols, gammes, nuances, pédale : de vrais morceaux.' },
 ];
+if (lang() === 'en') {
+  [
+    ['Discovery', 'Find C, know your fingers, play your first five notes.'],
+    ['First melodies', 'Chain notes with the right hand, move out of position, play legato.'],
+    ['The left hand', 'Low notes, C to G with the left hand, then one hand after the other.'],
+    ['Reading notes', 'The staff, the treble clef, the bass clef, and reading without searching.'],
+    ['Rhythm', 'Whole, half, quarter and eighth notes, rests, and counting the beats.'],
+    ['Both hands', 'Melody on the right, bass on the left, and making them work together.'],
+    ['Chords', 'C, F and G major, and accompanying a melody.'],
+    ['Going further', 'Sharps, flats, scales, dynamics, pedal: real pieces.'],
+  ].forEach(([titre, resume], i) => Object.assign(SKELETON[i], { titre, resume }));
+}
 
 // Pour chaque palier : le parcours complet s'il existe, sinon les lecons de l'equipe qui ont deja leurs notes
 export const PALIERS = SKELETON.map((s) => {

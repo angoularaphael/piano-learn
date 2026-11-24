@@ -4,6 +4,7 @@
 // - Tant qu'un son n'est pas arrive, une synthese prend le relais : une touche sonne toujours.
 // - Le son est deverrouille des le premier geste (y compris sur iPhone, mode silencieux compris).
 // - Plusieurs instruments, debloques au fil du parcours : feutre, droit, concert, electrique, orgue, clavecin.
+import { lang } from './i18n.js';
 import { frequency } from './notes.js';
 
 const SAMPLE_URL = new URL('../sounds/piano/', import.meta.url).href;
@@ -14,6 +15,15 @@ const SAMPLE_MIDIS = [];
 for (let m = 21; m <= 108; m += 3) SAMPLE_MIDIS.push(m);
 const sampleFile = (m) => `${NAMES[m % 12]}${Math.floor(m / 12) - 1}.mp3`;
 
+const INSTRUMENTS_EN = {
+  feutre: ['Felt piano', 'Soft and intimate, like a piano whose hammers are covered in felt.'],
+  droit: ['Upright piano', 'The living-room piano: warm, a little woody.'],
+  concert: ['Grand piano', 'The concert grand, in a hall that rings.'],
+  electrique: ['Electric piano', 'The round, bright sound of the seventies.'],
+  orgue: ['Organ', 'Notes hold for as long as you keep the key down.'],
+  clavecin: ['Harpsichord', 'The strings are plucked, as in Bach’s day.'],
+};
+
 export const INSTRUMENTS = {
   feutre: { nom: 'Piano feutre', desc: 'Doux et intime, comme un piano dont les marteaux sont garnis de feutre.', kind: 'sample', cutoff: [900, 3200], attack: 0.006, release: 0.16, room: 'room', wet: 0.16, gain: 1.15 },
   droit: { nom: 'Piano droit', desc: 'Le piano du salon : chaleureux, un peu boisé.', kind: 'sample', cutoff: [2200, 9000], attack: 0.003, release: 0.12, room: 'room', wet: 0.2, gain: 1, body: true },
@@ -22,6 +32,8 @@ export const INSTRUMENTS = {
   orgue: { nom: 'Orgue', desc: 'Les notes tiennent tant que tu gardes la touche.', kind: 'organ', room: 'hall', wet: 0.3, gain: 0.55 },
   clavecin: { nom: 'Clavecin', desc: 'Les cordes sont pincées, comme au temps de Bach.', kind: 'harpsi', room: 'room', wet: 0.2, gain: 0.6 },
 };
+
+if (lang() === 'en') for (const [id, [nom, desc]] of Object.entries(INSTRUMENTS_EN)) Object.assign(INSTRUMENTS[id], { nom, desc });
 
 let ctx = null;
 let out = null;        // sortie generale

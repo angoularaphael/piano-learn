@@ -25,16 +25,34 @@ import { renderEarList, renderEarGame } from './ear.js';
 import { renderTheoryList, renderTheoryCard } from './theory.js';
 import { sessionSummary, reminderICS, reminderGoogle } from './session.js';
 import { exportData, importData, validData } from './progress.js';
+import { t, lang, setLang, locale } from './i18n.js';
 
 const app = document.getElementById('app');
 let cleanup = null;
 
+// Pluriel selon la langue : le francais garde le singulier pour 0 et 1, l'anglais seulement pour 1
+const many = (n) => (lang() === 'en' ? n !== 1 : n > 1);
+
+// ---------- La page autour des pages ----------
+// index.html reste en francais (la langue par defaut) : le reste de la coquille se traduit ici, au demarrage.
+// L'entree (la touche do) se traduit dans fx.js, au moment ou elle s'affiche.
+function translateShell() {
+  document.documentElement.lang = lang();
+  document.title = t('Piano Learn · Apprendre le piano pas à pas');
+  document.querySelector('.brand')?.setAttribute('aria-label', t('Piano Learn, accueil'));
+  const nav = document.getElementById('nav');
+  nav?.setAttribute('aria-label', t('Navigation principale'));
+  const NAV = { parcours: t('Parcours'), piano: t('Mon piano'), morceaux: t('Morceaux'), profil: t('Profil') };
+  nav?.querySelectorAll('a[data-route]').forEach((a) => { if (NAV[a.dataset.route]) a.textContent = NAV[a.dataset.route]; });
+}
+translateShell();
+
 // ---------- Barre d'XP et son de l'instrument ----------
 function refreshXp() {
   const info = levelInfo();
-  document.getElementById('xp-level').textContent = `NIV ${info.level}`;
+  document.getElementById('xp-level').textContent = t('NIV {n}', { n: info.level });
   document.getElementById('xp-fill').style.width = `${Math.round(info.ratio * 100)}%`;
-  document.getElementById('xp-chip').title = `${info.current} / ${info.need} XP avant le niveau ${info.level + 1}`;
+  document.getElementById('xp-chip').title = t('{current} / {need} XP avant le niveau {next}', { current: info.current, need: info.need, next: info.level + 1 });
 }
 
 // Le son suit l'instrument du palier, sauf si l'eleve en a choisi un autre parmi ceux debloques
@@ -54,7 +72,7 @@ onSettings((s, key) => {
   if (key === 'son') applySound();
 });
 
-const stars = (n) => `<span class="mini-stars" aria-label="${n} étoile${n > 1 ? 's' : ''} sur 3">${[1, 2, 3].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+const stars = (n) => `<span class="mini-stars" aria-label="${many(n) ? t('{n} étoiles sur 3', { n }) : t('{n} étoile sur 3', { n })}">${[1, 2, 3].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
 const lock = '<svg class="lock" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="7" width="10" height="7.5" rx="2" fill="currentColor"/></svg>';
 
 // Petites illustrations des trois corps de l'instrument
@@ -65,7 +83,7 @@ const STAGE_ART = {
 };
 
 // Lecons, oreille, theorie : les trois facons d'apprendre, sous le meme onglet
-const learnNav = (active) => `<nav class="subnav" aria-label="Apprendre" data-reveal>${[['parcours', 'Leçons'], ['oreille', 'Oreille'], ['theorie', 'Théorie']]
+const learnNav = (active) => `<nav class="subnav" aria-label="${t('Apprendre')}" data-reveal>${[['parcours', t('Leçons')], ['oreille', t('Oreille')], ['theorie', t('Théorie')]]
   .map(([r, l]) => `<a href="#/${r}" class="${r === active ? 'on' : ''}" ${r === active ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>`;
 
 const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -77,19 +95,19 @@ function todayCard() {
   if (!s.plan.length) return '';
   const next = s.plan.find((x) => !x.done);
   const st = s.streak;
-  const note = st.savedBy ? 'Tu avais manqué un jour : ton joker de la semaine a gardé ta série.'
-    : st.jokerFree ? 'Un joker par semaine : si tu manques un jour, ta série tient quand même.'
-    : 'Ton joker de la semaine est déjà pris : reviens demain pour garder ta série.';
+  const note = st.savedBy ? t('Tu avais manqué un jour : ton joker de la semaine a gardé ta série.')
+    : st.jokerFree ? t('Un joker par semaine : si tu manques un jour, ta série tient quand même.')
+    : t('Ton joker de la semaine est déjà pris : reviens demain pour garder ta série.');
   return `
     <section class="section today" id="today">
       <div class="card today-card" data-reveal>
         <div class="today-head">
           <div>
-            <div class="eyebrow">Ta séance du jour</div>
-            <h2>${s.complete ? 'Séance faite. À demain !' : `${s.minutes} minutes, ${s.total} gestes`}</h2>
+            <div class="eyebrow">${t('Ta séance du jour')}</div>
+            <h2>${s.complete ? fr(t('Séance faite. À demain !')) : t('{min} minutes, {n} gestes', { min: s.minutes, n: s.total })}</h2>
           </div>
-          <div class="streak ${st.days ? 'on' : ''} ${st.playedToday ? 'today-ok' : ''}" aria-label="${st.days} jour${st.days > 1 ? 's' : ''} d’affilée">
-            ${FLAME}<strong data-count="${st.days}">0</strong><span>${st.days > 1 ? 'jours' : 'jour'}</span>
+          <div class="streak ${st.days ? 'on' : ''} ${st.playedToday ? 'today-ok' : ''}" aria-label="${many(st.days) ? t('{n} jours d’affilée', { n: st.days }) : t('{n} jour d’affilée', { n: st.days })}">
+            ${FLAME}<strong data-count="${st.days}">0</strong><span>${many(st.days) ? t('jours') : t('jour')}</span>
           </div>
         </div>
         <ol class="today-steps">
@@ -99,17 +117,17 @@ function todayCard() {
             <span class="ts-min">${x.min} min</span></a></li>`).join('')}
         </ol>
         <div class="today-actions">
-          ${next ? `<a class="btn" href="${next.href}">${s.done ? 'Continuer' : 'Commencer'} · ${esc(next.step.toLowerCase())}</a>` : '<a class="btn ghost" href="#/piano">Jouer librement</a>'}
-          <button class="btn ghost" id="remind" aria-expanded="false">Me le rappeler chaque jour</button>
+          ${next ? `<a class="btn" href="${next.href}">${s.done ? t('Continuer') : t('Commencer')} · ${esc(next.step.toLowerCase())}</a>` : `<a class="btn ghost" href="#/piano">${t('Jouer librement')}</a>`}
+          <button class="btn ghost" id="remind" aria-expanded="false">${t('Me le rappeler chaque jour')}</button>
         </div>
         <p class="hint streak-note">${fr(note)}</p>
         <div class="remind-box" id="remind-box" hidden>
-          <label class="field"><span>À quelle heure ?</span><input type="time" id="remind-time" value="${esc(getSettings().rappel || '18:30')}"></label>
+          <label class="field"><span>${fr(t('À quelle heure ?'))}</span><input type="time" id="remind-time" value="${esc(getSettings().rappel || '18:30')}"></label>
           <div class="result-actions">
-            <button class="btn small" id="remind-ics">Ajouter à mon agenda</button>
-            <a class="btn ghost small" id="remind-google" target="_blank" rel="noopener">Google Agenda</a>
+            <button class="btn small" id="remind-ics">${t('Ajouter à mon agenda')}</button>
+            <a class="btn ghost small" id="remind-google" target="_blank" rel="noopener">${t('Google Agenda')}</a>
           </div>
-          <p class="hint">${fr('Un rendez-vous de dix minutes, chaque jour, dans ton agenda (téléphone, ordinateur). Rien n’est envoyé à personne : c’est ton agenda qui te le rappelle.')}</p>
+          <p class="hint">${fr(t('Un rendez-vous de dix minutes, chaque jour, dans ton agenda (téléphone, ordinateur). Rien n’est envoyé à personne : c’est ton agenda qui te le rappelle.'))}</p>
         </div>
       </div>
     </section>`;
@@ -122,7 +140,7 @@ function bindToday() {
   const time = document.getElementById('remind-time');
   const google = document.getElementById('remind-google');
   const url = `${location.origin}${location.pathname}#/`;
-  const opts = () => ({ time: time.value || '18:30', title: 'Piano : ta séance du jour', body: 'Dix minutes au piano : l’oreille, une leçon, une révision, un morceau.', url });
+  const opts = () => ({ time: time.value || '18:30', title: t('Piano : ta séance du jour'), body: t('Dix minutes au piano : l’oreille, une leçon, une révision, un morceau.'), url });
   const refresh = () => { google.href = reminderGoogle(opts()); };
   btn.addEventListener('click', () => {
     box.hidden = !box.hidden;
@@ -132,7 +150,7 @@ function bindToday() {
   time.addEventListener('change', () => { setSetting('rappel', time.value); refresh(); });
   document.getElementById('remind-ics').addEventListener('click', () => {
     setSetting('rappel', time.value);
-    deliverFile(reminderICS(opts()), 'seance-piano.ics');
+    deliverFile(reminderICS(opts()), t('seance-piano.ics'));
   });
 }
 
@@ -144,69 +162,70 @@ function pageAccueil(_, { entered }) {
   const started = Object.keys(state.lessonsDone).length > 0;
   const cur = currentPalier(state);
   const instr = instrumentAt(cur);
-  const words = ['Do', 'Ré', 'Mi', 'Fa', 'Sol', 'La', 'Si', 'Ode à la joie', 'Lettre à Élise', 'Gymnopédie', 'Clair de lune', 'Frère Jacques'];
+  // Les notes dans la langue de l'eleve (Do Re Mi... ou C D E...), et les titres tels que la bibliotheque les affiche
+  const words = [...[60, 62, 64, 65, 67, 69, 71].map((n) => noteName(n)), t('Ode à la joie'), t('Lettre à Élise'), 'Gymnopédie', 'Clair de lune', 'Frère Jacques'];
   const marquee = [...words, ...words].map((w) => `<span>${esc(w)}</span>`).join('');
   const teaser = SONGS.slice(0, 1).concat(SONGS.filter((s) => s.palier > 1).sort((a, b) => a.palier - b.palier).filter((_, i) => i % 3 === 0)).slice(0, 4);
   app.innerHTML = `
     <section class="hero">
       <div class="hero-canvas" id="hero-canvas"></div>
       <div class="hero-content">
-        <div class="eyebrow" data-reveal>Ton prof de piano, en 3D</div>
-        <h1 data-split>Apprends le piano, <span class="grad-text">une touche</span> après l’autre</h1>
-        <p class="lead" data-reveal style="--d:220ms">${fr('Le prof te montre sur son piano, tu rejoues sur le tien. Le site t’écoute, te dit si c’est juste, et ton instrument grandit avec toi.')}</p>
+        <div class="eyebrow" data-reveal>${t('Ton prof de piano, en 3D')}</div>
+        <h1 data-split>${t('Apprends le piano, <span class="grad-text">une touche</span> après l’autre')}</h1>
+        <p class="lead" data-reveal style="--d:220ms">${fr(t('Le prof te montre sur son piano, tu rejoues sur le tien. Le site t’écoute, te dit si c’est juste, et ton instrument grandit avec toi.'))}</p>
         <div class="hero-actions" data-reveal style="--d:320ms">
-          ${started && nxt ? `<a href="#/lecon/${nxt.lecon.id}" class="btn">Reprendre : ${esc(nxt.lecon.titre)}</a>` : `<a href="${needsBilan() ? '#/bilan' : '#/lecon/1-1'}" class="btn">Commencer</a>`}
-          <a href="#/piano" class="btn ghost">${started ? 'Mon piano' : 'Essayer le piano'}</a>
+          ${started && nxt ? `<a href="#/lecon/${nxt.lecon.id}" class="btn">${t('Reprendre : {titre}', { titre: esc(nxt.lecon.titre) })}</a>` : `<a href="${needsBilan() ? '#/bilan' : '#/lecon/1-1'}" class="btn">${t('Commencer')}</a>`}
+          <a href="#/piano" class="btn ghost">${started ? t('Mon piano') : t('Essayer le piano')}</a>
         </div>
       </div>
-      <div class="hero-hint">PASSE SUR LES TOUCHES</div>
+      <div class="hero-hint">${t('PASSE SUR LES TOUCHES')}</div>
     </section>
 
     ${started ? todayCard() : ''}
     <div class="marquee" aria-hidden="true"><div class="marquee-track">${marquee}</div></div>
 
     <section class="section">
-      <div class="eyebrow" data-reveal>Comment ça marche</div>
-      <h2 data-split>Trois temps, à chaque leçon</h2>
+      <div class="eyebrow" data-reveal>${t('Comment ça marche')}</div>
+      <h2 data-split>${t('Trois temps, à chaque leçon')}</h2>
       <div class="grid steps">
         ${[
-          ['Le prof montre', 'Il joue l’exercice lentement sur son piano. Tu vois ses doigts, les touches s’allument.'],
-          ['Tu joues chez toi', 'Sur ton vrai piano : pose le téléphone sur le pupitre, le site t’écoute au micro. Ou joue à l’écran.'],
-          ['Le site attend', 'Il attend la bonne note, sans chrono. Il t’aide si tu hésites. Chaque leçon réussie rapporte de l’XP.'],
-        ].map(([t, d], i) => `
+          [t('Le prof montre'), t('Il joue l’exercice lentement sur son piano. Tu vois ses doigts, les touches s’allument.')],
+          [t('Tu joues chez toi'), t('Sur ton vrai piano : pose le téléphone sur le pupitre, le site t’écoute au micro. Ou joue à l’écran.')],
+          [t('Le site attend'), t('Il attend la bonne note, sans chrono. Il t’aide si tu hésites. Chaque leçon réussie rapporte de l’XP.')],
+        ].map(([title, d], i) => `
           <div class="card" data-reveal style="--d:${i * 90}ms">
             <span class="num">0${i + 1}</span>
             <div class="keys-deco">${[0, 1, 2, 3, 4].map((k) => `<i style="--k:${k + i * 2}"></i>`).join('')}</div>
-            <h3>${t}</h3><p class="hint" style="margin:0">${fr(d)}</p>
+            <h3>${title}</h3><p class="hint" style="margin:0">${fr(d)}</p>
           </div>`).join('')}
       </div>
     </section>
 
     <section class="section grows">
-      <div class="eyebrow" data-reveal>Ton instrument</div>
-      <h2 data-split>Il grandit <span class="grad-text">avec toi</span></h2>
-      <p class="lead" data-reveal>${fr('Personne ne commence devant un piano de concert. Tu commences sur un clavier de lumière ; chaque note apprise s’allume pour de bon. Puis la lumière prend corps, et le piano à queue t’attend.')}</p>
+      <div class="eyebrow" data-reveal>${t('Ton instrument')}</div>
+      <h2 data-split>${t('Il grandit <span class="grad-text">avec toi</span>')}</h2>
+      <p class="lead" data-reveal>${fr(t('Personne ne commence devant un piano de concert. Tu commences sur un clavier de lumière ; chaque note apprise s’allume pour de bon. Puis la lumière prend corps, et le piano à queue t’attend.'))}</p>
       <div class="stages">
         ${Object.values(STAGES).map((s, i) => {
           const open = cur >= s.palier;
           return `<div class="card stage-card ${open ? 'open' : ''} ${instr.stage === s.id ? 'current' : ''}" data-reveal style="--d:${i * 110}ms">
             <div class="stage-art">${STAGE_ART[s.id]}</div>
-            <span class="tag ${open ? '' : 'grey'}">${instr.stage === s.id ? 'Ton instrument' : open ? 'Débloqué' : `Palier ${s.palier}`}</span>
+            <span class="tag ${open ? '' : 'grey'}">${instr.stage === s.id ? t('Ton instrument') : open ? t('Débloqué') : t('Palier {n}', { n: s.palier })}</span>
             <h3>${esc(s.nom)}</h3>
             <p class="hint">${fr(s.desc)}</p>
-            ${open ? '' : `<a class="link" href="#/piano?apercu=${s.palier}">Aperçu</a>`}
+            ${open ? '' : `<a class="link" href="#/piano?apercu=${s.palier}">${t('Aperçu')}</a>`}
           </div>`;
         }).join('<div class="stage-arrow" aria-hidden="true"></div>')}
       </div>
     </section>
 
     <section class="section">
-      <div class="eyebrow" data-reveal>Les morceaux</div>
-      <h2 data-split>De vrais airs, très vite</h2>
+      <div class="eyebrow" data-reveal>${t('Les morceaux')}</div>
+      <h2 data-split>${t('De vrais airs, très vite')}</h2>
       <div class="grid songs-teaser">
         ${teaser.map((s, i) => songCard(s, i, cur)).join('')}
       </div>
-      <p data-reveal style="margin-top:1.6rem"><a class="btn ghost" href="#/morceaux">Toute la bibliothèque · ${plural(SONGS.length, 'morceau', 'morceaux')}</a></p>
+      <p data-reveal style="margin-top:1.6rem"><a class="btn ghost" href="#/morceaux">${t('Toute la bibliothèque')} · ${plural(SONGS.length, t('morceau'), t('morceaux'))}</a></p>
     </section>
     ${footer()}
   `;
@@ -218,8 +237,8 @@ function pageAccueil(_, { entered }) {
 
 function footer() {
   return `<footer class="foot">
-    <p>${fr('Rien ne quitte ton appareil : l’écoute au micro et ta progression restent dans ton navigateur.')}</p>
-    <p class="credits">${fr('Sons de piano : Salamander Grand Piano, Alexander Holm (CC-BY 3.0). Prof 3D : modèle X Bot de Mixamo.')}</p>
+    <p>${fr(t('Rien ne quitte ton appareil : l’écoute au micro et ta progression restent dans ton navigateur.'))}</p>
+    <p class="credits">${fr(t('Sons de piano : Salamander Grand Piano, Alexander Holm (CC-BY 3.0). Prof 3D : modèle X Bot de Mixamo.'))}</p>
   </footer>`;
 }
 
@@ -239,7 +258,7 @@ function pageParcours() {
       const done = state.lessonsDone[l.id];
       const can = lessonUnlocked(i, j, state);
       const isNext = nxt?.lecon.id === l.id;
-      const inner = `<span class="dot ${done ? 'done' : ''} ${l.boss ? 'boss' : ''}"></span><span class="lt">${esc(l.titre)}</span>${done ? stars(done.stars) : isNext ? '<span class="tag">À faire</span>' : can ? '' : lock}`;
+      const inner = `<span class="dot ${done ? 'done' : ''} ${l.boss ? 'boss' : ''}"></span><span class="lt">${esc(l.titre)}</span>${done ? stars(done.stars) : isNext ? `<span class="tag">${t('À faire')}</span>` : can ? '' : lock}`;
       return `<li class="${isNext ? 'next' : ''}">${can ? `<a href="#/lecon/${l.id}">${inner}</a>` : `<span class="l">${inner}</span>`}</li>`;
     }).join('');
     return `
@@ -248,28 +267,30 @@ function pageParcours() {
         <div class="card">
           <div class="palier-head">
             <h3>${esc(p.titre)}</h3>
-            <span class="tag ${open ? (st.complete ? 'gold' : '') : 'grey'}">${p.bientot ? 'Bientôt' : open ? (st.complete ? 'Terminé' : `${st.done} / ${st.total}`) : 'Bloqué'}</span>
+            <span class="tag ${open ? (st.complete ? 'gold' : '') : 'grey'}">${p.bientot ? t('Bientôt') : open ? (st.complete ? t('Terminé') : `${st.done} / ${st.total}`) : t('Bloqué')}</span>
           </div>
           <p class="hint">${fr(esc(p.resume))}</p>
           ${open && !p.bientot ? `<div class="progress-line"><span style="width:${(st.done / Math.max(1, st.total)) * 100}%"></span></div><ul class="lessons">${lessons}</ul>` : ''}
-          ${bossSong ? `<p class="hint boss-line">Morceau de fin : <strong>${esc(bossSong.titre)}</strong></p>` : ''}
+          ${bossSong ? `<p class="hint boss-line">${t('Morceau de fin : <strong>{titre}</strong>', { titre: esc(bossSong.titre) })}</p>` : ''}
           ${gifts.length ? `<div class="gifts">${gifts.map((g) => `<span class="gift ${g.type}">${esc(g.nom)}</span>`).join('')}</div>` : ''}
-          ${!open && gifts.some((g) => g.type === 'stage') ? `<a class="link" href="#/piano?apercu=${p.id}">Voir l’aperçu</a>` : ''}
+          ${!open && gifts.some((g) => g.type === 'stage') ? `<a class="link" href="#/piano?apercu=${p.id}">${t('Voir l’aperçu')}</a>` : ''}
         </div>
       </div>`;
   }).join('');
 
+  const niveau = { debutant: t('Ton niveau : je débute'), intermediaire: t('Ton niveau : je joue un peu'), expert: t('Ton niveau : je joue bien') };
+  const bilanDate = state.bilan ? new Date(state.bilan.date).toLocaleDateString(locale(), { day: 'numeric', month: 'long' }) : '';
   app.innerHTML = `
     ${learnNav('parcours')}
-    <div class="eyebrow" data-reveal>8 paliers</div>
-    <h1 data-split>Ton <span class="grad-text">parcours</span></h1>
-    <p class="lead" data-reveal style="--d:200ms">${fr('Du tout premier do jusqu’aux vrais morceaux. Chaque palier se termine par un morceau, et chaque palier fait grandir ton instrument.')}</p>
+    <div class="eyebrow" data-reveal>${t('8 paliers')}</div>
+    <h1 data-split>${t('Ton <span class="grad-text">parcours</span>')}</h1>
+    <p class="lead" data-reveal style="--d:200ms">${fr(t('Du tout premier do jusqu’aux vrais morceaux. Chaque palier se termine par un morceau, et chaque palier fait grandir ton instrument.'))}</p>
     <div class="placement card" data-reveal style="--d:260ms">
       <div>
-        <strong>${state.bilan ? fr(`Ton niveau : ${{ debutant: 'je débute', intermediaire: 'je joue un peu', expert: 'je joue bien' }[state.bilan.niveau] || 'fait'}`) : 'Tu sais déjà jouer ?'}</strong>
-        <p class="hint">${fr(state.bilan ? `Bilan du ${new Date(state.bilan.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} : départ au palier ${state.bilan.palier}. Tu peux le refaire quand tu veux.` : 'Deux minutes de questions et de petits tests joués, et le prof te place au bon palier.')}</p>
+        <strong>${state.bilan ? fr(niveau[state.bilan.niveau] || t('Ton niveau : fait')) : t('Tu sais déjà jouer ?')}</strong>
+        <p class="hint">${fr(state.bilan ? t('Bilan du {date} : départ au palier {n}. Tu peux le refaire quand tu veux.', { date: bilanDate, n: state.bilan.palier }) : t('Deux minutes de questions et de petits tests joués, et le prof te place au bon palier.'))}</p>
       </div>
-      <a class="btn ghost small" href="#/bilan">${state.bilan ? 'Refaire le bilan' : 'Faire le bilan'}</a>
+      <a class="btn ghost small" href="#/bilan">${state.bilan ? t('Refaire le bilan') : t('Faire le bilan')}</a>
     </div>
     <div class="path" id="path">${items}</div>
   `;
@@ -329,36 +350,36 @@ function pagePiano(_, { query }) {
   app.innerHTML = `
     <div class="piano-head">
       <div>
-        <div class="eyebrow" data-reveal>${apercu ? `Aperçu · palier ${apercu}` : 'Mon piano'}</div>
+        <div class="eyebrow" data-reveal>${apercu ? t('Aperçu · palier {n}', { n: apercu }) : t('Mon piano')}</div>
         <h1 data-split>${esc(STAGES[look(instr)].nom)}</h1>
       </div>
       <span class="now-playing grad-text" id="now" aria-live="off"></span>
     </div>
-    ${apercu ? `<div class="preview-banner" data-reveal><span>${fr(`Voici ton instrument tel qu’il sera au palier ${apercu}. Ta progression ne change pas.`)}</span><a class="btn ghost small" href="#/piano">Revenir à mon piano</a></div>` : ''}
+    ${apercu ? `<div class="preview-banner" data-reveal><span>${fr(t('Voici ton instrument tel qu’il sera au palier {n}. Ta progression ne change pas.', { n: apercu }))}</span><a class="btn ghost small" href="#/piano">${t('Revenir à mon piano')}</a></div>` : ''}
     <div class="stage piano-stage" data-reveal style="--d:100ms">
       <div class="piano-wrap" id="piano"></div>
       <div class="ceremony" id="ceremony" hidden></div>
     </div>
-    <div class="minimap" id="minimap" data-reveal style="--d:160ms" role="slider" tabindex="0" aria-label="Partie du clavier affichée" aria-valuemin="21" aria-valuemax="108">
+    <div class="minimap" id="minimap" data-reveal style="--d:160ms" role="slider" tabindex="0" aria-label="${t('Partie du clavier affichée')}" aria-valuemin="21" aria-valuemax="108">
       ${miniKeys(known)}
       <span class="mm-window" id="mm-window"></span>
     </div>
     <div class="studio" id="studio" data-reveal style="--d:190ms">
-      <button class="rec-btn" id="rec" aria-pressed="false"><i class="rec-dot" aria-hidden="true"></i><span id="rec-label">Enregistrer</span><time id="rec-time" hidden>0:00</time></button>
-      <p class="hint studio-hint" id="studio-hint">${fr('Appuie, joue ce que tu veux, puis réécoute-toi. Tes prises restent sur cet appareil.')}</p>
-      <ol class="takes" id="takes" aria-label="Mes prises"></ol>
+      <button class="rec-btn" id="rec" aria-pressed="false"><i class="rec-dot" aria-hidden="true"></i><span id="rec-label">${t('Enregistrer')}</span><time id="rec-time" hidden>0:00</time></button>
+      <p class="hint studio-hint" id="studio-hint">${fr(t('Appuie, joue ce que tu veux, puis réécoute-toi. Tes prises restent sur cet appareil.'))}</p>
+      <ol class="takes" id="takes" aria-label="${t('Mes prises')}"></ol>
     </div>
     <div class="piano-tools">
-      <div class="seg" id="views" role="group" aria-label="Vue">
-        <button data-v="front" class="on">Face</button><button data-v="top">Dessus</button>${look(instr) === 'queue' ? '<button data-v="grand">Piano entier</button>' : ''}
+      <div class="seg" id="views" role="group" aria-label="${t('Vue')}">
+        <button data-v="front" class="on">${t('Face')}</button><button data-v="top">${t('Dessus')}</button>${look(instr) === 'queue' ? `<button data-v="grand">${t('Piano entier')}</button>` : ''}
       </div>
-      <button class="chip" id="zoom" aria-pressed="false">Tout le clavier</button>
-      ${instr.features.has('cacher-noms') ? `<label class="chip-toggle"><input type="checkbox" id="opt-labels" ${settings.noms ? 'checked' : ''}> Nom des notes</label>` : ''}
-      ${hasKeyboard ? `<label class="chip-toggle"><input type="checkbox" id="opt-letters" ${letters ? 'checked' : ''}> Lettres du clavier</label>` : ''}
-      ${instr.features.has('pedale') ? '<button class="chip pedal" id="pedal">Pédale</button>' : ''}
+      <button class="chip" id="zoom" aria-pressed="false">${t('Tout le clavier')}</button>
+      ${instr.features.has('cacher-noms') ? `<label class="chip-toggle"><input type="checkbox" id="opt-labels" ${settings.noms ? 'checked' : ''}> ${t('Nom des notes')}</label>` : ''}
+      ${hasKeyboard ? `<label class="chip-toggle"><input type="checkbox" id="opt-letters" ${letters ? 'checked' : ''}> ${t('Lettres du clavier')}</label>` : ''}
+      ${instr.features.has('pedale') ? `<button class="chip pedal" id="pedal">${t('Pédale')}</button>` : ''}
     </div>
-    ${hasKeyboard ? `<div class="layout-pick" id="layout-pick" role="radiogroup" aria-label="Disposition de ton clavier d’ordinateur">
-      <span class="hint">Ton clavier</span>
+    ${hasKeyboard ? `<div class="layout-pick" id="layout-pick" role="radiogroup" aria-label="${t('Disposition de ton clavier d’ordinateur')}">
+      <span class="hint">${t('Ton clavier')}</span>
       <div class="seg">${Object.entries(LAYOUTS).map(([id, l]) => `<button type="button" data-layout="${id}" role="radio">${l.nom}</button>`).join('')}</div>
     </div>` : ''}
     <p class="hint keys-hint" id="kbd-hint"></p>
@@ -367,13 +388,13 @@ function pagePiano(_, { query }) {
         const open = instr.sons.includes(id);
         const at = [1, 2, 3, 4, 5, 6, 7, 8].find((p) => instrumentAt(p).sons.includes(id));
         return `<button class="sound ${open ? '' : 'locked'} ${id === soundNow ? 'on' : ''}" data-son="${id}" ${open ? '' : 'disabled'}>
-          <strong>${esc(ins.nom)}</strong><span>${open ? fr(esc(ins.desc)) : `${lock} Palier ${at}`}</span></button>`;
+          <strong>${esc(ins.nom)}</strong><span>${open ? fr(esc(ins.desc)) : `${lock} ${t('Palier {n}', { n: at })}`}</span></button>`;
       }).join('')}
     </div>
     <div class="stages compact">
       ${Object.values(STAGES).filter((s) => s.id !== 'lumiere').map((s) => `<a class="card stage-card ${level >= s.palier ? 'open' : ''} ${look(instr) === s.id ? 'current' : ''}" href="#/piano${s.palier <= cur ? '' : `?apercu=${s.palier}`}">
           <div class="stage-art">${STAGE_ART[s.id]}</div>
-          <span class="tag ${cur >= s.palier ? '' : 'grey'}">${look(instr) === s.id ? 'Ton instrument' : cur >= s.palier ? 'Débloqué' : `Palier ${s.palier} · aperçu`}</span>
+          <span class="tag ${cur >= s.palier ? '' : 'grey'}">${look(instr) === s.id ? t('Ton instrument') : cur >= s.palier ? t('Débloqué') : t('Palier {n} · aperçu', { n: s.palier })}</span>
           <h3>${esc(s.nom)}</h3><p class="hint">${fr(esc(s.desc))}</p></a>`).join('')}
     </div>
   `;
@@ -432,7 +453,7 @@ function pagePiano(_, { query }) {
     mmWindow.style.left = `${a * 100}%`;
     mmWindow.style.width = `${(b - a) * 100}%`;
     minimap.setAttribute('aria-valuenow', Math.round(center));
-    minimap.setAttribute('aria-valuetext', `Autour du ${noteName(Math.round(center), true)}`);
+    minimap.setAttribute('aria-valuetext', t('Autour du {note}', { note: noteName(Math.round(center), true) }));
     zoomBtn.setAttribute('aria-pressed', whole);
     zoomBtn.classList.toggle('on', whole);
   }
@@ -493,9 +514,10 @@ function pagePiano(_, { query }) {
     });
     const keys = LAYOUTS[layout].keys;
     const kb = (codes) => codes.map((c) => `<kbd>${keys[c]}</kbd>`).join(' ');
+    const learnt = known ? ` <strong>${fr(many(known.size) ? t('{n} notes apprises sur 88.', { n: known.size }) : t('{n} note apprise sur 88.', { n: known.size }))}</strong>` : '';
     hintEl.innerHTML = hasKeyboard
-      ? `${kb(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'])} ${fr('jouent do ré mi fa sol la si do,')} ${kb(['KeyW', 'KeyE', 'KeyT', 'KeyY', 'KeyU'])} ${fr('les touches noires. Les flèches ← → changent d’octave.')}${known ? ` <strong>${fr(`${known.size} ${known.size > 1 ? 'notes apprises' : 'note apprise'} sur 88.`)}</strong>` : ''}`
-      : `${fr('Touche les notes du bout du doigt ; glisse sur la bande pour parcourir tout le clavier.')}${known ? ` <strong>${fr(`${known.size} ${known.size > 1 ? 'notes apprises' : 'note apprise'} sur 88.`)}</strong>` : ''}`;
+      ? `${kb(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'])} ${fr(t('jouent do ré mi fa sol la si do,'))} ${kb(['KeyW', 'KeyE', 'KeyT', 'KeyY', 'KeyU'])} ${fr(t('les touches noires. Les flèches ← → changent d’octave.'))}${learnt}`
+      : `${fr(t('Touche les notes du bout du doigt ; glisse sur la bande pour parcourir tout le clavier.'))}${learnt}`;
     if (!hasKeyboard) return;
     const map = {};
     if (letters) for (const [mid, l] of Object.entries(letterMap(layout))) map[Number(mid) + shift] = l;
@@ -544,7 +566,7 @@ function pagePiano(_, { query }) {
   const HINT = studioHint.textContent;
   const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>';
   const STOP = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>';
-  const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const dateFmt = new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const mmss = (ms) => { const sec = Math.round(ms / 1000); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
   const soundOf = () => { const st = getSettings(); return st.son && instr.sons.includes(st.son) ? st.son : instr.son; };
   let recTimer = null;
@@ -562,14 +584,14 @@ function pagePiano(_, { query }) {
   function renderTakes() {
     const list = listTakes();
     studioHint.hidden = list.length > 0 && studioHint.textContent === HINT;
-    takesEl.innerHTML = list.map((t, i) => `
-      <li class="take" data-id="${t.id}">
-        <button class="take-play" data-act="play" aria-label="Réécouter la prise ${list.length - i}">${PLAY}</button>
-        <div class="take-meta"><strong>Prise ${list.length - i}</strong><span>${dateFmt.format(t.at)} · ${mmss(t.dur)} · ${plural(t.notes.length, 'note', 'notes')}</span></div>
+    takesEl.innerHTML = list.map((tk, i) => `
+      <li class="take" data-id="${tk.id}">
+        <button class="take-play" data-act="play" aria-label="${t('Réécouter la prise {n}', { n: list.length - i })}">${PLAY}</button>
+        <div class="take-meta"><strong>${t('Prise {n}', { n: list.length - i })}</strong><span>${dateFmt.format(tk.at)} · ${mmss(tk.dur)} · ${plural(tk.notes.length, t('note'), t('notes'))}</span></div>
         <div class="take-actions">
-          <button class="chip small" data-act="midi" title="${fr('Fichier MIDI : il s’ouvre dans n’importe quel logiciel de musique')}">MIDI</button>
-          ${videoSupported() ? `<button class="chip small" data-act="video" title="${fr('Une vidéo du piano qui rejoue ta prise, avec le son')}">Vidéo</button>` : ''}
-          <button class="icon-btn" data-act="del" aria-label="Supprimer la prise ${list.length - i}">×</button>
+          <button class="chip small" data-act="midi" title="${fr(t('Fichier MIDI : il s’ouvre dans n’importe quel logiciel de musique'))}">MIDI</button>
+          ${videoSupported() ? `<button class="chip small" data-act="video" title="${fr(t('Une vidéo du piano qui rejoue ta prise, avec le son'))}">${t('Vidéo')}</button>` : ''}
+          <button class="icon-btn" data-act="del" aria-label="${t('Supprimer la prise {n}', { n: list.length - i })}">×</button>
         </div>
         <i class="take-progress" aria-hidden="true"></i>
       </li>`).join('');
@@ -580,7 +602,7 @@ function pagePiano(_, { query }) {
     rec.start();
     recBtn.classList.add('on');
     recBtn.setAttribute('aria-pressed', 'true');
-    recLabel.textContent = 'Arrêter';
+    recLabel.textContent = t('Arrêter');
     recTime.hidden = false;
     recTime.textContent = '0:00';
     stageEl.classList.add('recording');
@@ -593,11 +615,11 @@ function pagePiano(_, { query }) {
     const take = rec.stop({ son: soundOf(), stage: look(instr) });
     recBtn.classList.remove('on');
     recBtn.setAttribute('aria-pressed', 'false');
-    recLabel.textContent = 'Enregistrer';
+    recLabel.textContent = t('Enregistrer');
     recTime.hidden = true;
     stageEl.classList.remove('recording');
-    if (!take) { renderTakes(); say('Rien d’enregistré : joue au moins une note.'); return; }
-    if (!saveTake(take)) say('Plus de place sur cet appareil pour garder cette prise.');
+    if (!take) { renderTakes(); say(t('Rien d’enregistré : joue au moins une note.')); return; }
+    if (!saveTake(take)) say(t('Plus de place sur cet appareil pour garder cette prise.'));
     renderTakes();
     takesEl.firstElementChild?.classList.add('fresh');
   }
@@ -640,7 +662,7 @@ function pagePiano(_, { query }) {
   async function film(take, li, btn) {
     // Deuxieme geste : la video est prete, on la donne (le partage a besoin d'un geste frais)
     if (btn.classList.contains('ready') && btn.blob) {
-      await deliverFile(btn.blob, btn.filename, { share: canShareFiles(btn.blob.type), title: 'Ma prise au piano' });
+      await deliverFile(btn.blob, btn.filename, { share: canShareFiles(btn.blob.type), title: t('Ma prise au piano') });
       return;
     }
     if (filming) return;
@@ -652,20 +674,20 @@ function pagePiano(_, { query }) {
     li.classList.add('playing', 'filming');
     stageEl.classList.add('filming');
     const bar = li.querySelector('.take-progress');
-    btn.textContent = 'Vidéo · 0 %';
+    btn.textContent = t('Vidéo · {p} %', { p: 0 });
     try {
       const { blob, ext } = await recordVideo(piano, take, {
-        onTime: (f) => { bar.style.transform = `scaleX(${f})`; btn.textContent = `Vidéo · ${Math.round(f * 100)} %`; },
+        onTime: (f) => { bar.style.transform = `scaleX(${f})`; btn.textContent = t('Vidéo · {p} %', { p: Math.round(f * 100) }); },
       });
       const n = li.querySelector('.take-meta strong')?.textContent.replace(/\D/g, '') || '1';
       btn.blob = blob;
-      btn.filename = `prise-${n}.${ext}`;
+      btn.filename = `${t('prise-{n}', { n })}.${ext}`;
       btn.classList.add('ready');
-      btn.textContent = canShareFiles(blob.type) ? 'Partager la vidéo' : 'Télécharger la vidéo';
+      btn.textContent = canShareFiles(blob.type) ? t('Partager la vidéo') : t('Télécharger la vidéo');
     } catch (e) {
       console.error(e);
-      btn.textContent = 'Vidéo';
-      say('La vidéo n’a pas pu être créée sur ce navigateur. Le fichier MIDI, lui, marche partout.');
+      btn.textContent = t('Vidéo');
+      say(t('La vidéo n’a pas pu être créée sur ce navigateur. Le fichier MIDI, lui, marche partout.'));
     }
     setInstrument(before);
     filming = false;
@@ -678,7 +700,7 @@ function pagePiano(_, { query }) {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
     const li = btn.closest('.take');
-    const take = listTakes().find((t) => t.id === li.dataset.id);
+    const take = listTakes().find((tk) => tk.id === li.dataset.id);
     if (!take) return;
     const act = btn.dataset.act;
     if (act === 'play') {
@@ -686,14 +708,14 @@ function pagePiano(_, { query }) {
       else if (!filming) play(take, li);
     } else if (act === 'midi') {
       const n = li.querySelector('.take-meta strong')?.textContent.replace(/\D/g, '') || '1';
-      deliverFile(midiFile(take, { name: `Prise ${n}` }), `prise-${n}.mid`);
+      deliverFile(midiFile(take, { name: t('Prise {n}', { n }) }), `${t('prise-{n}', { n })}.mid`);
     } else if (act === 'video') {
       film(take, li, btn);
     } else if (act === 'del') {
       // Deux gestes pour effacer : la prise ne se recupere pas
       if (!btn.classList.contains('confirm')) {
         btn.classList.add('confirm');
-        btn.textContent = 'Effacer ?';
+        btn.textContent = fr(t('Effacer ?'));
         setTimeout(() => { if (btn.isConnected) { btn.classList.remove('confirm'); btn.textContent = '×'; } }, 3000);
         return;
       }
@@ -710,10 +732,10 @@ function pagePiano(_, { query }) {
     const box = document.getElementById('ceremony');
     box.innerHTML = `
       <div class="ceremony-card">
-        <div class="eyebrow" style="justify-content:center">Palier ${nouveau} ouvert</div>
+        <div class="eyebrow" style="justify-content:center">${t('Palier {n} ouvert', { n: nouveau })}</div>
         <h2>${esc(PALIERS[nouveau - 1].titre)}</h2>
         <ul>${gifts.map((g, i) => `<li style="--i:${i}"><strong>${esc(g.nom)}</strong><span>${fr(esc(g.desc))}</span></li>`).join('')}</ul>
-        <div class="result-actions"><button class="btn" id="cer-play">Jouer</button><a class="btn ghost" href="#/parcours">Voir le parcours</a></div>
+        <div class="result-actions"><button class="btn" id="cer-play">${t('Jouer')}</button><a class="btn ghost" href="#/parcours">${t('Voir le parcours')}</a></div>
       </div>`;
     markSeen(`palier-${nouveau}`);
     if (nouveau >= 3) unlockBadge('vrai-clavier');
@@ -770,10 +792,10 @@ function songCard(s, i, cur) {
       <h3>${esc(s.titre)}</h3>
       <span class="hint">${esc([s.compositeur, s.annee].filter(Boolean).join(' · '))}</span>
       <div class="meta">
-        ${s.libre ? '<span class="tag gold">Libre</span>' : `<span class="tag ${open ? '' : 'grey'}">${open ? '' : lock}Palier ${s.palier}</span>`}
-        ${s.actuel ? '<span class="tag">Actuel</span>' : ''}
-        ${s.lecon ? '<span class="tag grey">Avec le prof</span>' : ''}
-        <span class="lvl" aria-label="Difficulté ${s.niveau || 1} sur 5">${'●'.repeat(s.niveau || 1)}<b>${'●'.repeat(5 - (s.niveau || 1))}</b></span>
+        ${s.libre ? `<span class="tag gold">${t('Libre')}</span>` : `<span class="tag ${open ? '' : 'grey'}">${open ? '' : lock}${t('Palier {n}', { n: s.palier })}</span>`}
+        ${s.actuel ? `<span class="tag">${t('Actuel')}</span>` : ''}
+        ${s.lecon ? `<span class="tag grey">${t('Avec le prof')}</span>` : ''}
+        <span class="lvl" aria-label="${t('Difficulté {n} sur 5', { n: s.niveau || 1 })}">${'●'.repeat(s.niveau || 1)}<b>${'●'.repeat(5 - (s.niveau || 1))}</b></span>
         ${done ? stars(done.stars) : ''}
       </div>
     </a>`;
@@ -785,17 +807,19 @@ function pageMorceaux() {
   const groups = PALIERS.map((p) => ({ p, list: SONGS.filter((s) => s.palier === p.id && !s.libre) })).filter((g) => g.list.length);
   let i = 0;
   app.innerHTML = `
-    <div class="eyebrow" data-reveal>Bibliothèque</div>
-    <h1 data-split>Les <span class="grad-text">morceaux</span></h1>
-    <p class="lead" data-reveal style="--d:200ms">${fr(`${SONGS.length > 1 ? `${SONGS.length} morceaux, du plus simple au plus beau` : 'Les morceaux, du plus simple au plus beau'}. Les notes descendent vers les touches : écoute-les, puis joue-les à ton rythme.`)}</p>
+    <div class="eyebrow" data-reveal>${t('Bibliothèque')}</div>
+    <h1 data-split>${t('Les <span class="grad-text">morceaux</span>')}</h1>
+    <p class="lead" data-reveal style="--d:200ms">${fr(SONGS.length > 1
+      ? t('{n} morceaux, du plus simple au plus beau. Les notes descendent vers les touches : écoute-les, puis joue-les à ton rythme.', { n: SONGS.length })
+      : t('Les morceaux, du plus simple au plus beau. Les notes descendent vers les touches : écoute-les, puis joue-les à ton rythme.'))}</p>
     ${free.length ? `
       <section class="song-group">
-        <h2 class="group-title" data-reveal><span>Libres</span>${fr('Pour le plaisir, dès maintenant')}</h2>
+        <h2 class="group-title" data-reveal><span>${t('Libres')}</span>${fr(t('Pour le plaisir, dès maintenant'))}</h2>
         <div class="grid">${free.map((s) => songCard(s, i++, cur)).join('')}</div>
       </section>` : ''}
     ${groups.map(({ p, list }) => `
       <section class="song-group">
-        <h2 class="group-title" data-reveal><span>Palier ${p.id}</span>${esc(p.titre)}${p.id > cur ? ` <em>${lock} écoute seulement</em>` : ''}</h2>
+        <h2 class="group-title" data-reveal><span>${t('Palier {n}', { n: p.id })}</span>${esc(p.titre)}${p.id > cur ? ` <em>${lock} ${t('écoute seulement')}</em>` : ''}</h2>
         <div class="grid">${list.map((s) => songCard(s, i++, cur)).join('')}</div>
       </section>`).join('')}
   `;
@@ -811,7 +835,7 @@ function keysMap(known) {
     else whites.push({ m, x: w++ });
   }
   const W = 100 / whites.length;
-  return `<div class="keys-map" role="img" aria-label="${known.size} touches apprises sur 88">
+  return `<div class="keys-map" role="img" aria-label="${many(known.size) ? t('{n} touches apprises sur 88', { n: known.size }) : t('{n} touche apprise sur 88', { n: known.size })}">
     ${whites.map((k) => `<i class="w ${known.has(k.m) ? 'on' : ''} ${k.m === 60 ? 'c4' : ''}" style="left:${k.x * W}%;width:${W}%"></i>`).join('')}
     ${blacks.map((k) => `<i class="b ${known.has(k.m) ? 'on' : ''}" style="left:${k.x * W - W * 0.32}%;width:${W * 0.64}%"></i>`).join('')}
   </div>`;
@@ -832,8 +856,8 @@ function pageProfil() {
       <div><strong>${esc(b.titre)}</strong><br><span class="hint">${fr(esc(b.desc))}</span></div>
     </div>`).join('');
   app.innerHTML = `
-    <div class="eyebrow" data-reveal>Profil</div>
-    <h1 data-split>${name ? `${esc(name)}, ta` : 'Ta'} <span class="grad-text">progression</span></h1>
+    <div class="eyebrow" data-reveal>${t('Profil')}</div>
+    <h1 data-split>${name ? t('{name}, ta <span class="grad-text">progression</span>', { name: esc(name) }) : t('Ta <span class="grad-text">progression</span>')}</h1>
     <div class="profile-top">
       <div class="ring" data-reveal>
         <svg viewBox="0 0 190 190">
@@ -841,26 +865,26 @@ function pageProfil() {
           <circle class="track" cx="95" cy="95" r="84" fill="none" stroke-width="10"/>
           <circle class="bar" id="ring-bar" cx="95" cy="95" r="84" fill="none" stroke-width="10" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
         </svg>
-        <div class="ring-label"><strong data-count="${info.level}">0</strong><span>Niveau</span></div>
+        <div class="ring-label"><strong data-count="${info.level}">0</strong><span>${t('Niveau')}</span></div>
       </div>
       <div class="stats">
-        <div class="card stat" data-reveal><strong data-count="${s.xp}">0</strong><span>XP au total</span></div>
-        <div class="card stat" data-reveal style="--d:80ms"><strong data-count="${nbLecons}">0</strong><span>Leçons réussies</span></div>
-        <div class="card stat" data-reveal style="--d:160ms"><strong data-count="${s.streak}">0</strong><span>Jours d’affilée</span></div>
-        <div class="card stat" data-reveal style="--d:240ms"><strong data-count="${info.need - info.current}">0</strong><span>XP avant le niveau ${info.level + 1}</span></div>
+        <div class="card stat" data-reveal><strong data-count="${s.xp}">0</strong><span>${t('XP au total')}</span></div>
+        <div class="card stat" data-reveal style="--d:80ms"><strong data-count="${nbLecons}">0</strong><span>${t('Leçons réussies')}</span></div>
+        <div class="card stat" data-reveal style="--d:160ms"><strong data-count="${s.streak}">0</strong><span>${t('Jours d’affilée')}</span></div>
+        <div class="card stat" data-reveal style="--d:240ms"><strong data-count="${info.need - info.current}">0</strong><span>${t('XP avant le niveau {n}', { n: info.level + 1 })}</span></div>
       </div>
     </div>
     <section class="card keys-card" data-reveal>
       <div class="keys-card-head">
-        <div><div class="eyebrow">Ta carte du clavier</div><h2><span data-count="${known.size}">0</span> <small>notes apprises sur 88</small></h2></div>
+        <div><div class="eyebrow">${t('Ta carte du clavier')}</div><h2><span data-count="${known.size}">0</span> <small>${many(known.size) ? t('notes apprises sur 88') : t('note apprise sur 88')}</small></h2></div>
         <a class="btn ghost small" href="#/piano">${esc(STAGES[instr.stage].nom)}</a>
       </div>
       ${keysMap(known)}
-      <p class="hint">${fr('Chaque note réussie dans une leçon s’allume ici, et sur ton piano.')}</p>
+      <p class="hint">${fr(t('Chaque note réussie dans une leçon s’allume ici, et sur ton piano.'))}</p>
     </section>
-    <h2 data-split>Badges</h2>
+    <h2 data-split>${t('Badges')}</h2>
     <div class="badges">${badges}</div>
-    <p style="margin-top:2.5rem"><a class="btn ghost" href="#/reglages">Réglages</a></p>
+    <p style="margin-top:2.5rem"><a class="btn ghost" href="#/reglages">${t('Réglages')}</a></p>
   `;
   requestAnimationFrame(() => {
     document.getElementById('ring-bar').style.strokeDashoffset = C * (1 - info.ratio);
@@ -873,62 +897,73 @@ function pageReglages() {
   const s = getSettings();
   const instr = instrumentAt(currentPalier(getState()));
   app.innerHTML = `
-    <div class="eyebrow" data-reveal>Réglages</div>
-    <h1 data-split>À ta <span class="grad-text">main</span></h1>
+    <div class="eyebrow" data-reveal>${t('Réglages')}</div>
+    <h1 data-split>${t('À ta <span class="grad-text">main</span>')}</h1>
     <div class="settings">
       <section class="card set" data-reveal>
-        <h3>Toi</h3>
-        <label class="field"><span>Ton prénom</span><input type="text" id="set-prenom" maxlength="30" value="${esc(s.prenom)}" placeholder="Pour que le prof t’appelle par ton nom" autocomplete="given-name"></label>
+        <h3 id="set-lang-title">${t('Langue · Language')}</h3>
+        <div class="seg" id="set-lang" role="radiogroup" aria-labelledby="set-lang-title" style="justify-self:start">
+          ${[['fr', 'Français'], ['en', 'English']].map(([id, label]) => `<button type="button" role="radio" lang="${id}" data-lang="${id}" class="${id === lang() ? 'on' : ''}" aria-checked="${id === lang()}">${label}</button>`).join('')}
+        </div>
+      </section>
+      <section class="card set" data-reveal style="--d:30ms">
+        <h3>${t('Toi')}</h3>
+        <label class="field"><span>${t('Ton prénom')}</span><input type="text" id="set-prenom" maxlength="30" value="${esc(s.prenom)}" placeholder="${t('Pour que le prof t’appelle par ton nom')}" autocomplete="given-name"></label>
       </section>
       <section class="card set" data-reveal style="--d:60ms">
-        <h3>Le son</h3>
-        <label class="field"><span>Volume</span><input type="range" id="set-volume" min="0" max="120" value="${Math.round(s.volume * 100)}"></label>
-        <label class="field"><span>Résonance de la salle</span><input type="range" id="set-reverb" min="0" max="200" value="${Math.round(s.reverb * 100)}"></label>
+        <h3>${t('Le son')}</h3>
+        <label class="field"><span>${t('Volume')}</span><input type="range" id="set-volume" min="0" max="120" value="${Math.round(s.volume * 100)}"></label>
+        <label class="field"><span>${t('Résonance de la salle')}</span><input type="range" id="set-reverb" min="0" max="200" value="${Math.round(s.reverb * 100)}"></label>
         <p class="hint" id="load-state"></p>
       </section>
       <section class="card set" data-reveal style="--d:120ms">
-        <h3>Le micro</h3>
-        <p class="hint">${fr('Joue une note sur ton piano : elle doit s’afficher ici. Le site s’adapte tout seul si ton piano est un peu désaccordé.')}</p>
-        <div class="mic-test"><button class="btn ghost small" id="mic-test">Tester le micro</button><span class="meter"><span id="mic-meter"></span></span><strong id="mic-note">–</strong></div>
+        <h3>${t('Le micro')}</h3>
+        <p class="hint">${fr(t('Joue une note sur ton piano : elle doit s’afficher ici. Le site s’adapte tout seul si ton piano est un peu désaccordé.'))}</p>
+        <div class="mic-test"><button class="btn ghost small" id="mic-test">${t('Tester le micro')}</button><span class="meter"><span id="mic-meter"></span></span><strong id="mic-note">–</strong></div>
       </section>
       <section class="card set" data-reveal style="--d:180ms">
-        <h3>Piano numérique</h3>
-        <p class="hint">${fr(midiSupported() ? 'Branche ton piano numérique en USB (ou en Bluetooth) : chaque note est reconnue sans aucune erreur.' : 'Ton navigateur ne gère pas les pianos numériques. Chrome ou Edge le font.')}</p>
-        ${midiSupported() ? '<div class="mic-test"><button class="btn ghost small" id="midi-btn">Connecter</button><span class="hint" id="midi-list"></span></div>' : ''}
+        <h3>${t('Piano numérique')}</h3>
+        <p class="hint">${fr(midiSupported() ? t('Branche ton piano numérique en USB (ou en Bluetooth) : chaque note est reconnue sans aucune erreur.') : t('Ton navigateur ne gère pas les pianos numériques. Chrome ou Edge le font.'))}</p>
+        ${midiSupported() ? `<div class="mic-test"><button class="btn ghost small" id="midi-btn">${t('Connecter')}</button><span class="hint" id="midi-list"></span></div>` : ''}
       </section>
       <section class="card set" data-reveal style="--d:240ms">
-        <h3>Le prof</h3>
-        ${voiceAvailable() ? `<label class="chip-toggle"><input type="checkbox" id="set-voix" ${s.voix ? 'checked' : ''}> Il parle à voix haute</label> <button class="btn ghost small" id="voice-test">Écouter</button>` : ''}
-        <label class="field"><span>Vitesse des démonstrations et des morceaux</span><input type="range" id="set-vitesse" min="40" max="100" step="5" value="${Math.round(s.vitesse * 100)}"></label>
+        <h3>${t('Le prof')}</h3>
+        ${voiceAvailable() ? `<label class="chip-toggle"><input type="checkbox" id="set-voix" ${s.voix ? 'checked' : ''}> ${t('Il parle à voix haute')}</label> <button class="btn ghost small" id="voice-test">${t('Écouter')}</button>` : ''}
+        <label class="field"><span>${t('Vitesse des démonstrations et des morceaux')}</span><input type="range" id="set-vitesse" min="40" max="100" step="5" value="${Math.round(s.vitesse * 100)}"></label>
       </section>
       <section class="card set" data-reveal style="--d:300ms">
-        <h3>Le toucher</h3>
-        <label class="chip-toggle"><input type="checkbox" id="set-vibration" ${s.vibration ? 'checked' : ''}> Petite vibration sous le doigt (Android)</label>
-        ${instr.features.has('cacher-noms') ? `<label class="chip-toggle"><input type="checkbox" id="set-noms" ${s.noms ? 'checked' : ''}> Nom des notes sur les touches</label>` : ''}
+        <h3>${t('Le toucher')}</h3>
+        <label class="chip-toggle"><input type="checkbox" id="set-vibration" ${s.vibration ? 'checked' : ''}> ${t('Petite vibration sous le doigt (Android)')}</label>
+        ${instr.features.has('cacher-noms') ? `<label class="chip-toggle"><input type="checkbox" id="set-noms" ${s.noms ? 'checked' : ''}> ${t('Nom des notes sur les touches')}</label>` : ''}
       </section>
       <section class="card set" data-reveal style="--d:330ms">
-        <h3>L’application</h3>
-        <p class="hint">${fr('Installe le site sur ta tablette ou ton téléphone : il s’ouvre en plein écran, et il marche même sans réseau, posé sur le pupitre.')}</p>
-        <div class="mic-test"><button class="btn small" id="install-btn" hidden>Installer</button><span class="hint" id="install-state"></span></div>
+        <h3>${t('L’application')}</h3>
+        <p class="hint">${fr(t('Installe le site sur ta tablette ou ton téléphone : il s’ouvre en plein écran, et il marche même sans réseau, posé sur le pupitre.'))}</p>
+        <div class="mic-test"><button class="btn small" id="install-btn" hidden>${t('Installer')}</button><span class="hint" id="install-state"></span></div>
       </section>
       <section class="card set" data-reveal style="--d:345ms">
-        <h3>Changer d’appareil</h3>
-        <p class="hint">${fr('Pas de compte, pas de serveur : ta progression tient dans un petit fichier. Garde-le, ou rouvre-le sur ton autre appareil (tes leçons, ton XP, tes badges, tes réglages et tes prises).')}</p>
+        <h3>${t('Changer d’appareil')}</h3>
+        <p class="hint">${fr(t('Pas de compte, pas de serveur : ta progression tient dans un petit fichier. Garde-le, ou rouvre-le sur ton autre appareil (tes leçons, ton XP, tes badges, tes réglages et tes prises).'))}</p>
         <div class="result-actions" style="justify-content:flex-start">
-          <button class="btn small" id="export">Exporter ma progression</button>
-          <label class="btn ghost small file-btn">Importer un fichier<input type="file" id="import-file" accept="application/json,.json" hidden></label>
+          <button class="btn small" id="export">${t('Exporter ma progression')}</button>
+          <label class="btn ghost small file-btn">${t('Importer un fichier')}<input type="file" id="import-file" accept="application/json,.json" hidden></label>
         </div>
         <p class="hint" id="transfer-state" aria-live="polite"></p>
       </section>
       <section class="card set danger" data-reveal style="--d:360ms">
-        <h3>Ta progression</h3>
-        <p class="hint">${fr('Elle est gardée dans ce navigateur. La remettre à zéro efface les leçons, les notes apprises, l’XP et les badges.')}</p>
-        <button class="btn ghost small" id="reset">Tout remettre à zéro</button>
+        <h3>${t('Ta progression')}</h3>
+        <p class="hint">${fr(t('Elle est gardée dans ce navigateur. La remettre à zéro efface les leçons, les notes apprises, l’XP et les badges.'))}</p>
+        <button class="btn ghost small" id="reset">${t('Tout remettre à zéro')}</button>
       </section>
     </div>
     ${footer()}
   `;
   const $ = (id) => document.getElementById(id);
+  // La langue : le choix est garde, et la page se recharge dans la nouvelle langue
+  $('set-lang').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-lang]');
+    if (b && b.dataset.lang !== lang()) setLang(b.dataset.lang);
+  });
   $('set-prenom').addEventListener('change', (e) => setSetting('prenom', e.target.value.trim()));
   $('set-volume').addEventListener('input', (e) => setSetting('volume', Number(e.target.value) / 100));
   $('set-reverb').addEventListener('input', (e) => setSetting('reverb', Number(e.target.value) / 100));
@@ -938,15 +973,15 @@ function pageReglages() {
   $('set-voix')?.addEventListener('change', (e) => setSetting('voix', e.target.checked));
   $('voice-test')?.addEventListener('click', () => {
     const p = getSettings().prenom;
-    speak(`Bonjour${p ? ` ${p}` : ''}. On reprend là où on s’était arrêtés ?`, { force: true });
+    speak(p ? t('Bonjour {name}. On reprend là où on s’était arrêtés ?', { name: p }) : t('Bonjour. On reprend là où on s’était arrêtés ?'), { force: true });
   });
   // Export : un fichier date ; import : verifie, puis confirme en deux gestes (il remplace tout)
   const tState = $('transfer-state');
   $('export').addEventListener('click', () => {
     const data = exportData({ takes: listTakes() });
     const day = new Date().toISOString().slice(0, 10);
-    deliverFile(new Blob([JSON.stringify(data)], { type: 'application/json' }), `piano-progression-${day}.json`);
-    tState.textContent = fr('Fichier prêt. Ouvre-le ici même, dans Réglages, sur ton autre appareil.');
+    deliverFile(new Blob([JSON.stringify(data)], { type: 'application/json' }), t('piano-progression-{day}.json', { day }));
+    tState.textContent = fr(t('Fichier prêt. Ouvre-le ici même, dans Réglages, sur ton autre appareil.'));
   });
   let pending = null;
   $('import-file').addEventListener('change', async (e) => {
@@ -955,10 +990,13 @@ function pageReglages() {
     if (!file) return;
     let data = null;
     try { data = JSON.parse(await file.text()); } catch (err) { data = null; }
-    if (!validData(data)) { tState.textContent = fr('Ce fichier n’est pas une progression de Piano Learn.'); return; }
+    if (!validData(data)) { tState.textContent = fr(t('Ce fichier n’est pas une progression de Piano Learn.')); return; }
     pending = data;
     const p = data.progress;
-    tState.innerHTML = `${fr(`Progression du ${new Date(data.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} : ${p.xp} XP, ${Object.keys(p.lessonsDone).length} leçons. Elle remplacera celle-ci.`)} <button class="btn small" id="import-go">Remplacer</button>`;
+    const nl = Object.keys(p.lessonsDone).length;
+    const lessons = many(nl) ? t('{n} leçons', { n: nl }) : t('{n} leçon', { n: nl });
+    const date = new Date(data.at).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
+    tState.innerHTML = `${fr(t('Progression du {date} : {xp} XP, {lessons}. Elle remplacera celle-ci.', { date, xp: p.xp, lessons }))} <button class="btn small" id="import-go">${t('Remplacer')}</button>`;
     $('import-go').addEventListener('click', () => {
       if (!pending || !importData(pending)) return;
       if (Array.isArray(pending.takes)) { try { localStorage.setItem('piano-learn-prises-v1', JSON.stringify(pending.takes.slice(0, 12))); } catch (err) { /* plein */ } }
@@ -967,7 +1005,7 @@ function pageReglages() {
     });
   });
   $('reset').addEventListener('click', () => {
-    if (confirm('Tout effacer ? Les leçons, les notes apprises, l’XP et les badges. On ne pourra pas revenir en arrière.')) {
+    if (confirm(t('Tout effacer ? Les leçons, les notes apprises, l’XP et les badges. On ne pourra pas revenir en arrière.'))) {
       resetProgress();
       route(true);
     }
@@ -977,14 +1015,14 @@ function pageReglages() {
     const st = loadStatus(...instrumentAt(currentPalier(getState())).range);
     const ctx = getContext();
     const lat = Math.round(((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000);
-    loadState.textContent = fr(`Sons du piano prêts : ${st.ready} sur ${st.total}.${lat ? ` Délai de ta sortie audio : ${lat} ms.` : ''}`);
+    loadState.textContent = fr(`${t('Sons du piano prêts : {ready} sur {total}.', { ready: st.ready, total: st.total })}${lat ? ` ${t('Délai de ta sortie audio : {ms} ms.', { ms: lat })}` : ''}`);
   };
   refreshLoad();
   const offAudio = onAudioChange(refreshLoad);
 
   let listener = null;
   $('mic-test').addEventListener('click', async () => {
-    if (listener) { listener.stop(); listener = null; $('mic-test').textContent = 'Tester le micro'; return; }
+    if (listener) { listener.stop(); listener = null; $('mic-test').textContent = t('Tester le micro'); return; }
     const { Listener } = await import('./listen.js');
     const l = new Listener({
       onNote: (midi) => { $('mic-note').textContent = noteName(midi, true); },
@@ -993,18 +1031,18 @@ function pageReglages() {
     try {
       await l.start();
       listener = l;
-      $('mic-test').textContent = 'Arrêter';
+      $('mic-test').textContent = t('Arrêter');
     } catch (e) {
-      $('mic-note').textContent = 'Micro refusé';
+      $('mic-note').textContent = t('Micro refusé');
     }
   });
 
   const midiList = $('midi-list');
-  const showMidi = (list) => { if (midiList) midiList.textContent = list.length ? `Connecté : ${list.join(', ')}` : 'Aucun piano détecté pour l’instant.'; };
+  const showMidi = (list) => { if (midiList) midiList.textContent = list.length ? fr(t('Connecté : {list}', { list: list.join(', ') })) : t('Aucun piano détecté pour l’instant.'); };
   const offMidi = onMidiDevices(showMidi);
   if (midiInputs().length) showMidi(midiInputs());
   $('midi-btn')?.addEventListener('click', async () => {
-    try { showMidi(await connectMidi()); } catch (e) { if (midiList) midiList.textContent = 'Accès refusé.'; }
+    try { showMidi(await connectMidi()); } catch (e) { if (midiList) midiList.textContent = t('Accès refusé.'); }
   });
 
   const installBtn = $('install-btn');
@@ -1012,10 +1050,10 @@ function pageReglages() {
   const refreshInstall = async () => {
     const ready = await offlineReady();
     installBtn.hidden = !canInstall() || isInstalled();
-    installState.textContent = fr(isInstalled() ? 'Installée sur cet appareil.'
-      : canInstall() ? (ready ? 'Prête à marcher hors ligne.' : '')
-      : isIOS() ? 'Sur iPhone et iPad : touche Partager, puis « Sur l’écran d’accueil ».'
-      : `Ton navigateur propose l’installation dans son menu.${ready ? ' Le site marche déjà hors ligne.' : ''}`);
+    installState.textContent = fr(isInstalled() ? t('Installée sur cet appareil.')
+      : canInstall() ? (ready ? t('Prête à marcher hors ligne.') : '')
+      : isIOS() ? t('Sur iPhone et iPad : touche Partager, puis « Sur l’écran d’accueil ».')
+      : `${t('Ton navigateur propose l’installation dans son menu.')}${ready ? ` ${t('Le site marche déjà hors ligne.')}` : ''}`);
   };
   installBtn.addEventListener('click', () => install().then(refreshInstall));
   const offInstall = onInstallChange(refreshInstall);
@@ -1042,10 +1080,10 @@ function pageLecon(id) {
 function pageIntrouvable() {
   app.innerHTML = `
     <div class="empty">
-      <div class="eyebrow">Erreur 404</div>
-      <h1 data-split>Fausse <span class="grad-text">note</span></h1>
-      <p class="lead" style="margin:0 auto 1.5rem">Cette page n’existe pas. On reprend depuis le début ?</p>
-      <a href="#/" class="btn">Retour à l’accueil</a>
+      <div class="eyebrow">${t('Erreur 404')}</div>
+      <h1 data-split>${t('Fausse <span class="grad-text">note</span>')}</h1>
+      <p class="lead" style="margin:0 auto 1.5rem">${fr(t('Cette page n’existe pas. On reprend depuis le début ?'))}</p>
+      <a href="#/" class="btn">${t('Retour à l’accueil')}</a>
     </div>`;
 }
 
@@ -1105,7 +1143,7 @@ function route(instant = false) {
 // Ce qui peut se preparer en douce : le prof 3D, le piano numerique
 function idle() {
   const go = () => {
-    import('./teacher.js').then((t) => t.preloadTeacher()).catch(() => {});
+    import('./teacher.js').then((mod) => mod.preloadTeacher()).catch(() => {});
     autoConnectMidi();
   };
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 3000 });

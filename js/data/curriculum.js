@@ -175,7 +175,7 @@ export const PALIERS = [
         id: '4-2', titre: 'La clé de sol', type: 'demo', main: 'droite', tempo: 84,
         texte: 'La clé de sol s’enroule autour de la deuxième ligne : cette ligne, c’est sol. Pars de ce repère, puis descends marche par marche : une ligne, un interligne, une ligne.',
         apres: 'Sol sur la deuxième ligne : ce repère ne te quittera plus.',
-        droite: 'G4:1/4 G4:1/4 F4:1/3 F4:1/3 | E4:1/2 E4:1/2 E4:1/2 D4:1/1 | G4:1/4 G4:1/4 F4:1/3 F4:1/3 | E4:1/2 E4:1/2 E4:1/2 D4:1/1',
+        droite: 'G4:1/4 G4:1/4 F4:1/3 F4:1/3 | E4:1/2 E4:1/2 D4:2/1 | G4:1/4 G4:1/4 F4:1/3 F4:1/3 | E4:1/2 E4:1/2 D4:2/1',
       },
       {
         id: '4-3', titre: 'Marches et sauts', type: 'demo', main: 'droite', tempo: 84,
@@ -408,7 +408,7 @@ export const PALIERS = [
       {
         id: '8-6', titre: 'Menuet en sol', type: 'morceau', main: 'deux', morceau: 'menuet-en-sol',
         texte: 'Un des menuets les plus joués par les pianistes qui débutent. Tu y retrouves la gamme de sol et son fa dièse. Trois temps par mesure, avec légèreté.',
-        apres: 'Un menuet de l’époque de Bach, à deux mains. Il ne reste qu’une étape.',
+        apres: 'Un menuet de l’époque de Bach, à deux mains. Plus que deux étapes.',
       },
       {
         id: '8-7', titre: 'Gymnopédie n° 1', type: 'morceau', main: 'deux', morceau: 'gymnopedie-1',

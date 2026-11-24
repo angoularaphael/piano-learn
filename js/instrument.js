@@ -3,6 +3,8 @@
 // clavier, puis un piano a queue ; les sons, la pedale, la transposition arrivent quand on en a besoin.
 // Chaque touche apprise reste allumee : le clavier lui-meme est la carte de la progression.
 import { INSTRUMENTS } from './audio.js';
+import { lang, t } from './i18n.js';
+import { hasKeyboard } from './kbd-ui.js';
 
 export const STAGES = {
   lumiere: {
@@ -25,10 +27,31 @@ export const FEATURES = {
   metronome: { nom: 'Le métronome', desc: 'Un battement régulier pour tenir le tempo.' },
   'deux-mains': { nom: 'Les deux mains', desc: 'Choisis la main que tu travailles dans chaque morceau.' },
   accords: { nom: 'Les accords', desc: 'Le nom de l’accord s’affiche quand tu le joues.' },
-  pedale: { nom: 'La pédale', desc: 'Maintiens la barre d’espace (ou le bouton) : les notes résonnent.' },
+  pedale: { nom: 'La pédale', desc: hasKeyboard() ? 'Maintiens la barre d’espace (ou le bouton Pédale) : les notes résonnent.' : 'Garde le doigt sur le bouton Pédale : les notes résonnent.' },
   transposition: { nom: 'La transposition', desc: 'Joue un morceau plus haut ou plus bas sans changer tes doigts.' },
   concert: { nom: 'La salle de concert', desc: 'Joue n’importe quel morceau devant une salle entière, sous le projecteur.' },
 };
+
+// En anglais : memes cles, autres mots
+if (lang() === 'en') {
+  const S = {
+    lumiere: ['The light keyboard', 'The keyboard of your first lessons. Every note you learn lights up and stays lit.'],
+    clavier: ['The real keyboard', 'The light takes shape: ivory, ebony, red felt. A keyboard like yours.'],
+    queue: ['The grand piano', 'The concert grand, lid open. You can see the strings vibrate under your fingers.'],
+  };
+  const F = {
+    'cacher-noms': ['Play without names', 'You can hide the note names and truly read.'],
+    portee: ['The sheet music', 'Notes are written on the staff as they fall toward the keyboard.'],
+    metronome: ['The metronome', 'A steady beat to hold the tempo.'],
+    'deux-mains': ['Both hands', 'Choose which hand you practice in each piece.'],
+    accords: ['Chords', 'The chord’s name shows up when you play it.'],
+    pedale: ['The pedal', hasKeyboard() ? 'Hold the space bar (or the Pedal button) and the notes ring on.' : 'Keep your finger on the Pedal button and the notes ring on.'],
+    transposition: ['Transposition', 'Play a piece higher or lower without changing your fingers.'],
+    concert: ['The concert hall', 'Play any piece in front of a full hall, under the spotlight.'],
+  };
+  for (const [id, [nom, desc]] of Object.entries(S)) Object.assign(STAGES[id], { nom, desc });
+  for (const [id, [nom, desc]] of Object.entries(F)) Object.assign(FEATURES[id], { nom, desc });
+}
 
 // Ce que chaque palier ajoute
 const BY_PALIER = {
@@ -64,7 +87,7 @@ export function unlocksOf(palier) {
   const prev = instrumentAt(palier - 1);
   const list = [];
   if (add.stage && add.stage !== prev.stage) list.push({ type: 'stage', id: add.stage, nom: STAGES[add.stage].nom, desc: STAGES[add.stage].desc });
-  (add.sons || []).forEach((s) => list.push({ type: 'son', id: s, nom: `Nouveau son : ${INSTRUMENTS[s].nom.toLowerCase()}`, desc: INSTRUMENTS[s].desc }));
+  (add.sons || []).forEach((s) => list.push({ type: 'son', id: s, nom: t('Nouveau son : {nom}', { nom: INSTRUMENTS[s].nom.toLowerCase() }), desc: INSTRUMENTS[s].desc }));
   (add.features || []).forEach((f) => list.push({ type: 'feature', id: f, nom: FEATURES[f].nom, desc: FEATURES[f].desc }));
   return list;
 }

@@ -1,5 +1,7 @@
 // Piano numerique branche en USB ou en Bluetooth : chaque note est reconnue a coup sur (Web MIDI).
 // Chrome, Edge et Android le gerent ; Safari ne le gere pas encore.
+import { t } from './i18n.js';
+
 let access = null;
 const handlers = new Set();
 const changeListeners = new Set();
@@ -34,7 +36,7 @@ export async function connectMidi() {
 
 export function midiInputs() {
   if (!access) return [];
-  return [...access.inputs.values()].filter((i) => i.state === 'connected').map((i) => i.name || 'Piano numérique');
+  return [...access.inputs.values()].filter((i) => i.state === 'connected').map((i) => i.name || t('Piano numérique'));
 }
 
 export function onMidi(h) {

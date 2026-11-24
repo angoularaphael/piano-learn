@@ -1,4 +1,5 @@
 // Une portee en SVG : cle de sol ou de fa, une note (ronde), lignes supplementaires si besoin.
+import { t } from './i18n.js';
 import { isBlack } from './notes.js';
 
 const STEP = 5;          // demi-interligne
@@ -32,7 +33,7 @@ export function staffSVG(midi, clef = clefFor(midi), { label = '' } = {}) {
   const glyph = clef === 'sol'
     ? '<text class="clef" x="12" y="86" font-size="66">𝄞</text>'
     : '<text class="clef" x="14" y="66" font-size="40">𝄢</text>';
-  return `<svg class="staff" viewBox="0 0 200 120" role="img" aria-label="${label || 'Une note sur la portée'}">
+  return `<svg class="staff" viewBox="0 0 200 120" role="img" aria-label="${label || t('Une note sur la portée')}">
     <g class="lines">${lines}</g>${glyph}${ledger}${sharp}
     <ellipse class="head" cx="${x}" cy="${y}" rx="7.2" ry="5.1" transform="rotate(-18 ${x} ${y})" />
     <ellipse class="hole" cx="${x}" cy="${y}" rx="3.6" ry="2.2" transform="rotate(-52 ${x} ${y})" />

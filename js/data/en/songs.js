@@ -33,7 +33,7 @@ export const SONGS = [
   {
     id: 'ah-vous-dirai-je', titre: 'Twinkle, Twinkle, Little Star', compositeur: 'Traditional', annee: 1761,
     origine: 'French tune', palier: 2, niveau: 1, tempo: 100, mesure: '2/4',
-    droite: 'C4:1/1 C4:1/1 | G4:1/4 G4:1/4 | A4:1/5 A4:1/5 | G4:2/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:1/1 D4:1/1 | C4:2/1 | G4:1/4 G4:1/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | E4:1/2 D4:1/1 | G4:1/4 G4:1/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | E4:1/2 D4:1/1 | C4:1/1 C4:1/1 | G4:1/4 G4:1/4 | A4:1/5 A4:1/5 | G4:2/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:1/1 D4:1/1 | C4:2/1',
+    droite: 'C4:1/1 C4:1/1 | G4:1/4 G4:1/4 | A4:1/5 A4:1/5 | G4:2/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:1/1 D4:1/1 | C4:2/1 | G4:1/4 G4:1/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:2/1 | G4:1/4 G4:1/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:2/1 | C4:1/1 C4:1/1 | G4:1/4 G4:1/4 | A4:1/5 A4:1/5 | G4:2/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:1/1 D4:1/1 | C4:2/1',
     histoire: 'This French tune, known in France as “Ah! vous dirai-je, maman”, was first printed in 1761. Mozart wrote twelve variations on it for piano, and in English it is sung as “Twinkle, Twinkle, Little Star”.',
   },
   {
@@ -83,7 +83,7 @@ export const SONGS = [
     id: 'ah-vous-dirai-je-deux-mains', titre: 'Twinkle, Twinkle, Little Star (both hands)', compositeur: 'Traditional', annee: 1761,
     origine: 'French tune', palier: 4, niveau: 2, tempo: 100, mesure: '2/4',
     droite: 'C4:1/1 C4:1/1 | G4:1/4 G4:1/4 | A4:1/5 A4:1/5 | G4:2/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:1/1 D4:1/1 | C4:2/1 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | C4:1/1 C4:1/1 | G4:1/4 G4:1/4 | A4:1/5 A4:1/5 | G4:2/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:1/1 D4:1/1 | C4:2/1',
-    gauche: '-:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | G3:1/1 G3:1/1 | F3:1/2 F3:1/2 | E3:1/3 E3:1/3 | E3:1/3 D3:1/4 | G3:1/1 G3:1/1 | F3:1/2 F3:1/2 | E3:1/3 E3:1/3 | E3:1/3 D3:1/4 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2',
+    gauche: '-:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | G3:1/1 G3:1/1 | F3:1/2 F3:1/2 | E3:1/3 E3:1/3 | D3:2/4 | G3:1/1 G3:1/1 | F3:1/2 F3:1/2 | E3:1/3 E3:1/3 | D3:2/4 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2 | -:2',
     histoire: 'Mozart wrote his twelve variations on this tune in Vienna, around 1781–1782. Here, the middle section is read in the bass clef, with the left hand.',
   },
   {

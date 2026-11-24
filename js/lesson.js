@@ -14,10 +14,19 @@ import { speak, hush, voiceAvailable } from './voice.js';
 import { fr, esc, DOIGTS } from './text.js';
 import { renderPlayer } from './tutorial.js';
 import { hasKeyboard } from './kbd-ui.js';
+import { t, lang } from './i18n.js';
 import { Sheet } from './sheet.js';
 import { keepAwake } from './awake.js';
 
+const EN = lang() === 'en';
 // Ou trouver une touche, dit avec les reperes des touches noires
+const PLACES_EN = [
+  'just left of the two black keys', 'the first of the two black keys', 'between the two black keys',
+  'the second of the two black keys', 'just right of the two black keys', 'just left of the three black keys',
+  'the first of the three black keys', 'between the first and second of the three black keys',
+  'the middle one of the three black keys', 'between the second and third of the three black keys',
+  'the last of the three black keys', 'just right of the three black keys',
+];
 const PLACES = {
   0: 'juste à gauche des deux touches noires',
   1: 'la première des deux touches noires',
@@ -33,11 +42,19 @@ const PLACES = {
   11: 'juste à droite des trois touches noires',
 };
 function where(midi) {
+  if (EN) return PLACES_EN[midi % 12] + (midi < 60 ? ', on the low side (left)' : midi > 71 ? ', on the high side (right)' : ', in the middle of the keyboard');
   const zone = midi < 60 ? ', côté grave (à gauche)' : midi > 71 ? ', côté aigu (à droite)' : ', au milieu du clavier';
   return PLACES[midi % 12] + zone;
 }
-const nom = (m) => noteName(m).toLowerCase();
-const art = (m) => (/^[aeiouy]/i.test(noteName(m)) ? 'l’' : 'le ');
+// Nom d'une note dans une phrase : « le do », « l’ré »… en francais ; « C » en anglais
+const nom = (m) => (EN ? noteName(m) : noteName(m).toLowerCase());
+const art = (m) => (EN ? '' : /^[aeiouy]/i.test(noteName(m)) ? 'l’' : 'le ');
+// « , avec le pouce de la main droite » / « , with your right thumb »
+function fingerPhrase(n) {
+  if (!n.finger) return '';
+  if (EN) return `, with your ${n.hand === 'L' ? 'left' : 'right'} ${DOIGTS[n.finger]}`;
+  return `, avec ${n.finger === 1 ? 'le pouce' : `le ${DOIGTS[n.finger]}`} de la main ${n.hand === 'L' ? 'gauche' : 'droite'}`;
+}
 
 export function renderLesson(app, id) {
   const found = findLesson(id);
@@ -50,10 +67,10 @@ export function renderLesson(app, id) {
     const prev = palier.lecons[index - 1];
     app.innerHTML = `
       <div class="empty">
-        <div class="eyebrow">Pas encore</div>
-        <h1 data-split>Une touche <span class="grad-text">après l’autre</span></h1>
-        <p class="lead" style="margin:0 auto 1.6rem">${fr(prev ? `Cette leçon s’ouvre quand tu as fini « ${esc(prev.titre)} ».` : 'Ce palier s’ouvre quand tu as fini le précédent.')}</p>
-        <a class="btn" href="${prev ? `#/lecon/${prev.id}` : '#/parcours'}">${prev ? 'Aller à cette leçon' : 'Voir le parcours'}</a>
+        <div class="eyebrow">${t('Pas encore')}</div>
+        <h1 data-split>${t('Une touche <span class="grad-text">après l’autre</span>')}</h1>
+        <p class="lead" style="margin:0 auto 1.6rem">${fr(prev ? t('Cette leçon s’ouvre quand tu as fini « {titre} ».', { titre: esc(prev.titre) }) : t('Ce palier s’ouvre quand tu as fini le précédent.'))}</p>
+        <a class="btn" href="${prev ? `#/lecon/${prev.id}` : '#/parcours'}">${prev ? t('Aller à cette leçon') : t('Voir le parcours')}</a>
       </div>`;
     return () => {};
   }
@@ -78,36 +95,36 @@ export function renderLesson(app, id) {
 
   app.innerHTML = `
     <div class="lesson-head">
-      <p class="crumbs" data-reveal><a href="#/parcours">Parcours</a><i></i><span>Palier ${palier.id} · ${esc(palier.titre)}</span><i></i><span>Leçon ${index + 1} sur ${palier.lecons.length}</span></p>
+      <p class="crumbs" data-reveal><a href="#/parcours">${t('Parcours')}</a><i></i><span>${t('Palier {n}', { n: palier.id })} · ${esc(palier.titre)}</span><i></i><span>${t('Leçon {i} sur {n}', { i: index + 1, n: palier.lecons.length })}</span></p>
       <h1 data-split class="lesson-title">${esc(lecon.titre)}</h1>
     </div>
     <div class="stage" data-reveal style="--d:120ms">
       <div class="piano-wrap stage-3d" id="stage"></div>
       <div class="bubble" id="bubble">
-        <span class="bubble-who">Le prof</span>
+        <span class="bubble-who">${t('Le prof')}</span>
         <p id="bubble-text">${fr(esc(lecon.texte || ''))}</p>
       </div>
-      <div class="stage-loading" id="stage-loading"><span></span>Le prof s’installe au piano</div>
+      <div class="stage-loading" id="stage-loading"><span></span>${t('Le prof s’installe au piano')}</div>
       <div class="toast" id="toast" aria-live="polite"></div>
       <div class="result" id="result" hidden></div>
     </div>
     <div class="listen-bar" id="listen-bar" hidden>
       <span class="mic-dot"></span>
       <span class="meter"><span id="meter"></span></span>
-      <span class="heard">J’entends <strong id="heard">–</strong></span>
+      <span class="heard">${t('J’entends')} <strong id="heard">–</strong></span>
     </div>
-    ${withSheet ? '<div class="lesson-sheet" id="lesson-sheet" aria-label="La partition de l’exercice"></div>' : ''}
-    <div class="seq" id="seq" ${withSheet ? 'hidden' : ''} aria-label="Les notes de l’exercice">${steps.map((s) => `<span>${s.notes.map((n) => noteName(n.midi)).join('+')}</span>`).join('')}</div>
+    ${withSheet ? `<div class="lesson-sheet" id="lesson-sheet" aria-label="${t('La partition de l’exercice')}"></div>` : ''}
+    <div class="seq" id="seq" ${withSheet ? 'hidden' : ''} aria-label="${t('Les notes de l’exercice')}">${steps.map((s) => `<span>${s.notes.map((n) => noteName(n.midi)).join('+')}</span>`).join('')}</div>
     <div class="lesson-controls">
-      <button class="btn ghost" id="watch" disabled>Regarder le prof</button>
-      <button class="btn" id="go">À toi de jouer</button>
+      <button class="btn ghost" id="watch" disabled>${t('Regarder le prof')}</button>
+      <button class="btn" id="go">${t('À toi de jouer')}</button>
       <div class="toggles">
-        <div class="seg" id="views" role="group" aria-label="Caméra"><button data-v="teacher" class="on">Le prof</button><button data-v="hands">Ses mains</button></div>
-        ${canHideNames ? `<label class="chip-toggle"><input type="checkbox" id="opt-labels" ${settings.noms ? 'checked' : ''}> Nom des notes</label>` : ''}
-        ${voiceAvailable() ? `<label class="chip-toggle"><input type="checkbox" id="opt-voice" ${settings.voix ? 'checked' : ''}> Voix du prof</label>` : ''}
+        <div class="seg" id="views" role="group" aria-label="${t('Caméra')}"><button data-v="teacher" class="on">${t('Le prof')}</button><button data-v="hands">${t('Ses mains')}</button></div>
+        ${canHideNames ? `<label class="chip-toggle"><input type="checkbox" id="opt-labels" ${settings.noms ? 'checked' : ''}> ${t('Nom des notes')}</label>` : ''}
+        ${voiceAvailable() ? `<label class="chip-toggle"><input type="checkbox" id="opt-voice" ${settings.voix ? 'checked' : ''}> ${t('Voix du prof')}</label>` : ''}
       </div>
     </div>
-    <p class="hint lesson-tip">${fr(`Pose ton téléphone ou ta tablette sur le pupitre : le site écoute ton piano au micro. Pas de piano sous la main ? Joue sur les touches à l’écran${hasKeyboard() ? ' ou sur ton clavier d’ordinateur' : ''}.`)}</p>
+    <p class="hint lesson-tip">${fr(hasKeyboard() ? t('Pose ton téléphone ou ta tablette sur le pupitre : le site écoute ton piano au micro. Pas de piano sous la main ? Joue sur les touches à l’écran ou sur ton clavier d’ordinateur.') : t('Pose ton téléphone ou ta tablette sur le pupitre : le site écoute ton piano au micro. Pas de piano sous la main ? Joue sur les touches à l’écran.'))}</p>
   `;
 
   const $ = (sel) => app.querySelector(sel);
@@ -185,7 +202,7 @@ export function renderLesson(app, id) {
     watchBtn.disabled = false;
   }).catch((e) => {
     console.error(e);
-    $('#stage-loading').innerHTML = fr('Le prof n’a pas pu venir (connexion ?). Tu peux quand même jouer : appuie sur « À toi de jouer ».');
+    $('#stage-loading').innerHTML = fr(t('Le prof n’a pas pu venir (connexion ?). Tu peux quand même jouer : appuie sur « À toi de jouer ».'));
     setTimeout(() => $('#stage-loading')?.classList.add('done'), 3200);
   });
 
@@ -206,7 +223,7 @@ export function renderLesson(app, id) {
     clearChips();
     result.hidden = true;
     watchBtn.dataset.playing = '1';
-    watchBtn.textContent = 'Arrêter';
+    watchBtn.textContent = t('Arrêter');
     say(lecon.texte);
     // La camera descend du visage du prof vers ses mains
     setView('hands');
@@ -217,9 +234,9 @@ export function renderLesson(app, id) {
     });
     if (!alive) return;
     clearChips();
-    if (done) { teacher.nod(); say('À toi maintenant. Appuie sur « À toi de jouer » quand tu veux.'); }
+    if (done) { teacher.nod(); say(t('À toi maintenant. Appuie sur « À toi de jouer » quand tu veux.')); }
     delete watchBtn.dataset.playing;
-    watchBtn.textContent = 'Revoir';
+    watchBtn.textContent = t('Revoir');
   });
 
   // ---------- A toi de jouer ----------
@@ -256,11 +273,10 @@ export function renderLesson(app, id) {
     piano.setHandMap(hand);
     listener?.expectChord(st.notes.length > 1 ? st.notes.map((n) => n.midi) : null);
     focusOn(st.notes.map((n) => n.midi));
-    const main = first.hand === 'L' ? 'gauche' : 'droite';
-    const doigt = first.finger ? `, avec ${first.finger === 1 ? 'le pouce' : `le ${DOIGTS[first.finger]}`} de la main ${main}` : '';
-    const notes = st.notes.map((n) => nom(n.midi)).join(' et ');
-    if (idx === 0) say(`À toi ! Commence par ${art(first.midi)}${notes}${doigt}.`, { voice: false });
-    else say(`${['Bien.', 'Oui.', 'Juste.', 'Parfait.'][idx % 4]} Maintenant ${art(first.midi)}${notes}${doigt}.`, { voice: false });
+    const doigt = fingerPhrase(first);
+    const note = art(first.midi) + st.notes.map((n) => nom(n.midi)).join(t(' et '));
+    if (idx === 0) say(t('À toi ! Commence par {note}{doigt}.', { note, doigt }), { voice: false });
+    else say(t('{bravo} Maintenant {note}{doigt}.', { bravo: [t('Bien.'), t('Oui.'), t('Juste.'), t('Parfait.')][idx % 4], note, doigt }), { voice: false });
     armHesitation();
   }
 
@@ -272,10 +288,10 @@ export function renderLesson(app, id) {
     hesitate = setTimeout(() => {
       if (mode !== 'play' || step() !== st) return;
       const n = st.notes[0].midi;
-      say(`Cherche ${art(n)}${nom(n)} : ${where(n)}.`);
+      say(t('Cherche {note} : {ou}.', { note: art(n) + nom(n), ou: where(n) }));
       hesitate = setTimeout(() => {
         if (mode !== 'play' || step() !== st || !teacher) return;
-        say('Regarde, je te le montre.');
+        say(t('Regarde, je te le montre.'));
         listener?.mute(1500);
         st.notes.forEach((x) => teacher.playNote(x.midi, 600, { hand: x.hand, finger: x.finger }));
         setTimeout(() => { if (mode === 'play') { teacher?.restHand('Right'); teacher?.restHand('Left'); } }, 1300);
@@ -303,7 +319,7 @@ export function renderLesson(app, id) {
         if (discover(n.midi)) {
           piano.discover(n.midi);
           fresh.push(n.midi);
-          showToast(`<b>Nouvelle note : ${noteName(n.midi)}</b><span>${fr('Elle reste allumée sur ton clavier.')}</span>`);
+          showToast(`<b>${t('Nouvelle note : {nom}', { nom: noteName(n.midi) })}</b><span>${fr(t('Elle reste allumée sur ton clavier.'))}</span>`);
         }
       });
       if (getSettings().vibration && source === 'touch') navigator.vibrate?.([4, 30, 8]);
@@ -319,16 +335,16 @@ export function renderLesson(app, id) {
     chip?.classList.remove('bad');
     void chip?.offsetWidth;
     chip?.classList.add('bad');
-    const t = st.notes[0].midi;
+    const want = st.notes[0].midi;
     if (errorsHere >= 3 && teacher) {
-      say(`Regarde bien, c’est ce ${nom(t)}-là : ${where(t)}.`);
+      say(t('Regarde bien, c’est ce {note}-là : {ou}.', { note: nom(want), ou: where(want) }));
       listener?.mute(1400);
-      teacher.playNote(t, 600, { hand: st.notes[0].hand, finger: st.notes[0].finger });
+      teacher.playNote(want, 600, { hand: st.notes[0].hand, finger: st.notes[0].finger });
       teacher.shake();
       setTimeout(() => { if (mode === 'play') { teacher?.restHand('Right'); teacher?.restHand('Left'); } }, 1300);
       errorsHere = 0;
     } else {
-      say(`Ça, c’était un ${nom(midi)}. Cherche ${art(t)}${nom(t)}.`, { voice: false });
+      say(t('Ça, c’était un {joue}. Cherche {note}.', { joue: nom(midi), note: art(want) + nom(want) }), { voice: false });
     }
     armHesitation();
   }
@@ -343,10 +359,10 @@ export function renderLesson(app, id) {
   }
 
   goBtn.addEventListener('click', async () => {
-    if (mode === 'play') { stopPlay(); say('On reprend quand tu veux.', { voice: false }); return; }
+    if (mode === 'play') { stopPlay(); say(t('On reprend quand tu veux.'), { voice: false }); return; }
     teacher?.stop();
     delete watchBtn.dataset.playing;
-    watchBtn.textContent = teacher ? 'Revoir le prof' : 'Regarder le prof';
+    watchBtn.textContent = teacher ? t('Revoir le prof') : t('Regarder le prof');
     result.hidden = true;
     mode = 'play';
     idx = 0;
@@ -356,10 +372,11 @@ export function renderLesson(app, id) {
     // A l'eleve : le prof retire ses mains du clavier
     teacher?.restHand('Right');
     teacher?.restHand('Left');
-    goBtn.textContent = 'Arrêter';
+    goBtn.textContent = t('Arrêter');
     setView('hands');
     showStep();
-    if (steps[0]?.notes[0]?.finger) say(`Pose ta main : chaque numéro est un doigt. ${steps[0].notes[0].finger === 1 ? 'Le pouce' : 'Le doigt ' + steps[0].notes[0].finger} sur ${art(steps[0].notes[0].midi)}${nom(steps[0].notes[0].midi)}, et on y va.`, { voice: false });
+    const n0 = steps[0]?.notes[0];
+    if (n0?.finger) say(t('Pose ta main : chaque numéro est un doigt. {doigt} sur {note}, et on y va.', { doigt: n0.finger === 1 ? t('Le pouce') : t('Le doigt {n}', { n: n0.finger }), note: art(n0.midi) + nom(n0.midi) }), { voice: false });
     startListening();
   });
 
@@ -386,7 +403,7 @@ export function renderLesson(app, id) {
       listenBar.hidden = false;
       teacher?.listen(true);
     } catch (e) {
-      showToast(`<b>Micro non disponible</b><span>${fr('Joue sur les touches à l’écran, ou autorise le micro dans ton navigateur.')}</span>`);
+      showToast(`<b>${t('Micro non disponible')}</b><span>${fr(t('Joue sur les touches à l’écran, ou autorise le micro dans ton navigateur.'))}</span>`);
     }
   }
 
@@ -397,7 +414,7 @@ export function renderLesson(app, id) {
     piano.hideFinger();
     piano.setHandMap(null);
     piano.setFocus(null);
-    goBtn.textContent = 'À toi de jouer';
+    goBtn.textContent = t('À toi de jouer');
     listener?.stop();
     listener = null;
     listenBar.hidden = true;
@@ -411,13 +428,13 @@ export function renderLesson(app, id) {
     chips.forEach((c) => c.classList.add('ok'));
     const { stars, gained } = completeLesson(id, acc);
     const badges = [];
-    if (unlockBadge('premiere-lecon')) badges.push('C’est parti');
-    if (stars === 3 && unlockBadge('trois-etoiles')) badges.push('Sans faute');
-    if (getState().streak >= 7 && unlockBadge('serie-7')) badges.push('Une semaine');
+    if (unlockBadge('premiere-lecon')) badges.push(t('C’est parti'));
+    if (stars === 3 && unlockBadge('trois-etoiles')) badges.push(t('Sans faute'));
+    if (getState().streak >= 7 && unlockBadge('serie-7')) badges.push(t('Une semaine'));
     const st = getState();
     const palierDone = palierStatus(palier, st.lessonsDone).complete;
 
-    say(lecon.apres || (acc >= 95 ? 'Parfait, rien à redire.' : acc >= 80 ? 'Très bien joué. Encore un essai pour les trois étoiles ?' : 'C’est validé. Rejoue-la quand tu veux pour faire mieux.'));
+    say(lecon.apres || (acc >= 95 ? t('Parfait, rien à redire.') : acc >= 80 ? t('Très bien joué. Encore un essai pour les trois étoiles ?') : t('C’est validé. Rejoue-la quand tu veux pour faire mieux.')));
     if (teacher) {
       teacher.nod();
       teacher.playScore(parseScore({ droite: 'C4:0.5 E4:0.5 G4:0.5 C5:1.5' }).steps, { tempo: 150 });
@@ -425,15 +442,15 @@ export function renderLesson(app, id) {
     const nextIsNewPalier = next && next.palier !== palier.id;
     result.innerHTML = `
       <div class="result-card">
-        <div class="eyebrow" style="justify-content:center">Leçon réussie</div>
+        <div class="eyebrow" style="justify-content:center">${t('Leçon réussie')}</div>
         <div class="stars">${[1, 2, 3].map((n) => `<i class="${n <= stars ? 'got' : ''}" style="--n:${n}"></i>`).join('')}</div>
         <div class="result-xp">+<span data-count="${gained}">0</span> XP</div>
-        <p class="hint" style="margin:.2rem 0 0">Précision ${acc} %${fresh.length ? ` · ${fresh.length === 1 ? 'nouvelle note' : 'nouvelles notes'} : ${fresh.map((m) => noteName(m)).join(', ')}` : ''}</p>
-        ${badges.length ? `<p class="new-badge">Nouveau badge : ${badges.join(', ')}</p>` : ''}
+        <p class="hint" style="margin:.2rem 0 0">${t('Précision {acc} %', { acc })}${fresh.length ? ` · ${fresh.length === 1 ? t('nouvelle note') : t('nouvelles notes')} : ${fresh.map((m) => noteName(m)).join(', ')}` : ''}</p>
+        ${badges.length ? `<p class="new-badge">${t('Nouveau badge : {liste}', { liste: badges.join(', ') })}</p>` : ''}
         <div class="result-actions">
-          <button class="btn ghost" id="again">Recommencer</button>
-          ${palierDone && nextIsNewPalier ? `<a class="btn" href="#/piano?nouveau=${palier.id + 1}">Découvrir le palier ${palier.id + 1}</a>`
-            : next ? `<a class="btn" href="#/lecon/${next.id}">Leçon suivante</a>` : '<a class="btn" href="#/parcours">Retour au parcours</a>'}
+          <button class="btn ghost" id="again">${t('Recommencer')}</button>
+          ${palierDone && nextIsNewPalier ? `<a class="btn" href="#/piano?nouveau=${palier.id + 1}">${t('Découvrir le palier {n}', { n: palier.id + 1 })}</a>`
+            : next ? `<a class="btn" href="#/lecon/${next.id}">${t('Leçon suivante')}</a>` : `<a class="btn" href="#/parcours">${t('Retour au parcours')}</a>`}
         </div>
       </div>`;
     result.hidden = false;

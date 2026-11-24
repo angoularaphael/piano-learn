@@ -166,7 +166,7 @@ export const PALIERS = [
         id: '4-2', titre: 'The treble clef', type: 'demo', main: 'droite', tempo: 84,
         texte: 'The treble clef, or G clef, curls around the second line: that line is G. Start from this landmark, then walk down step by step: a line, a space, a line.',
         apres: 'G on the second line: that landmark will stay with you for good.',
-        droite: 'G4:1/4 G4:1/4 F4:1/3 F4:1/3 | E4:1/2 E4:1/2 E4:1/2 D4:1/1 | G4:1/4 G4:1/4 F4:1/3 F4:1/3 | E4:1/2 E4:1/2 E4:1/2 D4:1/1',
+        droite: 'G4:1/4 G4:1/4 F4:1/3 F4:1/3 | E4:1/2 E4:1/2 D4:2/1 | G4:1/4 G4:1/4 F4:1/3 F4:1/3 | E4:1/2 E4:1/2 D4:2/1',
       },
       {
         id: '4-3', titre: 'Steps and skips', type: 'demo', main: 'droite', tempo: 84,
@@ -399,7 +399,7 @@ export const PALIERS = [
       {
         id: '8-6', titre: 'Minuet in G', type: 'morceau', main: 'deux', morceau: 'menuet-en-sol',
         texte: 'One of the minuets beginning pianists play most. In it you’ll find the G major scale and its F sharp. Three beats to the bar, played lightly.',
-        apres: 'A minuet from Bach’s time, with both hands. Only one step left.',
+        apres: 'A minuet from Bach’s time, with both hands. Two steps left.',
       },
       {
         id: '8-7', titre: 'Gymnopédie No. 1', type: 'morceau', main: 'deux', morceau: 'gymnopedie-1',

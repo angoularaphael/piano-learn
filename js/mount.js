@@ -6,6 +6,7 @@ import { getSettings, onSettings } from './progress.js';
 import { onMidi } from './midi.js';
 import { setSustain } from './audio.js';
 import { keyboardSeen } from './kbd-ui.js';
+import { t } from './i18n.js';
 
 export function mountPiano(container, opts = {}) {
   container.querySelector('.piano-loading')?.remove();
@@ -15,7 +16,7 @@ export function mountPiano(container, opts = {}) {
     piano = new Piano3D(container, { labels: s.noms, haptics: s.vibration, ...opts });
   } catch (e) {
     console.error(e);
-    container.insertAdjacentHTML('beforeend', '<div class="piano-loading">Ton navigateur n’arrive pas à afficher la 3D.</div>');
+    container.insertAdjacentHTML('beforeend', `<div class="piano-loading">${t('Ton navigateur n’arrive pas à afficher la 3D.')}</div>`);
     return { piano: null, dispose() {} };
   }
 

@@ -3,6 +3,7 @@
 import { LAYOUTS, getLayout, setLayout, detectLayout, letterMap } from './notes.js';
 import { getSettings, setSetting } from './progress.js';
 import { fr } from './text.js';
+import { t } from './i18n.js';
 
 // Un vrai clavier d'ordinateur ? Jamais par defaut sur un telephone ou une tablette (meme quand le
 // navigateur pretend avoir une souris) ; oui des qu'une touche physique a deja joue une note ici.
@@ -25,9 +26,9 @@ export function kbdControlsHTML() {
   const on = getSettings().lettres !== false;
   return `
     <div class="kbd-tools">
-      <label class="chip-toggle"><input type="checkbox" data-kbd="letters" ${on ? 'checked' : ''}> Lettres du clavier</label>
-      <div class="layout-pick" role="radiogroup" aria-label="Disposition de ton clavier d’ordinateur">
-        <span class="hint">Ton clavier</span>
+      <label class="chip-toggle"><input type="checkbox" data-kbd="letters" ${on ? 'checked' : ''}> ${t('Lettres du clavier')}</label>
+      <div class="layout-pick" role="radiogroup" aria-label="${t('Disposition de ton clavier d’ordinateur')}">
+        <span class="hint">${t('Ton clavier')}</span>
         <div class="seg">${Object.entries(LAYOUTS).map(([id, l]) => `<button type="button" data-layout="${id}" role="radio">${l.nom}</button>`).join('')}</div>
       </div>
       <p class="hint keys-hint" data-kbd="hint"></p>
@@ -50,7 +51,7 @@ export function bindKbdControls(root, piano) {
     const keys = LAYOUTS[layout].keys;
     const kb = (codes) => codes.map((c) => `<kbd>${keys[c]}</kbd>`).join(' ');
     box.querySelector('[data-kbd="hint"]').innerHTML =
-      `${kb(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'])} ${fr('jouent do ré mi fa sol la si do,')} ${kb(['KeyW', 'KeyE', 'KeyT', 'KeyY', 'KeyU'])} ${fr('les touches noires. Les flèches ← → changent d’octave.')}`;
+      `${kb(['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'])} ${fr(t('jouent do ré mi fa sol la si do,'))} ${kb(['KeyW', 'KeyE', 'KeyT', 'KeyY', 'KeyU'])} ${fr(t('les touches noires. Les flèches ← → changent d’octave.'))}`;
     const map = {};
     if (letters) for (const [mid, l] of Object.entries(letterMap(layout))) map[Number(mid) + shift] = l;
     piano.setKeyLetters(letters ? map : null);

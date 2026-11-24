@@ -11,14 +11,15 @@ import { mountPiano } from './mount.js';
 import { fr, esc } from './text.js';
 import { countUp } from './fx.js';
 import { hasKeyboard } from './kbd-ui.js';
+import { t, lang } from './i18n.js';
 
 export const EAR_GAMES = [
-  { id: 'hauteur', palier: 1, rounds: 10, titre: 'Plus aigu, plus grave', desc: 'Deux notes sonnent. La deuxième monte-t-elle, ou descend-elle ?' },
-  { id: 'retrouve', palier: 1, rounds: 8, titre: 'Retrouve la note', desc: 'Une note sonne : cherche-la sur le clavier, à l’oreille.' },
-  { id: 'pareil', palier: 2, rounds: 8, titre: 'Pareil ou pas ?', desc: 'Deux petites mélodies. Sont-elles identiques ?' },
-  { id: 'intervalles', palier: 4, rounds: 10, titre: 'Les intervalles', desc: 'L’écart entre deux notes : seconde, tierce, quinte ou octave ?' },
-  { id: 'rythme', palier: 5, rounds: 6, titre: 'Écho rythmique', desc: 'Écoute un rythme, puis tape-le à ton tour.' },
-  { id: 'accords', palier: 7, rounds: 10, titre: 'Majeur ou mineur ?', desc: 'Un accord sonne : lumineux, ou plus sombre ?' },
+  { id: 'hauteur', palier: 1, rounds: 10, titre: t('Plus aigu, plus grave'), desc: t('Deux notes sonnent. La deuxième monte-t-elle, ou descend-elle ?') },
+  { id: 'retrouve', palier: 1, rounds: 8, titre: t('Retrouve la note'), desc: t('Une note sonne : cherche-la sur le clavier, à l’oreille.') },
+  { id: 'pareil', palier: 2, rounds: 8, titre: t('Pareil ou pas ?'), desc: t('Deux petites mélodies. Sont-elles identiques ?') },
+  { id: 'intervalles', palier: 4, rounds: 10, titre: t('Les intervalles'), desc: t('L’écart entre deux notes : seconde, tierce, quinte ou octave ?') },
+  { id: 'rythme', palier: 5, rounds: 6, titre: t('Écho rythmique'), desc: t('Écoute un rythme, puis tape-le à ton tour.') },
+  { id: 'accords', palier: 7, rounds: 10, titre: t('Majeur ou mineur ?'), desc: t('Un accord sonne : lumineux, ou plus sombre ?') },
 ];
 
 export const gameById = (id) => EAR_GAMES.find((g) => g.id === id);
@@ -27,7 +28,7 @@ export const gamesOpen = (palier) => EAR_GAMES.filter((g) => g.palier <= palier)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
-const nom = (m) => noteName(m).toLowerCase().replace('#', '♯');
+const nom = (m) => (lang() === 'en' ? noteName(m) : noteName(m).toLowerCase()).replace('#', '♯');
 // Avant le palier 8 (les dieses), les jeux restent sur les touches blanches : des noms que l'eleve connait
 const whites = (lo, hi) => { const out = []; for (let m = lo; m <= hi; m++) if (!isBlack(m)) out.push(m); return out; };
 
@@ -86,12 +87,12 @@ function motifViz(a, b, diff) {
 
 // ---------- Les questions ----------
 const INTERVALS_4 = [
-  { id: '2', semis: 2, label: 'Seconde', hint: 'deux notes voisines, comme « Frè-re » dans Frère Jacques' },
-  { id: '3', semis: 4, label: 'Tierce', hint: 'on saute une touche blanche, comme do-mi' },
-  { id: '5', semis: 7, label: 'Quinte', hint: 'le grand saut d’« Ah ! vous dirai-je, maman »' },
-  { id: '8', semis: 12, label: 'Octave', hint: 'la même note, plus haut' },
+  { id: '2', semis: 2, label: t('Seconde'), hint: t('deux notes voisines, comme « Frè-re » dans Frère Jacques') },
+  { id: '3', semis: 4, label: t('Tierce'), hint: t('on saute une touche blanche, comme do-mi') },
+  { id: '5', semis: 7, label: t('Quinte'), hint: t('le grand saut d’« Ah ! vous dirai-je, maman »') },
+  { id: '8', semis: 12, label: t('Octave'), hint: t('la même note, plus haut') },
 ];
-const INTERVALS_6 = [...INTERVALS_4.slice(0, 2), { id: '4', semis: 5, label: 'Quarte', hint: 'le début de « La Marseillaise »' }, ...INTERVALS_4.slice(2)];
+const INTERVALS_6 = [...INTERVALS_4.slice(0, 2), { id: '4', semis: 5, label: t('Quarte'), hint: t('le début de « La Marseillaise »') }, ...INTERVALS_4.slice(2)];
 
 function makeQuestion(game, st) {
   if (game.id === 'hauteur') {
@@ -109,10 +110,10 @@ function makeQuestion(game, st) {
       b = w[i + (Math.random() < 0.5 ? steps : -steps)];
     }
     return {
-      answers: [{ id: 'up', label: 'Plus aigu', icon: '↑' }, { id: 'down', label: 'Plus grave', icon: '↓' }],
+      answers: [{ id: 'up', label: t('Plus aigu'), icon: '↑' }, { id: 'down', label: t('Plus grave'), icon: '↓' }],
       answer: b > a ? 'up' : 'down',
       play: (alive) => playSeq([[a, 650], [b, 900]], alive),
-      explain: (ok) => `${ok ? 'Juste.' : 'Pas cette fois.'} La deuxième note ${b > a ? 'monte' : 'descend'} : ${nom(a)} puis ${nom(b)}.`,
+      explain: (ok) => `${ok ? t('Juste.') : t('Pas cette fois.')} ${b > a ? t('La deuxième note monte : {a} puis {b}.', { a: nom(a), b: nom(b) }) : t('La deuxième note descend : {a} puis {b}.', { a: nom(a), b: nom(b) })}`,
       viz: () => pitchArrow(a, b),
       after: (ok) => { st.gap = ok ? Math.max(1, st.gap - 1) : Math.min(12, st.gap + 2); },
     };
@@ -133,10 +134,10 @@ function makeQuestion(game, st) {
       b[diff] = w[j];
     }
     return {
-      answers: [{ id: 'same', label: 'Pareil' }, { id: 'diff', label: 'Différent' }],
+      answers: [{ id: 'same', label: t('Pareil') }, { id: 'diff', label: t('Différent') }],
       answer: same ? 'same' : 'diff',
       play: async (alive) => { await playSeq(a.map((n) => [n, 380]), alive); await sleep(650); await playSeq(b.map((n) => [n, 380]), alive); },
-      explain: (ok) => `${ok ? 'Juste.' : 'Écoute encore.'} ${same ? 'Les deux mélodies sont identiques.' : `La note ${diff + 1} change : ${nom(a[diff])} devient ${nom(b[diff])}.`}`,
+      explain: (ok) => `${ok ? t('Juste.') : t('Écoute encore.')} ${same ? t('Les deux mélodies sont identiques.') : t('La note {n} change : {a} devient {b}.', { n: diff + 1, a: nom(a[diff]), b: nom(b[diff]) })}`,
       viz: () => motifViz(a, b, diff),
     };
   }
@@ -151,7 +152,7 @@ function makeQuestion(game, st) {
       answers: set.map((x) => ({ id: x.id, label: x.label })),
       answer: iv.id,
       play: async (alive) => { await playSeq([[a, 600], [b, 800]], alive); await sleep(180); await playSeq([[[a, b], 1000]], alive, 0.7); },
-      explain: (ok) => `${ok ? 'Juste' : 'C’était une ' + iv.label.toLowerCase()} : ${iv.hint}. ${nom(a)} – ${nom(b)}.`,
+      explain: (ok) => `${ok ? t('Juste') : t('C’était une {nom}', { nom: iv.label.toLowerCase() })} : ${iv.hint}. ${nom(a)} – ${nom(b)}.`,
       viz: () => miniKeys(a - (a % 12 === 0 ? 0 : (a % 12)), Math.max(b + 2, a + 14), { [a]: 'on', [b]: 'on two' }),
     };
   }
@@ -161,10 +162,10 @@ function makeQuestion(game, st) {
     const root = st.palier >= 8 ? rand(53, 65) : pick(major ? [53, 55, 60, 65] : [57, 62, 64]);
     const notes = [root, root + (major ? 4 : 3), root + 7];
     return {
-      answers: [{ id: 'maj', label: 'Majeur', sub: 'lumineux' }, { id: 'min', label: 'Mineur', sub: 'plus sombre' }],
+      answers: [{ id: 'maj', label: t('Majeur'), sub: t('lumineux') }, { id: 'min', label: t('Mineur'), sub: t('plus sombre') }],
       answer: major ? 'maj' : 'min',
       play: async (alive) => { await playSeq([[notes, 1300]], alive, 0.68); await sleep(150); await playSeq(notes.map((n) => [n, 330]), alive, 0.7); },
-      explain: (ok) => `${ok ? 'Juste.' : 'Pas cette fois.'} ${nom(root)} ${major ? 'majeur' : 'mineur'} : la note du milieu est ${major ? 'à deux tons' : 'à un ton et demi'} de la première.`,
+      explain: (ok) => `${ok ? t('Juste.') : t('Pas cette fois.')} ${major ? t('{note} majeur : la note du milieu est à deux tons de la première.', { note: nom(root) }) : t('{note} mineur : la note du milieu est à un ton et demi de la première.', { note: nom(root) })}`,
       viz: () => miniKeys(root - (root % 12), root - (root % 12) + 23, Object.fromEntries(notes.map((n, i) => [n, i === 1 ? 'on two' : 'on']))),
     };
   }
@@ -184,16 +185,16 @@ export function renderEarList(app, subnav = '') {
   app.innerHTML = `
     ${subnav}
     <div class="page-head">
-      <div class="eyebrow" data-reveal>L’oreille</div>
-      <h1 data-split>Entraîne <span class="grad-text">ton oreille</span></h1>
-      <p class="lead" data-reveal>${fr('Quelques minutes, sans regarder le clavier. C’est l’oreille qui fait les musiciens : elle te dira bientôt quand une note est juste, avant même que le site te le dise.')}</p>
+      <div class="eyebrow" data-reveal>${t('L’oreille')}</div>
+      <h1 data-split>${t('Entraîne <span class="grad-text">ton oreille</span>')}</h1>
+      <p class="lead" data-reveal>${fr(t('Quelques minutes, sans regarder le clavier. C’est l’oreille qui fait les musiciens : elle te dira bientôt quand une note est juste, avant même que le site te le dise.'))}</p>
     </div>
     <div class="grid ear-grid">
       ${EAR_GAMES.map((g, i) => {
         const open = g.palier <= cur;
         const best = earBest(g.id);
         return `<a class="card ear-card ${open ? '' : 'locked'}" ${open ? `href="#/oreille/${g.id}"` : 'aria-disabled="true"'} data-reveal style="--d:${i * 70}ms">
-          <span class="tag ${open ? '' : 'grey'}">${open ? (best ? `Record ${best} / ${g.rounds}` : 'Nouveau') : `Palier ${g.palier}`}</span>
+          <span class="tag ${open ? '' : 'grey'}">${open ? (best ? t('Record {n} / {total}', { n: best, total: g.rounds }) : t('Nouveau')) : t('Palier {n}', { n: g.palier })}</span>
           <h3>${esc(g.titre)}</h3>
           <p class="hint">${fr(esc(g.desc))}</p>
         </a>`;
@@ -208,7 +209,7 @@ export function renderEarGame(app, id) {
   const state = getState();
   const palier = currentPalier(state);
   if (!game || game.palier > palier) {
-    app.innerHTML = `<div class="page-head"><h1>Ce jeu arrive plus tard</h1><p class="lead">${fr(game ? `Il s’ouvre au palier ${game.palier}.` : 'Ce jeu n’existe pas.')}</p><a class="btn" href="#/oreille">Les jeux d’oreille</a></div>`;
+    app.innerHTML = `<div class="page-head"><h1>${t('Ce jeu arrive plus tard')}</h1><p class="lead">${fr(game ? t('Il s’ouvre au palier {n}.', { n: game.palier }) : t('Ce jeu n’existe pas.'))}</p><a class="btn" href="#/oreille">${t('Les jeux d’oreille')}</a></div>`;
     return () => {};
   }
   let alive = true;
@@ -218,23 +219,23 @@ export function renderEarGame(app, id) {
 
   app.innerHTML = `
     <div class="lesson-head">
-      <p class="crumbs" data-reveal><a href="#/oreille">L’oreille</a><i></i><span>${esc(game.titre)}</span></p>
+      <p class="crumbs" data-reveal><a href="#/oreille">${t('L’oreille')}</a><i></i><span>${esc(game.titre)}</span></p>
       <h1 data-split class="lesson-title">${esc(game.titre)}</h1>
     </div>
     <div class="stage ear-stage" data-reveal style="--d:120ms">
       <div class="ear-top">
-        <span class="ear-round" id="ear-round">Manche 1 / ${game.rounds}</span>
+        <span class="ear-round" id="ear-round">${t('Manche {n} / {total}', { n: 1, total: game.rounds })}</span>
         <ol class="ear-dots" id="ear-dots">${Array.from({ length: game.rounds }, () => '<li></li>').join('')}</ol>
       </div>
       ${game.id === 'retrouve' ? '<div class="piano-wrap ear-piano" id="ear-piano"></div>' : ''}
-      ${game.id === 'rythme' ? `<div class="beat-row" id="beat-row" aria-hidden="true"></div><button class="tap-pad" id="tap-pad" disabled><span>Tape ici</span>${hasKeyboard() ? '<small>ou la barre d’espace</small>' : ''}</button>` : ''}
+      ${game.id === 'rythme' ? `<div class="beat-row" id="beat-row" aria-hidden="true"></div><button class="tap-pad" id="tap-pad" disabled><span>${t('Tape ici')}</span>${hasKeyboard() ? `<small>${t('ou la barre d’espace')}</small>` : ''}</button>` : ''}
       <div class="ear-viz" id="ear-viz" aria-hidden="true"></div>
       <p class="ear-say" id="ear-say" aria-live="polite">${fr(esc(game.desc))}</p>
       <div class="ear-answers" id="ear-answers"></div>
       <div class="ear-actions">
-        <button class="btn" id="ear-go">Commencer</button>
-        <button class="btn ghost" id="ear-again" hidden>Réécouter</button>
-        ${game.id === 'retrouve' ? '<button class="btn ghost" id="ear-ref" hidden>Le do de repère</button>' : ''}
+        <button class="btn" id="ear-go">${t('Commencer')}</button>
+        <button class="btn ghost" id="ear-again" hidden>${t('Réécouter')}</button>
+        ${game.id === 'retrouve' ? `<button class="btn ghost" id="ear-ref" hidden>${t('Le do de repère')}</button>` : ''}
       </div>
       <div class="result" id="ear-result" hidden></div>
     </div>`;
@@ -246,13 +247,13 @@ export function renderEarGame(app, id) {
   const goBtn = $('#ear-go');
   const againBtn = $('#ear-again');
   const dots = [...app.querySelectorAll('#ear-dots li')];
-  const say = (t) => { sayEl.textContent = fr(t); };
+  const say = (text) => { sayEl.textContent = fr(text); };
   let q = null;
   let piano = null;
   let mounted = null;
 
   function setRound() {
-    $('#ear-round').textContent = `Manche ${Math.min(st.round + 1, game.rounds)} / ${game.rounds}`;
+    $('#ear-round').textContent = t('Manche {n} / {total}', { n: Math.min(st.round + 1, game.rounds), total: game.rounds });
   }
   function record(ok) {
     st.results.push(ok);
@@ -268,11 +269,11 @@ export function renderEarGame(app, id) {
     viz.classList.remove('show');
     answersEl.innerHTML = q.answers.map((a) => `<button class="ear-answer" data-a="${a.id}">${a.icon ? `<b>${a.icon}</b>` : ''}<span>${esc(a.label)}</span>${a.sub ? `<small>${esc(a.sub)}</small>` : ''}</button>`).join('');
     answersEl.classList.add('wait');
-    say('Écoute…');
+    say(t('Écoute…'));
     await q.play(isAlive);
     if (!alive) return;
     answersEl.classList.remove('wait');
-    say(game.id === 'hauteur' ? 'La deuxième note monte, ou descend ?' : 'Ta réponse ?');
+    say(game.id === 'hauteur' ? t('La deuxième note monte, ou descend ?') : t('Ta réponse ?'));
   }
 
   answersEl.addEventListener('click', async (e) => {
@@ -317,7 +318,7 @@ export function renderEarGame(app, id) {
     let t;
     do { t = pick(poolNotes()); } while (t === target && poolNotes().length > 1);
     target = t;
-    say('Écoute la note, puis cherche-la sur le clavier.');
+    say(t('Écoute la note, puis cherche-la sur le clavier.'));
     await playSeq([[target, 900]], isAlive);
   }
   function guess(midi) {
@@ -326,7 +327,7 @@ export function renderEarGame(app, id) {
       st.busy = true;
       piano?.flash(midi, '#3dffa8');
       record(tries === 0 || tries === 1);
-      say(tries ? `Trouvé : c’était ${nom(target)}. ${tries === 1 ? 'Au deuxième essai, ça compte.' : 'Ça viendra plus vite.'}` : `Juste du premier coup : ${nom(target)}.`);
+      say(tries ? `${t('Trouvé : c’était {note}.', { note: nom(target) })} ${tries === 1 ? t('Au deuxième essai, ça compte.') : t('Ça viendra plus vite.')}` : t('Juste du premier coup : {note}.', { note: nom(target) }));
       target = null;
       setTimeout(() => { st.busy = false; next(); }, 1300);
       return;
@@ -336,11 +337,11 @@ export function renderEarGame(app, id) {
     if (tries >= 3) {
       st.busy = true;
       record(false);
-      say(`C’était ${nom(target)}, ${target > midi ? 'plus haut' : 'plus bas'}. Écoute-la encore.`);
+      say(target > midi ? t('C’était {note}, plus haut. Écoute-la encore.', { note: nom(target) }) : t('C’était {note}, plus bas. Écoute-la encore.', { note: nom(target) }));
       piano?.tap(target, 800, 0.75, { auto: true });
       target = null;
       setTimeout(() => { st.busy = false; next(); }, 2200);
-    } else say(target > midi ? 'Plus haut…' : 'Plus bas…');
+    } else say(target > midi ? t('Plus haut…') : t('Plus bas…'));
   }
 
   // ---- Echo rythmique ----
@@ -361,7 +362,7 @@ export function renderEarGame(app, id) {
     beatRow.innerHTML = [0, 1, 2, 3].map((b) => `<i data-b="${b}"></i>`).join('');
     pad.disabled = true;
     listening = false;
-    say('Écoute le rythme…');
+    say(t('Écoute le rythme…'));
     const ac = getContext();
     const t0 = ac.currentTime + 0.35;
     pattern.forEach((b) => tick(b === 0, t0 + (b * beatMs) / 1000));
@@ -372,7 +373,7 @@ export function renderEarGame(app, id) {
     listening = true;
     pad.disabled = false;
     pad.focus({ preventScroll: true });
-    say('À toi : tape le même rythme.');
+    say(t('À toi : tape le même rythme.'));
   }
   function tap() {
     if (!listening) return;
@@ -392,12 +393,12 @@ export function renderEarGame(app, id) {
     listening = false;
     clearTimeout(tap.timer);
     pad.disabled = true;
-    const rel = taps.map((t) => (t - taps[0]) / beatMs);
+    const rel = taps.map((at) => (at - taps[0]) / beatMs);
     const tol = 0.24;
     const ok = rel.length === pattern.length && pattern.every((b, i) => Math.abs(rel[i] - b) <= tol);
     record(ok);
     const want = pattern.map((b) => (Number.isInteger(b) ? '♩' : '♪')).join(' ');
-    say(ok ? 'Juste, bien en place.' : rel.length !== pattern.length ? `Il y avait ${pattern.length} coups, tu en as tapé ${rel.length}. (${want})` : 'Presque : un coup est arrivé trop tôt ou trop tard.');
+    say(ok ? t('Juste, bien en place.') : rel.length !== pattern.length ? t('Il y avait {n} coups, tu en as tapé {k}. ({rythme})', { n: pattern.length, k: rel.length, rythme: want }) : t('Presque : un coup est arrivé trop tôt ou trop tard.'));
     setTimeout(() => next(), ok ? 1300 : 2400);
   }
   pad?.addEventListener('pointerdown', (e) => { e.preventDefault(); tap(); });
@@ -426,17 +427,17 @@ export function renderEarGame(app, id) {
     const { nextStep } = await import('./session.js');
     const step = nextStep();
     const box = $('#ear-result');
-    const verdict = st.score >= game.rounds ? 'Sans faute' : st.score >= game.rounds * 0.8 ? 'Très belle oreille' : st.score >= game.rounds * 0.5 ? 'Ça vient' : 'On recommence ?';
+    const verdict = st.score >= game.rounds ? t('Sans faute') : st.score >= game.rounds * 0.8 ? t('Très belle oreille') : st.score >= game.rounds * 0.5 ? t('Ça vient') : t('On recommence ?');
     box.innerHTML = `
       <div class="result-card">
         <div class="eyebrow" style="justify-content:center">${esc(game.titre)}</div>
         <h3 class="ear-verdict">${verdict}</h3>
         <div class="ear-score"><span data-count="${st.score}">0</span><small>/ ${game.rounds}</small></div>
         ${res.gained ? `<div class="result-xp">+<span data-count="${res.gained}">0</span> XP</div>` : ''}
-        <p class="hint" style="margin:.2rem 0 0">Record : ${res.best} / ${game.rounds}</p>
+        <p class="hint" style="margin:.2rem 0 0">${t('Record : {n} / {total}', { n: res.best, total: game.rounds })}</p>
         <div class="result-actions">
-          <button class="btn ghost" id="ear-replay">Rejouer</button>
-          ${step ? `<a class="btn" href="${step.href}">Suite de ta séance</a>` : '<a class="btn" href="#/oreille">Les autres jeux</a>'}
+          <button class="btn ghost" id="ear-replay">${t('Rejouer')}</button>
+          ${step ? `<a class="btn" href="${step.href}">${t('Suite de ta séance')}</a>` : `<a class="btn" href="#/oreille">${t('Les autres jeux')}</a>`}
         </div>
       </div>`;
     box.hidden = false;

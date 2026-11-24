@@ -3,6 +3,9 @@
 // - BASE : les morceaux du palier 1, toujours disponibles ;
 // - morceaux.js : les versions piano de l'equipe (format [midi, temps]) et les liens vers les lecons.
 import { MORCEAUX } from './morceaux.js';
+import { lang } from '../i18n.js';
+
+const EN = lang() === 'en';
 
 const BASE = [
   {
@@ -19,11 +22,23 @@ const BASE = [
   },
 ];
 
+// Les deux morceaux de base, en anglais
+if (EN) {
+  Object.assign(BASE[0], {
+    titre: 'Au clair de la lune', compositeur: 'Traditional song', origine: 'French folk song, 18th century',
+    histoire: 'In 1860, Édouard-Léon Scott de Martinville etched a few notes of it with his phonautograph: one of the oldest known recordings of a human voice.',
+  });
+  Object.assign(BASE[1], {
+    titre: 'Ode to Joy', origine: 'Symphony No. 9, final movement',
+    histoire: 'Beethoven, almost deaf, conducted the premiere of his Ninth Symphony in Vienna in 1824. This theme is now the anthem of the European Union.',
+  });
+}
+
 const norm = (t) => String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
 
 let main = [];
 try {
-  const mod = await import('./songs.js');
+  const mod = await import(EN ? './en/songs.js' : './songs.js');
   if (Array.isArray(mod.SONGS)) main = mod.SONGS;
 } catch (e) { /* la bibliotheque principale n'est pas encore la */ }
 

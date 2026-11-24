@@ -14,43 +14,45 @@ import { tick } from './audio.js';
 import { connectMidi, midiSupported } from './midi.js';
 import { fr, esc } from './text.js';
 import { keepAwake } from './awake.js';
+import { t } from './i18n.js';
 
+// Les textes sont traduits une fois, au chargement : la langue ne change pas pendant la visite
 const NIVEAUX = [
-  { id: 'debutant', titre: 'Je débute', desc: 'Je n’ai jamais joué, ou presque. On commence ensemble, depuis le tout premier do.', lit: 1 },
-  { id: 'intermediaire', titre: 'Je joue un peu', desc: 'Je connais quelques notes et je joue quelques airs. Deux minutes de tests pour te placer.', lit: 5 },
-  { id: 'expert', titre: 'Je joue bien', desc: 'Je lis la partition et je joue à deux mains. Quelques tests plus corsés.', lit: 12 },
+  { id: 'debutant', titre: t('Je débute'), desc: t('Je n’ai jamais joué, ou presque. On commence ensemble, depuis le tout premier do.'), lit: 1 },
+  { id: 'intermediaire', titre: t('Je joue un peu'), desc: t('Je connais quelques notes et je joue quelques airs. Deux minutes de tests pour te placer.'), lit: 5 },
+  { id: 'expert', titre: t('Je joue bien'), desc: t('Je lis la partition et je joue à deux mains. Quelques tests plus corsés.'), lit: 12 },
 ];
 
 const MATERIEL = [
-  { id: 'acoustique', titre: 'Un piano acoustique', desc: 'Le site écoute au micro. Pose ton téléphone ou ta tablette sur le pupitre.' },
-  { id: 'numerique', titre: 'Un piano numérique', desc: 'Branché en USB ou en Bluetooth : chaque note est reconnue sans erreur.' },
-  { id: 'ecran', titre: 'L’écran', desc: hasKeyboard() ? 'Je joue sur les touches à l’écran, ou avec mon clavier d’ordinateur.' : 'Je joue sur les touches à l’écran.' },
+  { id: 'acoustique', titre: t('Un piano acoustique'), desc: t('Le site écoute au micro. Pose ton téléphone ou ta tablette sur le pupitre.') },
+  { id: 'numerique', titre: t('Un piano numérique'), desc: t('Branché en USB ou en Bluetooth : chaque note est reconnue sans erreur.') },
+  { id: 'ecran', titre: t('L’écran'), desc: hasKeyboard() ? t('Je joue sur les touches à l’écran, ou avec mon clavier d’ordinateur.') : t('Je joue sur les touches à l’écran.') },
 ];
 
 // Chaque test verifie la competence d'un palier. Le reussir, c'est pouvoir passer ce palier.
 const TESTS = [
-  { id: 'position', palier: 1, titre: 'Les cinq premières notes', consigne: 'Joue ces notes dans l’ordre.', steps: 'C4 D4 E4 F4 G4', show: 'names' },
-  { id: 'melodie', palier: 2, titre: 'Sortir de la position', consigne: 'Joue cet air : il dépasse tes cinq doigts.', steps: 'C4 C4 G4 G4 A4 A4 G4', show: 'names' },
-  { id: 'gauche', palier: 3, titre: 'La main gauche', consigne: 'Côté grave, à la main gauche : joue ces notes.', steps: 'C3 D3 E3 F3 G3 C3', show: 'names' },
-  { id: 'lecture', palier: 4, titre: 'Lire la partition', consigne: 'Joue la note écrite sur la portée.', steps: 'E4 G4 C5 D4 A4 F3 A3', show: 'staff' },
-  { id: 'rythme', palier: 5, titre: 'Le rythme', consigne: 'Joue n’importe quelle touche à chaque note, en même temps que le repère, avec le métronome.', rythme: [1, 1, 0.5, 0.5, 1, 2, 1, 0.5, 0.5, 2], show: 'rythme' },
-  { id: 'deux-mains', palier: 6, titre: 'Les deux mains', consigne: 'Joue les deux notes ensemble, une à chaque main.', steps: 'C3+E4 F3+A4 G3+B4 C3+A4', show: 'names' },
-  { id: 'accords', palier: 7, titre: 'Les accords', consigne: 'Joue chaque accord : les trois notes ensemble.', steps: 'C4+E4+G4 F4+A4+C5 G3+B3+D4', show: 'chords' },
+  { id: 'position', palier: 1, titre: t('Les cinq premières notes'), consigne: t('Joue ces notes dans l’ordre.'), steps: 'C4 D4 E4 F4 G4', show: 'names' },
+  { id: 'melodie', palier: 2, titre: t('Sortir de la position'), consigne: t('Joue cet air : il dépasse tes cinq doigts.'), steps: 'C4 C4 G4 G4 A4 A4 G4', show: 'names' },
+  { id: 'gauche', palier: 3, titre: t('La main gauche'), consigne: t('Côté grave, à la main gauche : joue ces notes.'), steps: 'C3 D3 E3 F3 G3 C3', show: 'names' },
+  { id: 'lecture', palier: 4, titre: t('Lire la partition'), consigne: t('Joue la note écrite sur la portée.'), steps: 'E4 G4 C5 D4 A4 F3 A3', show: 'staff' },
+  { id: 'rythme', palier: 5, titre: t('Le rythme'), consigne: t('Joue n’importe quelle touche à chaque note, en même temps que le repère, avec le métronome.'), rythme: [1, 1, 0.5, 0.5, 1, 2, 1, 0.5, 0.5, 2], show: 'rythme' },
+  { id: 'deux-mains', palier: 6, titre: t('Les deux mains'), consigne: t('Joue les deux notes ensemble, une à chaque main.'), steps: 'C3+E4 F3+A4 G3+B4 C3+A4', show: 'names' },
+  { id: 'accords', palier: 7, titre: t('Les accords'), consigne: t('Joue chaque accord : les trois notes ensemble.'), steps: 'C4+E4+G4 F4+A4+C5 G3+B3+D4', show: 'chords' },
 ];
 
 const QUESTIONS = [
-  { id: 'notes', texte: 'Je trouve n’importe quelle note sur le clavier.', cap: 1 },
-  { id: 'gauche', texte: 'Je joue aussi de la main gauche.', cap: 3 },
-  { id: 'lecture', texte: 'Je lis les notes sur une partition.', cap: 4 },
-  { id: 'rythme', texte: 'Je compte les rythmes : noires, croches, silences.', cap: 5 },
-  { id: 'deuxmains', texte: 'Je joue les deux mains en même temps.', cap: 6 },
-  { id: 'accords', texte: 'Je connais les accords de do, de fa et de sol.', cap: 7 },
+  { id: 'notes', texte: t('Je trouve n’importe quelle note sur le clavier.'), cap: 1 },
+  { id: 'gauche', texte: t('Je joue aussi de la main gauche.'), cap: 3 },
+  { id: 'lecture', texte: t('Je lis les notes sur une partition.'), cap: 4 },
+  { id: 'rythme', texte: t('Je compte les rythmes : noires, croches, silences.'), cap: 5 },
+  { id: 'deuxmains', texte: t('Je joue les deux mains en même temps.'), cap: 6 },
+  { id: 'accords', texte: t('Je connais les accords de do, de fa et de sol.'), cap: 7 },
 ];
 
-const CHORD_NAMES = { 'C4+E4+G4': 'Accord de do', 'F4+A4+C5': 'Accord de fa', 'G3+B3+D4': 'Accord de sol' };
+const CHORD_NAMES = { 'C4+E4+G4': t('Accord de do'), 'F4+A4+C5': t('Accord de fa'), 'G3+B3+D4': t('Accord de sol') };
 const parseSteps = (txt) => txt.split(/\s+/).map((tok) => ({ tok, midis: tok.split('+').map(pitchToMidi) }));
 const nom = (m) => noteName(m);
-const zone = (m) => (m < 60 ? 'grave' : m >= 72 ? 'aigu' : 'milieu');
+const zone = (m) => (m < 60 ? t('côté grave') : m >= 72 ? t('côté aigu') : t('côté milieu'));
 
 function miniKeys(n) {
   return `<span class="mini-kb">${Array.from({ length: 12 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
@@ -71,8 +73,8 @@ export function renderBilan(app, { next = null } = {}) {
   app.innerHTML = `
     <div class="bilan">
       <div class="bilan-head">
-        <div class="eyebrow" data-reveal>Avant ta première leçon</div>
-        <h1 data-split>Où en es-tu <span class="grad-text">au piano</span> ?</h1>
+        <div class="eyebrow" data-reveal>${t('Avant ta première leçon')}</div>
+        <h1 data-split>${t('Où en es-tu <span class="grad-text">au piano</span> ?')}</h1>
         <div class="bilan-dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div>
       </div>
       <div class="bilan-body" id="body"></div>
@@ -91,7 +93,7 @@ export function renderBilan(app, { next = null } = {}) {
   function showNiveau() {
     step(0);
     swap(`
-      <p class="lead">${fr('Pas de bonne ou de mauvaise réponse : le prof adapte tout le parcours à toi.')}</p>
+      <p class="lead">${fr(t('Pas de bonne ou de mauvaise réponse : le prof adapte tout le parcours à toi.'))}</p>
       <div class="choices three">
         ${NIVEAUX.map((n) => `<button class="choice" data-niveau="${n.id}">${miniKeys(n.lit)}<strong>${esc(n.titre)}</strong><span>${fr(esc(n.desc))}</span></button>`).join('')}
       </div>`);
@@ -105,24 +107,24 @@ export function renderBilan(app, { next = null } = {}) {
   function showMateriel() {
     step(1);
     swap(`
-      <p class="lead">${fr('Sur quoi vas-tu jouer ?')}</p>
+      <p class="lead">${fr(t('Sur quoi vas-tu jouer ?'))}</p>
       <div class="choices three">
         ${MATERIEL.map((x) => `<button class="choice ${materiel === x.id ? 'on' : ''}" data-mat="${x.id}"><strong>${esc(x.titre)}</strong><span>${fr(esc(x.desc))}</span></button>`).join('')}
       </div>
       <p class="hint" id="mat-state"></p>
-      <div class="bilan-nav"><button class="btn ghost small" id="back">Retour</button></div>`);
+      <div class="bilan-nav"><button class="btn ghost small" id="back">${t('Retour')}</button></div>`);
     body.querySelector('#back').addEventListener('click', showNiveau);
     body.querySelectorAll('[data-mat]').forEach((b) => b.addEventListener('click', async () => {
       materiel = b.dataset.mat;
       setSetting('entree', materiel);
       if (materiel === 'numerique' && midiSupported()) {
         const st = body.querySelector('#mat-state');
-        st.textContent = 'Branche ton piano, puis autorise l’accès quand ton navigateur le demande…';
+        st.textContent = t('Branche ton piano, puis autorise l’accès quand ton navigateur le demande…');
         try {
           const list = await connectMidi();
-          st.textContent = list.length ? `Connecté : ${list.join(', ')}` : fr('Aucun piano détecté pour l’instant : il sera reconnu dès qu’il sera branché.');
+          st.textContent = list.length ? fr(t('Connecté : {list}', { list: list.join(', ') })) : fr(t('Aucun piano détecté pour l’instant : il sera reconnu dès qu’il sera branché.'));
         } catch (e) {
-          st.textContent = fr('Accès refusé : tu pourras le connecter plus tard dans les réglages.');
+          st.textContent = fr(t('Accès refusé : tu pourras le connecter plus tard dans les réglages.'));
         }
         await new Promise((r) => setTimeout(r, 900));
       }
@@ -137,11 +139,11 @@ export function renderBilan(app, { next = null } = {}) {
     step(2);
     const list = niveau === 'expert' ? QUESTIONS : QUESTIONS.slice(0, 5);
     swap(`
-      <p class="lead">${fr('Coche ce qui est vrai pour toi.')}</p>
+      <p class="lead">${fr(t('Coche ce qui est vrai pour toi.'))}</p>
       <div class="questions">
         ${list.map((q) => `<label class="question"><input type="checkbox" data-q="${q.id}" ${answers[q.id] ?? (niveau === 'expert') ? 'checked' : ''}><span>${fr(esc(q.texte))}</span></label>`).join('')}
       </div>
-      <div class="bilan-nav"><button class="btn ghost small" id="back">Retour</button><button class="btn" id="go">Passer les tests</button></div>`);
+      <div class="bilan-nav"><button class="btn ghost small" id="back">${t('Retour')}</button><button class="btn" id="go">${t('Passer les tests')}</button></div>`);
     body.querySelector('#back').addEventListener('click', showMateriel);
     body.querySelector('#go').addEventListener('click', () => {
       body.querySelectorAll('[data-q]').forEach((c) => { answers[c.dataset.q] = c.checked; });
@@ -168,8 +170,8 @@ export function renderBilan(app, { next = null } = {}) {
       <div class="stage test-stage">
         <div class="piano-wrap" id="t-piano"></div>
       </div>
-      <div class="listen-bar" id="t-listen" hidden><span class="mic-dot"></span><span class="meter"><span id="t-meter"></span></span><span class="heard">J’entends <strong id="t-heard">–</strong></span></div>
-      <div class="bilan-nav"><button class="btn ghost small" id="t-skip">Je ne sais pas faire</button></div>`);
+      <div class="listen-bar" id="t-listen" hidden><span class="mic-dot"></span><span class="meter"><span id="t-meter"></span></span><span class="heard">${t('J’entends')} <strong id="t-heard">–</strong></span></div>
+      <div class="bilan-nav"><button class="btn ghost small" id="t-skip">${t('Je ne sais pas faire')}</button></div>`);
     m = mountPiano(body.querySelector('#t-piano'), {
       low: 36, high: 84, stage: 'clavier', known: new Set(), view: 'front', focus: [48, 79],
       labels: false,
@@ -185,7 +187,7 @@ export function renderBilan(app, { next = null } = {}) {
       if (!alive) return;
       const idx = queue[qi];
       const test = TESTS[idx];
-      body.querySelector('#t-count').textContent = `Test ${qi + 1} sur ${queue.length}`;
+      body.querySelector('#t-count').textContent = t('Test {n} sur {total}', { n: qi + 1, total: queue.length });
       body.querySelector('#t-title').textContent = test.titre;
       body.querySelector('#t-consigne').textContent = fr(test.consigne);
       const done = (pass) => {
@@ -245,9 +247,9 @@ export function renderBilan(app, { next = null } = {}) {
       tries = 0;
       const progress = `<div class="t-progress">${steps.map((_, k) => `<i class="${k < i ? (steps[k].ok ? 'ok' : 'ko') : k === i ? 'on' : ''}"></i>`).join('')}</div>`;
       let main = '';
-      if (test.show === 'staff') main = staffSVG(st.midis[0], undefined, { label: 'Note à jouer' });
+      if (test.show === 'staff') main = staffSVG(st.midis[0], undefined, { label: t('Note à jouer') });
       else if (test.show === 'chords') main = `<b>${esc(CHORD_NAMES[st.tok] || st.midis.map(nom).join(' + '))}</b><span>${st.midis.map(nom).join(' · ')}</span>`;
-      else main = `<b>${st.midis.map(nom).join(' + ')}</b><span>${st.midis.length > 1 ? 'ensemble' : `côté ${zone(st.midis[0])}`}</span>`;
+      else main = `<b>${st.midis.map(nom).join(' + ')}</b><span>${st.midis.length > 1 ? t('ensemble') : zone(st.midis[0])}</span>`;
       prompt.innerHTML = `${progress}<div class="t-target ${test.show}">${main}</div>`;
       clearTimeout(timer);
       timer = setTimeout(() => fail(), 14000);
@@ -269,12 +271,12 @@ export function renderBilan(app, { next = null } = {}) {
         const fromMic = source === 'mic';
         // Au micro, un accord se verifie en entier (voir chord) : une note seule ne compte ni pour ni contre
         if (fromMic && st.midis.length > 1) return;
-        const hit = st.midis.find((t) => (fromMic ? sameNote(midi, t) : midi === t));
+        const hit = st.midis.find((n) => (fromMic ? sameNote(midi, n) : midi === n));
         if (hit != null) {
           got.add(hit);
           m.piano?.flash(midi, '#3dffa8');
-          if (st.midis.every((t) => got.has(t))) {
-            st.midis.forEach((t) => { if (discover(t)) learned.add(t); });
+          if (st.midis.every((n) => got.has(n))) {
+            st.midis.forEach((n) => { if (discover(n)) learned.add(n); });
             advance(true);
           }
           return;
@@ -287,7 +289,7 @@ export function renderBilan(app, { next = null } = {}) {
         if (over) return;
         const st = steps[i];
         if (st.midis.length < 2 || midis.join() !== st.midis.join()) return;
-        st.midis.forEach((t) => { m.piano?.flash(t, '#3dffa8'); if (discover(t)) learned.add(t); });
+        st.midis.forEach((n) => { m.piano?.flash(n, '#3dffa8'); if (discover(n)) learned.add(n); });
         advance(true);
       },
       giveUp() { if (!over) { over = true; clearTimeout(timer); done(false); } },
@@ -302,8 +304,8 @@ export function renderBilan(app, { next = null } = {}) {
     const beat = 60000 / tempo;
     const pattern = test.rythme;
     const total = pattern.reduce((a, b) => a + b, 0);
-    let t = 0;
-    const times = pattern.map((d) => { const at = t; t += d; return at; });
+    let sum = 0;
+    const times = pattern.map((d) => { const at = sum; sum += d; return at; });
     const W = (x) => `${((x / total) * 100).toFixed(2)}%`;
     prompt.innerHTML = `<div class="rhythm">
         <div class="r-track">${times.map((at, k) => `<i class="r-note ${pattern[k] >= 2 ? 'long' : pattern[k] < 1 ? 'short' : ''}" style="left:${W(at)};width:${W(pattern[k])}"></i>`).join('')}<span class="r-head" id="r-head"></span></div>
@@ -371,19 +373,19 @@ export function renderBilan(app, { next = null } = {}) {
     const first = pal.lecons[0];
     // Place plus loin que la lecon demandee : on va directement au debut de son palier
     const target = next && p === 1 ? `#/${next}` : first ? `#/lecon/${first.id}` : '#/parcours';
-    const goLabel = next && p === 1 ? 'Commencer la leçon' : `Commencer le palier ${p}`;
+    const goLabel = next && p === 1 ? t('Commencer la leçon') : t('Commencer le palier {n}', { n: p });
     step(3);
     swap(`
       <div class="bilan-result">
-        <div class="eyebrow" style="justify-content:center">${niveau === 'debutant' ? 'C’est parti' : 'Ton niveau'}</div>
-        <h2>${p === 1 ? fr('On commence au tout début') : fr(`Tu commences au palier ${p}`)}</h2>
-        <p class="lead">${fr(p === 1 ? 'Premier palier : Découverte. Le prof te montre où sont les notes, puis tes premiers airs arrivent très vite.' : `Palier ${p} : ${pal.titre}. Les paliers d’avant restent ouverts si tu veux revoir quelque chose.`)}</p>
-        ${results.length ? `<ul class="t-results">${results.map((r) => `<li class="${r.pass ? 'ok' : 'ko'}"><i></i>${esc(r.test.titre)}<span>${r.pass ? 'acquis' : 'on travaille ça'}</span></li>`).join('')}</ul>` : ''}
-        ${learned.size ? `<p class="hint">${fr(`${learned.size} ${learned.size > 1 ? 'notes sont déjà allumées' : 'note est déjà allumée'} sur ton clavier.`)}</p>` : ''}
-        <p class="hint">Ton instrument : <strong>${esc(stage.nom)}</strong></p>
+        <div class="eyebrow" style="justify-content:center">${niveau === 'debutant' ? t('C’est parti') : t('Ton niveau')}</div>
+        <h2>${p === 1 ? fr(t('On commence au tout début')) : fr(t('Tu commences au palier {n}', { n: p }))}</h2>
+        <p class="lead">${fr(p === 1 ? t('Premier palier : Découverte. Le prof te montre où sont les notes, puis tes premiers airs arrivent très vite.') : t('Palier {n} : {titre}. Les paliers d’avant restent ouverts si tu veux revoir quelque chose.', { n: p, titre: pal.titre }))}</p>
+        ${results.length ? `<ul class="t-results">${results.map((r) => `<li class="${r.pass ? 'ok' : 'ko'}"><i></i>${esc(r.test.titre)}<span>${r.pass ? t('acquis') : t('on travaille ça')}</span></li>`).join('')}</ul>` : ''}
+        ${learned.size ? `<p class="hint">${fr(learned.size > 1 ? t('{n} notes sont déjà allumées sur ton clavier.', { n: learned.size }) : t('{n} note est déjà allumée sur ton clavier.', { n: learned.size }))}</p>` : ''}
+        <p class="hint">${fr(t('Ton instrument : <strong>{instrument}</strong>', { instrument: esc(stage.nom) }))}</p>
         <div class="result-actions">
           <a class="btn" href="${target}">${goLabel}</a>
-          ${p > 2 ? `<a class="btn ghost" href="#/piano?nouveau=${p}">Voir mon instrument</a>` : '<a class="btn ghost" href="#/parcours">Voir le parcours</a>'}
+          ${p > 2 ? `<a class="btn ghost" href="#/piano?nouveau=${p}">${t('Voir mon instrument')}</a>` : `<a class="btn ghost" href="#/parcours">${t('Voir le parcours')}</a>`}
         </div>
       </div>`);
   }

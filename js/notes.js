@@ -1,14 +1,22 @@
 // Outils autour des notes (numerotation MIDI : 60 = do du milieu)
 
-const NOMS = ['Do', 'Do#', 'Ré', 'Ré#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+import { lang } from './i18n.js';
+
+const NOMS = {
+  fr: ['Do', 'Do#', 'Ré', 'Ré#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'],
+  en: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
+};
 
 export function isBlack(midi) {
   return [1, 3, 6, 8, 10].includes(midi % 12);
 }
 
+// Avec l'octave : en francais, le do du milieu est do3 (la tradition des conservatoires) ;
+// en anglais, C4 (notation scientifique).
 export function noteName(midi, withOctave = false) {
-  const name = NOMS[midi % 12];
-  return withOctave ? `${name}${Math.floor(midi / 12) - 1}` : name;
+  const l = lang();
+  const name = NOMS[l][midi % 12];
+  return withOctave ? `${name}${Math.floor(midi / 12) - (l === 'fr' ? 2 : 1)}` : name;
 }
 
 export function frequency(midi) {

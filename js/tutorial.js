@@ -17,8 +17,9 @@ import { fr, esc, DOIGTS, BRAND } from './text.js';
 import { keepAwake } from './awake.js';
 import { Sheet } from './sheet.js';
 import { kbdControlsHTML, bindKbdControls } from './kbd-ui.js';
+import { t, lang } from './i18n.js';
 
-const HANDS = { R: 'Main droite', L: 'Main gauche', RL: 'Les deux' };
+const HANDS = { R: t('Main droite'), L: t('Main gauche'), RL: t('Les deux') };
 const WINDOW = 0.32;   // tolerance en mode rythme, en temps (environ 0,2 s a 100 a la noire)
 const LOCK = '<svg class="lock" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.2a3.5 3.5 0 0 1 7 0V7" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="7" width="10" height="7.5" rx="2" fill="currentColor"/></svg>';
 
@@ -38,7 +39,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   // La salle de concert : au palier 8, et c'est la que se joue le morceau de fin du parcours
   const finalConcert = !!lecon?.boss && palier?.id === PALIERS.length;
   const canConcert = instr.features.has('concert') && canRhythm && !locked && instr.stage === 'queue';
-  const VIEWS = { notes: 'Notes qui tombent', mix: 'Notes et partition', partition: 'Partition' };
+  const VIEWS = { notes: t('Notes qui tombent'), mix: t('Notes et partition'), partition: t('Partition') };
   let display = canSheet ? (settings.affichage || 'mix') : 'notes';
   let part = hasLeft && hasRight ? 'RL' : hasLeft ? 'L' : 'R';
   const known = knownKeys();
@@ -47,8 +48,8 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   const range = [Math.min(free[0], need[0]), Math.max(free[1], need[1])];
   const stars = '★'.repeat(song.niveau || 1) + '☆'.repeat(5 - (song.niveau || 1));
   const crumbs = lecon
-    ? `<a href="#/parcours">Parcours</a><i></i><span>Palier ${palier.id} · ${esc(palier.titre)}</span><i></i><span>${lecon.boss ? 'Morceau de fin' : 'Morceau'}</span>`
-    : `<a href="#/morceaux">Morceaux</a><i></i><span>Palier ${song.palier}</span><i></i><span class="lvl" aria-label="Difficulté ${song.niveau} sur 5">${stars}</span>`;
+    ? `<a href="#/parcours">${t('Parcours')}</a><i></i><span>${t('Palier {n}', { n: palier.id })} · ${esc(palier.titre)}</span><i></i><span>${lecon.boss ? t('Morceau de fin') : t('Morceau')}</span>`
+    : `<a href="#/morceaux">${t('Morceaux')}</a><i></i><span>${t('Palier {n}', { n: song.palier })}</span><i></i><span class="lvl" aria-label="${t('Difficulté {n} sur 5', { n: song.niveau })}">${stars}</span>`;
 
   app.innerHTML = `
     <div class="lesson-head player-head">
@@ -64,7 +65,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       </div>
       <div class="sheet-panel" id="sheet" hidden></div>
       <div class="countdown" id="countdown"></div>
-      ${lecon?.texte || song.intro ? `<div class="bubble" id="bubble"><span class="bubble-who">Le prof</span><p id="bubble-text">${fr(esc(lecon?.texte || song.intro))}</p></div>` : ''}
+      ${lecon?.texte || song.intro ? `<div class="bubble" id="bubble"><span class="bubble-who">${t('Le prof')}</span><p id="bubble-text">${fr(esc(lecon?.texte || song.intro))}</p></div>` : ''}
       <div class="toast" id="toast" aria-live="polite"></div>
       <div class="concert-card" id="concert-card" hidden></div>
       <div class="result" id="result" hidden></div>
@@ -72,19 +73,19 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     <div class="listen-bar" id="listen-bar" hidden>
       <span class="mic-dot"></span>
       <span class="meter"><span id="meter"></span></span>
-      <span class="heard">J’entends <strong id="heard">–</strong></span>
+      <span class="heard">${t('J’entends')} <strong id="heard">–</strong></span>
     </div>
     <div class="player-controls">
-      <button class="btn" id="play" ${locked ? 'disabled' : ''}>${locked ? `Palier ${song.palier}` : 'Jouer'}</button>
-      <button class="btn ghost" id="listen">Écouter</button>
-      ${canConcert ? `<button class="btn ${finalConcert ? 'concert-cta' : 'ghost'}" id="concert">${finalConcert ? 'Monter sur scène' : 'Concert'}</button>` : ''}
-      <button class="btn ghost" id="rhythm" ${canRhythm && !locked ? '' : 'disabled'} title="${canRhythm ? 'Le morceau n’attend pas : chaque note est jugée sur son temps' : 'Arrive avec le métronome, au palier 5'}">${canRhythm ? 'En rythme' : `${LOCK} En rythme · palier 5`}</button>
-      ${hasLeft && hasRight ? `<div class="seg" id="hands" role="group" aria-label="Main travaillée">${Object.entries(HANDS).map(([k, v]) => `<button data-h="${k}" class="${k === part ? 'on' : ''}">${v}</button>`).join('')}</div>` : ''}
-      <div class="seg" id="display" role="group" aria-label="Affichage">${Object.entries(VIEWS).map(([k, v]) => `<button data-d="${k}" class="${k === display ? 'on' : ''}" ${k !== 'notes' && !canSheet ? 'disabled title="La partition arrive au palier 4"' : ''}>${k !== 'notes' && !canSheet ? LOCK : ''}${v}</button>`).join('')}</div>
-      <label class="speed">Vitesse <input type="range" id="speed" min="40" max="100" step="5" value="${Math.round((settings.vitesse || 1) * 100)}"><output id="speed-out">${Math.round((settings.vitesse || 1) * 100)} %</output></label>
+      <button class="btn" id="play" ${locked ? 'disabled' : ''}>${locked ? t('Palier {n}', { n: song.palier }) : t('Jouer')}</button>
+      <button class="btn ghost" id="listen">${t('Écouter')}</button>
+      ${canConcert ? `<button class="btn ${finalConcert ? 'concert-cta' : 'ghost'}" id="concert">${finalConcert ? t('Monter sur scène') : t('Concert')}</button>` : ''}
+      <button class="btn ghost" id="rhythm" ${canRhythm && !locked ? '' : 'disabled'} title="${canRhythm ? t('Le morceau n’attend pas : chaque note est jugée sur son temps') : t('Arrive avec le métronome, au palier 5')}">${canRhythm ? t('En rythme') : `${LOCK} ${t('En rythme · palier 5')}`}</button>
+      ${hasLeft && hasRight ? `<div class="seg" id="hands" role="group" aria-label="${t('Main travaillée')}">${Object.entries(HANDS).map(([k, v]) => `<button data-h="${k}" class="${k === part ? 'on' : ''}">${v}</button>`).join('')}</div>` : ''}
+      <div class="seg" id="display" role="group" aria-label="${t('Affichage')}">${Object.entries(VIEWS).map(([k, v]) => `<button data-d="${k}" class="${k === display ? 'on' : ''}" ${k !== 'notes' && !canSheet ? `disabled title="${t('La partition arrive au palier 4')}"` : ''}>${k !== 'notes' && !canSheet ? LOCK : ''}${v}</button>`).join('')}</div>
+      <label class="speed">${t('Vitesse')} <input type="range" id="speed" min="40" max="100" step="5" value="${Math.round((settings.vitesse || 1) * 100)}"><output id="speed-out">${Math.round((settings.vitesse || 1) * 100)} %</output></label>
     </div>
     ${kbdControlsHTML()}
-    ${locked ? `<p class="hint locked-note">${fr(`Ce morceau s’ouvre au palier ${song.palier}. Tu peux déjà l’écouter.`)}</p>` : ''}
+    ${locked ? `<p class="hint locked-note">${fr(t('Ce morceau s’ouvre au palier {n}. Tu peux déjà l’écouter.', { n: song.palier }))}</p>` : ''}
     ${song.histoire ? `<p class="story" data-reveal>${fr(esc(song.histoire))}</p>` : ''}
   `;
 
@@ -127,9 +128,9 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   const timers = new Set();
   const fresh = [];
 
-  const say = (t) => {
+  const say = (text) => {
     if (!bubble) return;
-    bubbleText.textContent = fr(t);
+    bubbleText.textContent = fr(text);
     bubble.classList.remove('pop');
     void bubble.offsetWidth;
     bubble.classList.add('pop');
@@ -208,8 +209,8 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     const ms = (e.dur / beatsPerSecond()) * 1000 * 0.92;
     piano.press(e.midi, e.hand === 'L' ? 0.62 : 0.74, { auto: true });
     listener?.mute(ms + 200);
-    const t = setTimeout(() => { timers.delete(t); piano.release(e.midi, { auto: true }); }, ms);
-    timers.add(t);
+    const tm = setTimeout(() => { timers.delete(tm); piano.release(e.midi, { auto: true }); }, ms);
+    timers.add(tm);
     markNote(e.i, true);
   }
 
@@ -222,7 +223,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     piano.showFinger(n0.midi, n0.finger);
     sheet?.focus(st.notes.map((n) => n.i));
     listener?.expectChord(st.notes.length > 1 ? st.notes.map((n) => n.midi) : null);
-    next.innerHTML = `<b>${st.notes.map((n) => noteName(n.midi)).join(' + ')}</b>${n0.finger ? `<span>${n0.finger === 1 ? 'pouce' : DOIGTS[n0.finger]} · main ${n0.hand === 'L' ? 'gauche' : 'droite'}</span>` : ''}`;
+    next.innerHTML = `<b>${st.notes.map((n) => noteName(n.midi)).join(' + ')}</b>${n0.finger ? `<span>${DOIGTS[n0.finger]} · ${n0.hand === 'L' ? t('main gauche') : t('main droite')}</span>` : ''}`;
   }
 
   // Mode rythme : la note compte si elle tombe dans sa fenetre de temps
@@ -242,12 +243,12 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
         correct += st.notes.length;
         combo++;
         const gap = Math.abs(st.start - now);
-        next.innerHTML = `<b>${gap < 0.12 ? 'Parfait' : 'Bien'}</b><span>${combo > 2 ? `${combo} d’affilée` : '&nbsp;'}</span>`;
+        next.innerHTML = `<b>${gap < 0.12 ? t('Parfait') : t('Bien')}</b><span>${combo > 2 ? t('{n} d’affilée', { n: combo }) : '&nbsp;'}</span>`;
       }
       return;
     }
-    const t = performance.now();
-    if (t - lastWrong > 180) { errors++; lastWrong = t; combo = 0; }
+    const at = performance.now();
+    if (at - lastWrong > 180) { errors++; lastWrong = at; combo = 0; }
     piano.flash(midi, '#ff5470');
   }
 
@@ -282,8 +283,8 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       return;
     }
     // Fausse note (une seule fois par accord)
-    const t = performance.now();
-    if (t - lastWrong > 180) { errors++; lastWrong = t; }
+    const at = performance.now();
+    if (at - lastWrong > 180) { errors++; lastWrong = at; }
     piano.flash(midi, '#ff5470');
   }
 
@@ -314,10 +315,10 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       const waited = performance.now() - waitStart;
       if (waited > 4500 && hintLevel === 0) {
         hintLevel = 1;
-        say(`Cherche ${st.notes.map((n) => noteName(n.midi).toLowerCase()).join(' et ')}, la touche qui brille.`);
+        say(t('Cherche {notes}, la touche qui brille.', { notes: st.notes.map((n) => (lang() === 'en' ? noteName(n.midi) : noteName(n.midi).toLowerCase())).join(t(' et ')) }));
       } else if (waited > 9000 && hintLevel === 1) {
         hintLevel = 2;
-        say('Écoute-la, puis joue-la.');
+        say(t('Écoute-la, puis joue-la.'));
         st.notes.forEach((n) => { piano.tap(n.midi, 500, 0.6, { auto: true }); });
         listener?.mute(900);
       }
@@ -337,7 +338,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
           misses += st.notes.length - st.got.size;
           correct += st.got.size;
           combo = 0;
-          next.innerHTML = '<b>Raté</b><span>&nbsp;</span>';
+          next.innerHTML = `<b>${t('Raté')}</b><span>&nbsp;</span>`;
         }
         si++;
       }
@@ -364,25 +365,25 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     result.hidden = true;
     mode = which;
     prepare();
-    playBtn.textContent = which === 'joue' ? 'Arrêter' : 'Jouer';
-    listenBtn.textContent = which === 'ecoute' ? 'Arrêter' : 'Écouter';
-    if (canRhythm) rhythmBtn.textContent = which === 'rythme' ? 'Arrêter' : 'En rythme';
+    playBtn.textContent = which === 'joue' ? t('Arrêter') : t('Jouer');
+    listenBtn.textContent = which === 'ecoute' ? t('Arrêter') : t('Écouter');
+    if (canRhythm) rhythmBtn.textContent = which === 'rythme' ? t('Arrêter') : t('En rythme');
     piano.setView(display === 'partition' ? 'front' : 'highway');
     if (which === 'rythme') {
       next.innerHTML = '';
       piano.hideFinger();
       piano.clearHighlights();
       startListening();
-      say('Le morceau n’attend pas : joue chaque note au moment où elle touche le clavier.');
+      say(t('Le morceau n’attend pas : joue chaque note au moment où elle touche le clavier.'));
     } else if (which === 'joue') {
       nextHint();
       waitStart = performance.now();
       startListening();
-      say(lecon?.texte || song.intro || 'Les notes arrivent : joue chacune quand elle touche le clavier.');
+      say(lecon?.texte || song.intro || t('Les notes arrivent : joue chacune quand elle touche le clavier.'));
     } else {
       next.innerHTML = '';
       piano.hideFinger();
-      if (backing) say('L’instru tourne derrière. Le piano est calé dessus.');
+      if (backing) say(t('L’instru tourne derrière. Le piano est calé dessus.'));
     }
     now = -3.2;
     lastCount = null;
@@ -394,17 +395,17 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     const was = mode;
     mode = 'idle';
     if (!keepHall) closeHall();
-    timers.forEach((t) => clearTimeout(t));
+    timers.forEach((tm) => clearTimeout(tm));
     timers.clear();
     piano.releaseAll();
     piano.clearHighlights();
     piano.hideFinger();
     countdown.textContent = '';
     lastCount = null;
-    playBtn.textContent = locked ? `Palier ${song.palier}` : 'Jouer';
-    listenBtn.textContent = 'Écouter';
-    if (canRhythm) rhythmBtn.textContent = 'En rythme';
-    if (concertBtn) concertBtn.textContent = finalConcert ? 'Monter sur scène' : 'Concert';
+    playBtn.textContent = locked ? t('Palier {n}', { n: song.palier }) : t('Jouer');
+    listenBtn.textContent = t('Écouter');
+    if (canRhythm) rhythmBtn.textContent = t('En rythme');
+    if (concertBtn) concertBtn.textContent = finalConcert ? t('Monter sur scène') : t('Concert');
     listener?.stop();
     listener = null;
     listenBar.hidden = true;
@@ -434,7 +435,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       listener = l;
       listenBar.hidden = false;
     } catch (e) {
-      showToast(`<b>Micro non disponible</b><span>${fr('Joue sur les touches à l’écran, ou autorise le micro.')}</span>`);
+      showToast(`<b>${t('Micro non disponible')}</b><span>${fr(t('Joue sur les touches à l’écran, ou autorise le micro.'))}</span>`);
     }
   }
 
@@ -445,7 +446,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     stop({ keepHall: wasConcert });
     mode = 'fini';
     if (!wasPlaying) {
-      showToast(`<b>${esc(song.titre)}</b><span>${fr('À toi, maintenant : appuie sur « Jouer ».')}</span>`);
+      showToast(`<b>${esc(song.titre)}</b><span>${fr(t('À toi, maintenant : appuie sur « Jouer ».'))}</span>`);
       mode = 'idle';
       return;
     }
@@ -455,34 +456,34 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     const res = completeSong(song.id, acc, boss);
     if (lecon) completeLesson(lecon.id, acc);
     const badges = [];
-    if (part === 'RL' && hasLeft && hasRight && unlockBadge('deux-mains')) badges.push('Deux mains');
-    if (res.stars === 3 && unlockBadge('trois-etoiles')) badges.push('Sans faute');
+    if (part === 'RL' && hasLeft && hasRight && unlockBadge('deux-mains')) badges.push(t('Deux mains'));
+    if (res.stars === 3 && unlockBadge('trois-etoiles')) badges.push(t('Sans faute'));
     const st = getState();
     const pal = lecon ? palier : null;
     const palierDone = pal && palierStatus(pal, st.lessonsDone).complete;
-    if (pal?.id === 1 && palierDone && unlockBadge('palier-1')) badges.push('Les bases');
+    if (pal?.id === 1 && palierDone && unlockBadge('palier-1')) badges.push(t('Les bases'));
     const all = ALL_LESSONS;
     const nextLesson = lecon ? all[all.findIndex((l) => l.id === lecon.id) + 1] : null;
     if (wasConcert) {
       hall?.finale(acc);
-      say(acc >= 95 ? 'Toute la salle est debout.' : acc >= 85 ? 'La salle se lève pour toi.' : acc >= 70 ? 'Écoute ces applaudissements : ils sont pour toi.' : 'La salle t’applaudit. Rejoue-le : la prochaine fois, elle se lèvera.');
+      say(acc >= 95 ? t('Toute la salle est debout.') : acc >= 85 ? t('La salle se lève pour toi.') : acc >= 70 ? t('Écoute ces applaudissements : ils sont pour toi.') : t('La salle t’applaudit. Rejoue-le : la prochaine fois, elle se lèvera.'));
       const later = setTimeout(() => { if (alive) showConcertResult({ acc, res, badges, palierDone }); }, 4600);
       timers.add(later);
       return;
     }
-    say(lecon?.apres || (acc >= 95 ? 'Magnifique.' : 'Bravo, morceau terminé.'));
+    say(lecon?.apres || (acc >= 95 ? t('Magnifique.') : t('Bravo, morceau terminé.')));
     result.innerHTML = `
       <div class="result-card">
-        <div class="eyebrow" style="justify-content:center">${boss ? 'Palier réussi' : wasRhythm ? 'Joué en rythme' : 'Morceau joué'}</div>
+        <div class="eyebrow" style="justify-content:center">${boss ? t('Palier réussi') : wasRhythm ? t('Joué en rythme') : t('Morceau joué')}</div>
         <div class="stars">${[1, 2, 3].map((n) => `<i class="${n <= res.stars ? 'got' : ''}" style="--n:${n}"></i>`).join('')}</div>
         <div class="result-xp">+<span data-count="${res.gained}">0</span> XP</div>
-        <p class="hint" style="margin:.2rem 0 0">Précision ${acc} %${fresh.length ? ` · ${fresh.length === 1 ? 'nouvelle note' : 'nouvelles notes'} : ${fresh.map((m) => noteName(m)).join(', ')}` : ''}</p>
-        ${badges.length ? `<p class="new-badge">Nouveau badge : ${badges.join(', ')}</p>` : ''}
+        <p class="hint" style="margin:.2rem 0 0">${t('Précision {acc} %', { acc })}${fresh.length ? ` · ${fresh.length === 1 ? t('nouvelle note') : t('nouvelles notes')} : ${fresh.map((m) => noteName(m)).join(', ')}` : ''}</p>
+        ${badges.length ? `<p class="new-badge">${t('Nouveau badge : {liste}', { liste: badges.join(', ') })}</p>` : ''}
         <div class="result-actions">
-          <button class="btn ghost" id="again">Rejouer</button>
-          ${palierDone && pal.id < 8 ? `<a class="btn" href="#/piano?nouveau=${pal.id + 1}">Découvrir le palier ${pal.id + 1}</a>`
-            : nextLesson ? `<a class="btn" href="#/lecon/${nextLesson.id}">Leçon suivante</a>`
-            : `<a class="btn" href="#/morceaux">Autres morceaux</a>`}
+          <button class="btn ghost" id="again">${t('Rejouer')}</button>
+          ${palierDone && pal.id < 8 ? `<a class="btn" href="#/piano?nouveau=${pal.id + 1}">${t('Découvrir le palier {n}', { n: pal.id + 1 })}</a>`
+            : nextLesson ? `<a class="btn" href="#/lecon/${nextLesson.id}">${t('Leçon suivante')}</a>`
+            : `<a class="btn" href="#/morceaux">${t('Autres morceaux')}</a>`}
         </div>
       </div>`;
     result.hidden = false;
@@ -515,63 +516,64 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     lockControls(true);
     piano.setView(display === 'partition' ? 'front' : 'highway');
     mode = 'rideau';
-    concertBtn.textContent = 'Arrêter';
+    concertBtn.textContent = t('Arrêter');
     hall.dim();
     const who = getSettings().prenom;
     concertCard.innerHTML = `
-      <p class="eyebrow">${finalConcert ? 'Concert de fin de parcours' : 'Concert'}</p>
+      <p class="eyebrow">${finalConcert ? t('Concert de fin de parcours') : t('Concert')}</p>
       <h2>${esc(song.titre)}</h2>
-      <p class="concert-who">${fr(`Au piano ce soir : ${who ? esc(who) : 'toi'}.`)}</p>
-      <p class="concert-hint">${fr('La salle s’éteint. Respire, puis joue chaque note quand elle touche le clavier.')}</p>`;
+      <p class="concert-who">${fr(who ? t('Au piano ce soir : {nom}.', { nom: esc(who) }) : t('Au piano ce soir : toi.'))}</p>
+      <p class="concert-hint">${fr(t('La salle s’éteint. Respire, puis joue chaque note quand elle touche le clavier.'))}</p>`;
     concertCard.hidden = false;
     concertCard.classList.remove('go');
     void concertCard.offsetWidth;
     concertCard.classList.add('go');
-    const t = setTimeout(() => {
-      timers.delete(t);
+    const tm = setTimeout(() => {
+      timers.delete(tm);
       if (!alive || !concert || mode !== 'rideau') return;
       concertCard.hidden = true;
       hall.playing();
       begin('rythme');
-      concertBtn.textContent = 'Arrêter';
-      rhythmBtn.textContent = 'En rythme';
+      concertBtn.textContent = t('Arrêter');
+      rhythmBtn.textContent = t('En rythme');
     }, 3600);
-    timers.add(t);
+    timers.add(tm);
   }
 
   function showConcertResult({ acc, res, badges, palierDone }) {
     lockControls(false);
     const courseDone = finalConcert && palierDone;
-    const verdict = acc >= 95 ? 'Ovation debout' : acc >= 85 ? 'La salle se lève' : acc >= 70 ? 'Beaux applaudissements' : 'La salle applaudit';
+    const verdict = acc >= 95 ? t('Ovation debout') : acc >= 85 ? t('La salle se lève') : acc >= 70 ? t('Beaux applaudissements') : t('La salle applaudit');
     const s = getState();
     result.innerHTML = `
       <div class="result-card concert-result">
-        <div class="eyebrow" style="justify-content:center">${courseDone ? 'Parcours terminé' : 'Concert donné'}</div>
+        <div class="eyebrow" style="justify-content:center">${courseDone ? t('Parcours terminé') : t('Concert donné')}</div>
         <h3 class="concert-verdict">${verdict}</h3>
         <div class="stars">${[1, 2, 3].map((n) => `<i class="${n <= res.stars ? 'got' : ''}" style="--n:${n}"></i>`).join('')}</div>
         ${res.gained ? `<div class="result-xp">+<span data-count="${res.gained}">0</span> XP</div>` : ''}
-        <p class="hint" style="margin:.2rem 0 0">Précision ${acc} %</p>
-        ${badges.length ? `<p class="new-badge">Nouveau badge : ${badges.join(', ')}</p>` : ''}
+        <p class="hint" style="margin:.2rem 0 0">${t('Précision {acc} %', { acc })}</p>
+        ${badges.length ? `<p class="new-badge">${t('Nouveau badge : {liste}', { liste: badges.join(', ') })}</p>` : ''}
         ${courseDone ? `
         <div class="certif">
-          <p>${fr('Les huit paliers sont derrière toi. Ton certificat t’attend : écris ton nom tel qu’il doit y figurer.')}</p>
-          <label class="field"><span>Nom sur le certificat</span><input type="text" id="certif-name" maxlength="40" value="${esc(getSettings().prenom || '')}" placeholder="Ton nom" autocomplete="name"></label>
+          <p>${fr(t('Les huit paliers sont derrière toi. Ton certificat t’attend : écris ton nom tel qu’il doit y figurer.'))}</p>
+          <label class="field"><span>${t('Nom sur le certificat')}</span><input type="text" id="certif-name" maxlength="40" value="${esc(getSettings().prenom || '')}" placeholder="${t('Ton nom')}" autocomplete="name"></label>
           <div class="result-actions">
-            <button class="btn" id="certif-get">Télécharger le certificat</button>
-            ${navigator.canShare ? '<button class="btn ghost" id="certif-share">Partager</button>' : ''}
+            <button class="btn" id="certif-get">${t('Télécharger le certificat')}</button>
+            ${navigator.canShare ? `<button class="btn ghost" id="certif-share">${t('Partager')}</button>` : ''}
           </div>
         </div>` : ''}
         <div class="result-actions">
-          <button class="btn ghost" id="again">Rejouer le concert</button>
-          <a class="btn ${courseDone ? 'ghost' : ''}" href="#/morceaux">${courseDone ? 'Tous les morceaux' : 'Autres morceaux'}</a>
+          <button class="btn ghost" id="again">${t('Rejouer le concert')}</button>
+          <a class="btn ${courseDone ? 'ghost' : ''}" href="#/morceaux">${courseDone ? t('Tous les morceaux') : t('Autres morceaux')}</a>
         </div>
       </div>`;
     result.hidden = false;
     countUp(result);
     $('#again').addEventListener('click', () => startConcert());
     const give = async (share) => {
-      const name = ($('#certif-name').value || '').trim() || 'Pianiste';
-      if (!getSettings().prenom && name !== 'Pianiste') setSetting('prenom', name.split(' ')[0]);
+      const fallback = t('Pianiste');
+      const name = ($('#certif-name').value || '').trim() || fallback;
+      if (!getSettings().prenom && name !== fallback) setSetting('prenom', name.split(' ')[0]);
       const { certificateBlob, deliverCertificate } = await import('./certificate.js');
       const blob = await certificateBlob({
         name,
@@ -580,8 +582,9 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
         xp: s.xp,
         lessons: Object.keys(s.lessonsDone).length,
         songs: Object.keys(s.songsDone).length,
+        lang: lang(),
       });
-      await deliverCertificate(blob, { share, title: `${BRAND} · certificat` });
+      await deliverCertificate(blob, { share, title: `${BRAND} · ${t('certificat')}` });
     };
     $('#certif-get')?.addEventListener('click', () => give(false));
     $('#certif-share')?.addEventListener('click', () => give(true));

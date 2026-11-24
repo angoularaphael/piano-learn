@@ -32,8 +32,8 @@ const SAINTS_2_GAUCHE = '-:1 E3:1/3 E3:1/3 D3:1/4 | C3:4/5 | E3:2/3 G3:2/1 | G3:
 
 // Ah ! vous dirai-je, maman (2/4) : A (8 mesures) et B (8 mesures)
 const AH_A = 'C4:1/1 C4:1/1 | G4:1/4 G4:1/4 | A4:1/5 A4:1/5 | G4:2/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:1/1 D4:1/1 | C4:2/1';
-const AH_B = 'G4:1/4 G4:1/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | E4:1/2 D4:1/1 | G4:1/4 G4:1/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | E4:1/2 D4:1/1';
-const AH_B_GAUCHE = 'G3:1/1 G3:1/1 | F3:1/2 F3:1/2 | E3:1/3 E3:1/3 | E3:1/3 D3:1/4 | G3:1/1 G3:1/1 | F3:1/2 F3:1/2 | E3:1/3 E3:1/3 | E3:1/3 D3:1/4';
+const AH_B = 'G4:1/4 G4:1/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:2/1 | G4:1/4 G4:1/4 | F4:1/3 F4:1/3 | E4:1/2 E4:1/2 | D4:2/1';
+const AH_B_GAUCHE = 'G3:1/1 G3:1/1 | F3:1/2 F3:1/2 | E3:1/3 E3:1/3 | D3:2/4 | G3:1/1 G3:1/1 | F3:1/2 F3:1/2 | E3:1/3 E3:1/3 | D3:2/4';
 
 // Au clair de la lune : phrase A (main droite, puis main gauche) et partie B (position de sol)
 const CLAIR_A = 'C4:1/1 C4:1/1 C4:1/1 D4:1/2 | E4:2/3 D4:2/2 | C4:1/1 E4:1/3 D4:1/2 D4:1/2 | C4:4/1';
