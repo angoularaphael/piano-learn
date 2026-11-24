@@ -14,3 +14,6 @@ export function esc(text = '') {
 export const DOIGTS = ['', 'pouce', 'index', 'majeur', 'annulaire', 'auriculaire'];
 
 export const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+
+// Nom de l'application, en un seul endroit (certificat, partages, plaque du piano)
+export const BRAND = 'Piano Learn';

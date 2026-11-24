@@ -13,7 +13,7 @@ import { sameNote } from './listen.js';
 import { countUp } from './fx.js';
 import { tick } from './audio.js';
 import { createBacking } from './backing.js';
-import { fr, esc, DOIGTS } from './text.js';
+import { fr, esc, DOIGTS, BRAND } from './text.js';
 import { keepAwake } from './awake.js';
 import { Sheet } from './sheet.js';
 import { kbdControlsHTML, bindKbdControls } from './kbd-ui.js';
@@ -35,6 +35,9 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   const settings = getSettings();
   const canRhythm = instr.features.has('metronome');
   const canSheet = instr.features.has('portee');
+  // La salle de concert : au palier 8, et c'est la que se joue le morceau de fin du parcours
+  const finalConcert = !!lecon?.boss && palier?.id === PALIERS.length;
+  const canConcert = instr.features.has('concert') && canRhythm && !locked && instr.stage === 'queue';
   const VIEWS = { notes: 'Notes qui tombent', mix: 'Notes et partition', partition: 'Partition' };
   let display = canSheet ? (settings.affichage || 'mix') : 'notes';
   let part = hasLeft && hasRight ? 'RL' : hasLeft ? 'L' : 'R';
@@ -63,6 +66,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       <div class="countdown" id="countdown"></div>
       ${lecon?.texte || song.intro ? `<div class="bubble" id="bubble"><span class="bubble-who">Le prof</span><p id="bubble-text">${fr(esc(lecon?.texte || song.intro))}</p></div>` : ''}
       <div class="toast" id="toast" aria-live="polite"></div>
+      <div class="concert-card" id="concert-card" hidden></div>
       <div class="result" id="result" hidden></div>
     </div>
     <div class="listen-bar" id="listen-bar" hidden>
@@ -73,6 +77,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     <div class="player-controls">
       <button class="btn" id="play" ${locked ? 'disabled' : ''}>${locked ? `Palier ${song.palier}` : 'Jouer'}</button>
       <button class="btn ghost" id="listen">Écouter</button>
+      ${canConcert ? `<button class="btn ${finalConcert ? 'concert-cta' : 'ghost'}" id="concert">${finalConcert ? 'Monter sur scène' : 'Concert'}</button>` : ''}
       <button class="btn ghost" id="rhythm" ${canRhythm && !locked ? '' : 'disabled'} title="${canRhythm ? 'Le morceau n’attend pas : chaque note est jugée sur son temps' : 'Arrive avec le métronome, au palier 5'}">${canRhythm ? 'En rythme' : `${LOCK} En rythme · palier 5`}</button>
       ${hasLeft && hasRight ? `<div class="seg" id="hands" role="group" aria-label="Main travaillée">${Object.entries(HANDS).map(([k, v]) => `<button data-h="${k}" class="${k === part ? 'on' : ''}">${v}</button>`).join('')}</div>` : ''}
       <div class="seg" id="display" role="group" aria-label="Affichage">${Object.entries(VIEWS).map(([k, v]) => `<button data-d="${k}" class="${k === display ? 'on' : ''}" ${k !== 'notes' && !canSheet ? 'disabled title="La partition arrive au palier 4"' : ''}>${k !== 'notes' && !canSheet ? LOCK : ''}${v}</button>`).join('')}</div>
@@ -117,6 +122,8 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   let autoIdx = 0;
   let auto = [];
   let backing = null;
+  let hall = null;              // la salle de concert, quand on joue en concert
+  let concert = false;
   const timers = new Set();
   const fresh = [];
 
@@ -350,6 +357,10 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
 
   function start(which) {
     stop();
+    begin(which);
+  }
+
+  function begin(which) {
     result.hidden = true;
     mode = which;
     prepare();
@@ -379,9 +390,10 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     backing = which === 'ecoute' ? createBacking(song.id, { bpm: (song.tempo || 90) * scale }) : null;
   }
 
-  function stop() {
+  function stop({ keepHall = false } = {}) {
     const was = mode;
     mode = 'idle';
+    if (!keepHall) closeHall();
     timers.forEach((t) => clearTimeout(t));
     timers.clear();
     piano.releaseAll();
@@ -392,6 +404,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     playBtn.textContent = locked ? `Palier ${song.palier}` : 'Jouer';
     listenBtn.textContent = 'Écouter';
     if (canRhythm) rhythmBtn.textContent = 'En rythme';
+    if (concertBtn) concertBtn.textContent = finalConcert ? 'Monter sur scène' : 'Concert';
     listener?.stop();
     listener = null;
     listenBar.hidden = true;
@@ -428,7 +441,8 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   function finish() {
     const wasRhythm = mode === 'rythme';
     const wasPlaying = mode === 'joue' || wasRhythm;
-    stop();
+    const wasConcert = concert && wasRhythm;
+    stop({ keepHall: wasConcert });
     mode = 'fini';
     if (!wasPlaying) {
       showToast(`<b>${esc(song.titre)}</b><span>${fr('À toi, maintenant : appuie sur « Jouer ».')}</span>`);
@@ -449,6 +463,13 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     if (pal?.id === 1 && palierDone && unlockBadge('palier-1')) badges.push('Les bases');
     const all = ALL_LESSONS;
     const nextLesson = lecon ? all[all.findIndex((l) => l.id === lecon.id) + 1] : null;
+    if (wasConcert) {
+      hall?.finale(acc);
+      say(acc >= 95 ? 'Toute la salle est debout.' : acc >= 85 ? 'La salle se lève pour toi.' : acc >= 70 ? 'Écoute ces applaudissements : ils sont pour toi.' : 'La salle t’applaudit. Rejoue-le : la prochaine fois, elle se lèvera.');
+      const later = setTimeout(() => { if (alive) showConcertResult({ acc, res, badges, palierDone }); }, 4600);
+      timers.add(later);
+      return;
+    }
     say(lecon?.apres || (acc >= 95 ? 'Magnifique.' : 'Bravo, morceau terminé.'));
     result.innerHTML = `
       <div class="result-card">
@@ -469,9 +490,112 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     $('#again').addEventListener('click', () => start(wasRhythm ? 'rythme' : 'joue'));
   }
 
-  playBtn.addEventListener('click', () => { if (mode === 'joue') { stop(); return; } start('joue'); });
-  listenBtn.addEventListener('click', () => { if (mode === 'ecoute') { stop(); return; } start('ecoute'); });
-  rhythmBtn.addEventListener('click', () => { if (!canRhythm) return; if (mode === 'rythme') { stop(); return; } start('rythme'); });
+  // ---------- Le concert ----------
+  const concertBtn = $('#concert');
+  const concertCard = $('#concert-card');
+  // Pendant le concert, les autres boutons se taisent : un seul geste possible, s'arreter
+  const lockControls = (on) => [playBtn, listenBtn, rhythmBtn].forEach((b) => { if (on) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled'); b.classList.toggle('muted', on); });
+  function closeHall() {
+    concert = false;
+    hall?.dispose();
+    hall = null;
+    concertCard.hidden = true;
+    stageBox.classList.remove('in-concert');
+    lockControls(false);
+  }
+
+  async function startConcert() {
+    stop();
+    const { ConcertHall } = await import('./concert.js');
+    if (!alive) return;
+    hall = new ConcertHall(piano);
+    if (window.__piano) window.__hall = hall; // ?debug : pour les essais
+    concert = true;
+    stageBox.classList.add('in-concert');
+    lockControls(true);
+    piano.setView(display === 'partition' ? 'front' : 'highway');
+    mode = 'rideau';
+    concertBtn.textContent = 'Arrêter';
+    hall.dim();
+    const who = getSettings().prenom;
+    concertCard.innerHTML = `
+      <p class="eyebrow">${finalConcert ? 'Concert de fin de parcours' : 'Concert'}</p>
+      <h2>${esc(song.titre)}</h2>
+      <p class="concert-who">${fr(`Au piano ce soir : ${who ? esc(who) : 'toi'}.`)}</p>
+      <p class="concert-hint">${fr('La salle s’éteint. Respire, puis joue chaque note quand elle touche le clavier.')}</p>`;
+    concertCard.hidden = false;
+    concertCard.classList.remove('go');
+    void concertCard.offsetWidth;
+    concertCard.classList.add('go');
+    const t = setTimeout(() => {
+      timers.delete(t);
+      if (!alive || !concert || mode !== 'rideau') return;
+      concertCard.hidden = true;
+      hall.playing();
+      begin('rythme');
+      concertBtn.textContent = 'Arrêter';
+      rhythmBtn.textContent = 'En rythme';
+    }, 3600);
+    timers.add(t);
+  }
+
+  function showConcertResult({ acc, res, badges, palierDone }) {
+    lockControls(false);
+    const courseDone = finalConcert && palierDone;
+    const verdict = acc >= 95 ? 'Ovation debout' : acc >= 85 ? 'La salle se lève' : acc >= 70 ? 'Beaux applaudissements' : 'La salle applaudit';
+    const s = getState();
+    result.innerHTML = `
+      <div class="result-card concert-result">
+        <div class="eyebrow" style="justify-content:center">${courseDone ? 'Parcours terminé' : 'Concert donné'}</div>
+        <h3 class="concert-verdict">${verdict}</h3>
+        <div class="stars">${[1, 2, 3].map((n) => `<i class="${n <= res.stars ? 'got' : ''}" style="--n:${n}"></i>`).join('')}</div>
+        ${res.gained ? `<div class="result-xp">+<span data-count="${res.gained}">0</span> XP</div>` : ''}
+        <p class="hint" style="margin:.2rem 0 0">Précision ${acc} %</p>
+        ${badges.length ? `<p class="new-badge">Nouveau badge : ${badges.join(', ')}</p>` : ''}
+        ${courseDone ? `
+        <div class="certif">
+          <p>${fr('Les huit paliers sont derrière toi. Ton certificat t’attend : écris ton nom tel qu’il doit y figurer.')}</p>
+          <label class="field"><span>Nom sur le certificat</span><input type="text" id="certif-name" maxlength="40" value="${esc(getSettings().prenom || '')}" placeholder="Ton nom" autocomplete="name"></label>
+          <div class="result-actions">
+            <button class="btn" id="certif-get">Télécharger le certificat</button>
+            ${navigator.canShare ? '<button class="btn ghost" id="certif-share">Partager</button>' : ''}
+          </div>
+        </div>` : ''}
+        <div class="result-actions">
+          <button class="btn ghost" id="again">Rejouer le concert</button>
+          <a class="btn ${courseDone ? 'ghost' : ''}" href="#/morceaux">${courseDone ? 'Tous les morceaux' : 'Autres morceaux'}</a>
+        </div>
+      </div>`;
+    result.hidden = false;
+    countUp(result);
+    $('#again').addEventListener('click', () => startConcert());
+    const give = async (share) => {
+      const name = ($('#certif-name').value || '').trim() || 'Pianiste';
+      if (!getSettings().prenom && name !== 'Pianiste') setSetting('prenom', name.split(' ')[0]);
+      const { certificateBlob, deliverCertificate } = await import('./certificate.js');
+      const blob = await certificateBlob({
+        name,
+        song: song.titre,
+        acc,
+        xp: s.xp,
+        lessons: Object.keys(s.lessonsDone).length,
+        songs: Object.keys(s.songsDone).length,
+      });
+      await deliverCertificate(blob, { share, title: `${BRAND} · certificat` });
+    };
+    $('#certif-get')?.addEventListener('click', () => give(false));
+    $('#certif-share')?.addEventListener('click', () => give(true));
+  }
+
+  concertBtn?.addEventListener('click', () => {
+    if (concert && (mode === 'rythme' || mode === 'rideau')) { stop(); return; }
+    startConcert();
+  });
+
+  const busy = () => concert && (mode === 'rythme' || mode === 'rideau');
+  playBtn.addEventListener('click', () => { if (busy()) return; if (mode === 'joue') { stop(); return; } start('joue'); });
+  listenBtn.addEventListener('click', () => { if (busy()) return; if (mode === 'ecoute') { stop(); return; } start('ecoute'); });
+  rhythmBtn.addEventListener('click', () => { if (!canRhythm || busy()) return; if (mode === 'rythme') { stop(); return; } start('rythme'); });
   $('#hands')?.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-h]');
     if (!b) return;

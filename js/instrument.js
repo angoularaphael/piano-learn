@@ -27,6 +27,7 @@ export const FEATURES = {
   accords: { nom: 'Les accords', desc: 'Le nom de l’accord s’affiche quand tu le joues.' },
   pedale: { nom: 'La pédale', desc: 'Maintiens la barre d’espace (ou le bouton) : les notes résonnent.' },
   transposition: { nom: 'La transposition', desc: 'Joue un morceau plus haut ou plus bas sans changer tes doigts.' },
+  concert: { nom: 'La salle de concert', desc: 'Joue n’importe quel morceau devant une salle entière, sous le projecteur.' },
 };
 
 // Ce que chaque palier ajoute
@@ -38,7 +39,7 @@ const BY_PALIER = {
   5: { features: ['metronome'] },
   6: { stage: 'queue', range: [36, 84], sons: ['concert'], features: ['deux-mains'] },
   7: { range: [36, 96], sons: ['electrique'], features: ['accords'] },
-  8: { range: [21, 108], sons: ['orgue', 'clavecin'], features: ['pedale', 'transposition'] },
+  8: { range: [21, 108], sons: ['orgue', 'clavecin'], features: ['pedale', 'transposition', 'concert'] },
 };
 
 // Etat complet de l'instrument a un palier donne (tout ce qui a ete debloque jusque-la)

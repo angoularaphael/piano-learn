@@ -105,6 +105,10 @@ export class Sheet {
       const x = this.x0 + acc * this.ppb - this.ppb * 0.32;
       el('line', { class: 'bar', x1: x, y1: this.staves.includes('G') ? TREBLE_TOP : BASS_TOP, x2: x, y2: this.staves.includes('F') ? BASS_TOP + 4 * S : TREBLE_TOP + 4 * S }, g);
     });
+    // Debut de chaque mesure : une alteration vaut jusqu'a la barre de mesure suivante
+    this.barStarts = [0];
+    bars.forEach((b) => this.barStarts.push(this.barStarts[this.barStarts.length - 1] + b));
+    this.alter = new Map();
     const endX = this.x0 + total * this.ppb - this.ppb * 0.32;
     el('line', { class: 'bar end', x1: endX, y1: this.staves.includes('G') ? TREBLE_TOP : BASS_TOP, x2: endX, y2: this.staves.includes('F') ? BASS_TOP + 4 * S : TREBLE_TOP + 4 * S }, g);
 
@@ -138,7 +142,8 @@ export class Sheet {
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push({ e, i });
     });
-    for (const list of groups.values()) this.#chord(g, list);
+    // Dans l'ordre du temps : un becarre depend du diese qui le precede dans la mesure
+    for (const list of [...groups.values()].sort((a, b) => a[0].e.start - b[0].e.start)) this.#chord(g, list);
 
     const scroller = document.createElement('div');
     scroller.className = 'sheet-scroller';
@@ -166,9 +171,16 @@ export class Sheet {
     for (const t of tops) for (let i = 0; i < 5; i++) el('line', { class: 'staff-line', x1: 0, y1: t + i * S, x2: width, y2: t + i * S }, svg);
   }
 
+  #barOf(t) {
+    let i = 0;
+    while (i + 1 < this.barStarts.length && this.barStarts[i + 1] <= t + 1e-6) i++;
+    return i;
+  }
+
   #chord(g, list) {
     const e0 = list[0].e;
     const clef = this.#clefFor(e0);
+    const bar = this.#barOf(e0.start);
     const fig = figure(e0.dur);
     const x = this.x0 + e0.start * this.ppb;
     const ys = list.map(({ e }) => yOf(e.midi, clef));
@@ -205,7 +217,13 @@ export class Sheet {
       const y = ys[k];
       const head = el('g', { class: 'head-wrap' }, grp);
       el('ellipse', { class: `head ${fig.hollow ? 'hollow' : ''}`, cx: x, cy: y, rx: 5.6, ry: 4.1, transform: `rotate(-20 ${x} ${y})` }, head);
-      if (isBlack(e.midi)) el('text', { class: 'acc', x: x - 15, y: y + 4.5 }, head).textContent = '♯';
+      // Diese seulement quand il change quelque chose dans la mesure, becarre pour l'annuler
+      const alter = isBlack(e.midi) ? 1 : 0;
+      const slot = `${clef}|${bar}|${diatonic(e.midi)}`;
+      if ((this.alter.get(slot) ?? 0) !== alter) {
+        el('text', { class: 'acc', x: x - 15, y: y + 4.5 }, head).textContent = alter ? '♯' : '♮';
+        this.alter.set(slot, alter);
+      }
       if (fig.dot) {
         const onLine = Math.round((y - staffTop) / (S / 2)) % 2 === 0;
         el('circle', { class: 'dot', cx: x + 9, cy: onLine ? y - S / 2 : y, r: 1.5 }, head);

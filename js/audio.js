@@ -76,6 +76,12 @@ export function getContext() {
   return ctx;
 }
 
+// Sortie pour les sons d'ambiance (salle de concert) : meme volume general, meme reverberation
+export function fxBus() {
+  getContext();
+  return { out, reverb: convolver };
+}
+
 function ensureRunning() {
   const ac = getContext();
   if (ac.state !== 'running') ac.resume().catch(() => {});

@@ -741,3 +741,39 @@ input[type="range"] { accent-color: var(--cyan); width: 140px; cursor: pointer; 
 }
 .kbd-tools { margin-top: 1rem; }
 .kbd-tools .layout-pick { margin-top: .6rem; }
+
+/* ---------- La salle de concert ---------- */
+.btn.concert-cta { background: linear-gradient(100deg, #ffd98a, #ff9d4d 60%, #ff6fa9); color: #1a0d05; box-shadow: 0 0 0 1px rgba(255, 217, 138, .5), 0 10px 40px -10px rgba(255, 157, 77, .9); }
+.btn.concert-cta:hover { box-shadow: 0 0 0 1px #ffd98a, 0 14px 50px -8px rgba(255, 157, 77, 1); }
+.btn.muted { opacity: .38; pointer-events: none; }
+.player-stage.in-concert { box-shadow: 0 0 0 1px rgba(255, 217, 138, .18), 0 30px 120px -40px rgba(255, 190, 110, .35); }
+.player-stage.in-concert .stage-3d::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1; background: radial-gradient(ellipse 70% 62% at 50% 62%, transparent 40%, rgba(2, 2, 6, .72)); animation: app-in 1.6s var(--ease) both; }
+.player-stage.in-concert .hud, .player-stage.in-concert .bubble { transition: opacity .8s var(--ease); }
+.concert-card {
+  position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: .5rem;
+  text-align: center; padding: 1.5rem; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 40%, rgba(4, 5, 11, .25), rgba(4, 5, 11, .82) 70%);
+}
+.concert-card[hidden] { display: none; }
+.concert-card .eyebrow { color: #ffd98a; margin: 0; }
+.concert-card .eyebrow::before { background: #ffd98a; box-shadow: 0 0 8px #ffd98a; }
+.concert-card h2 { margin: 0; font-size: clamp(1.8rem, 5.5vw, 3.6rem); font-weight: 800; letter-spacing: -.02em; text-shadow: 0 0 40px rgba(255, 217, 138, .35); }
+.concert-who { margin: .2rem 0 0; font-family: var(--display); font-size: clamp(.8rem, 1.6vw, 1rem); letter-spacing: .14em; text-transform: uppercase; color: #ffe9c7; }
+.concert-hint { margin: .6rem 0 0; color: var(--muted); max-width: 40ch; font-size: .95rem; }
+.concert-card.go > * { animation: curtain 3.6s var(--ease) both; }
+.concert-card.go > :nth-child(2) { animation-delay: .15s; }
+.concert-card.go > :nth-child(3) { animation-delay: .35s; }
+.concert-card.go > :nth-child(4) { animation-delay: .55s; }
+@keyframes curtain {
+  0% { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+  18%, 78% { opacity: 1; transform: none; filter: none; }
+  100% { opacity: 0; transform: translateY(-8px); filter: blur(4px); }
+}
+.concert-result { border-color: rgba(255, 217, 138, .45); box-shadow: 0 0 90px -20px rgba(255, 170, 90, .7); max-width: min(560px, 100%); }
+.concert-result .eyebrow { color: #ffd98a; }
+.concert-result .eyebrow::before { background: #ffd98a; box-shadow: 0 0 8px #ffd98a; }
+.concert-verdict { margin: .2rem 0 .4rem; font-size: clamp(1.5rem, 4vw, 2.3rem); font-weight: 800; background: linear-gradient(90deg, #fff1cf, #ffd98a 50%, #ff9d4d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.certif { margin-top: 1.2rem; padding-top: 1.1rem; border-top: 1px solid rgba(255, 217, 138, .22); text-align: left; display: grid; gap: .8rem; }
+.certif p { margin: 0; color: var(--ink); font-size: .95rem; }
+.certif .result-actions { margin-top: .2rem; justify-content: flex-start; }
+@media (prefers-reduced-motion: reduce) { .concert-card.go > * { animation: none; } }
