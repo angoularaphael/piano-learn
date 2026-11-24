@@ -4,10 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Piano Learn - Apprendre le piano pas à pas</title>
-  <meta name="description" content="Apprendre le piano a la maison avec un prof en 3D : les notes, le rythme, les deux mains, puis de vrais morceaux.">
+  <meta name="description" content="Apprendre le piano à la maison avec un prof en 3D : les notes, le rythme, les deux mains, puis de vrais morceaux.">
   <meta name="robots" content="noindex, nofollow">
-  <meta name="theme-color" content="#2f5d50">
+  <meta name="theme-color" content="#04050b">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Unbounded:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script type="importmap">
     {
@@ -19,10 +22,28 @@
   </script>
 </head>
 <body>
+  <!-- Intro : les touches s'allument une par une -->
+  <div class="intro" id="intro" aria-hidden="true">
+    <div class="intro-keys">
+      <span>Do</span><span>Ré</span><span>Mi</span><span>Fa</span><span>Sol</span><span>La</span><span>Si</span>
+    </div>
+    <div class="intro-title">PIANO<b>LEARN</b></div>
+  </div>
+
+  <!-- Rideau de transition en touches de piano -->
+  <div class="curtain" id="curtain" aria-hidden="true"></div>
+
+  <div class="ambient" aria-hidden="true">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+    <div class="gridfloor"></div>
+  </div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="cursor-glow" id="cursor-glow" aria-hidden="true"></div>
+
   <header class="topbar">
     <a href="#/" class="brand">
-      <img src="favicon.svg" alt="" width="28" height="28">
-      <span>Piano Learn</span>
+      <img src="favicon.svg" alt="" width="30" height="30">
+      <span>PIANO<b>LEARN</b></span>
     </a>
     <nav class="nav" id="nav">
       <a href="#/parcours" data-route="parcours">Parcours</a>
@@ -30,8 +51,9 @@
       <a href="#/morceaux" data-route="morceaux">Morceaux</a>
       <a href="#/profil" data-route="profil">Profil</a>
     </nav>
+    <div class="eq" id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <div class="xp-chip" id="xp-chip" title="Ton niveau">
-      <span class="xp-level" id="xp-level">Niv. 1</span>
+      <span class="xp-level" id="xp-level">NIV 1</span>
       <span class="xp-bar"><span class="xp-fill" id="xp-fill"></span></span>
     </div>
   </header>

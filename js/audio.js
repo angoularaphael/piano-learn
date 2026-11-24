@@ -87,6 +87,7 @@ export function noteOn(midi, velocity = 0.8) {
   noise.start(now);
 
   voices.set(midi, { voice, oscs });
+  window.dispatchEvent(new CustomEvent('pl:note', { detail: { midi } }));
 }
 
 export function noteOff(midi, immediate = false) {

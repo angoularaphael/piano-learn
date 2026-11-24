@@ -5,6 +5,8 @@ import { getState, onChange, levelInfo, unlockBadge, resetProgress } from './pro
 import { PALIERS, palierStatus, isUnlocked } from './data/paliers.js';
 import { MORCEAUX } from './data/morceaux.js';
 import { BADGES } from './data/badges.js';
+import { playIntro, curtainSwap, observeReveals, countUp } from './fx.js';
+import { createHeroScene } from './hero-scene.js';
 
 const app = document.getElementById('app');
 let cleanup = null;
@@ -12,16 +14,17 @@ let cleanup = null;
 // ---------- Barre d'XP ----------
 function refreshXp() {
   const info = levelInfo();
-  document.getElementById('xp-level').textContent = `Niv. ${info.level}`;
+  document.getElementById('xp-level').textContent = `NIV ${info.level}`;
   document.getElementById('xp-fill').style.width = `${Math.round(info.ratio * 100)}%`;
   document.getElementById('xp-chip').title = `${info.current} / ${info.need} XP avant le niveau ${info.level + 1}`;
 }
 onChange(refreshXp);
 refreshXp();
+document.addEventListener('pointerdown', unlockAudio, { once: true });
 
 // ---------- Piano partage par les pages ----------
-function mountPiano(container, opts = {}) {
-  container.innerHTML = '<div class="piano-loading">Le piano arrive...</div>';
+export function mountPiano(container, opts = {}) {
+  container.innerHTML = '<div class="piano-loading">CHARGEMENT DU PIANO</div>';
   const narrow = window.innerWidth < 640;
   let piano;
   try {
@@ -31,7 +34,8 @@ function mountPiano(container, opts = {}) {
       ...opts,
     });
   } catch (e) {
-    container.innerHTML = '<div class="piano-loading">Ton navigateur n\'arrive pas a afficher la 3D.</div>';
+    console.error(e);
+    container.innerHTML = '<div class="piano-loading">Ton navigateur n\'arrive pas à afficher la 3D.</div>';
     return { piano: null, dispose() {} };
   }
   container.querySelector('.piano-loading')?.remove();
@@ -59,7 +63,6 @@ function mountPiano(container, opts = {}) {
   window.addEventListener('keydown', down);
   window.addEventListener('keyup', up);
   window.addEventListener('blur', blur);
-  document.addEventListener('pointerdown', unlockAudio, { once: true });
 
   return {
     piano,
@@ -75,29 +78,45 @@ function mountPiano(container, opts = {}) {
 
 // ---------- Pages ----------
 function pageAccueil() {
+  app.classList.add('full');
+  const words = ['Do', 'Ré', 'Mi', 'Fa', 'Sol', 'La', 'Si', 'Accords', 'Rythme', 'Deux mains', 'Lettre à Élise', 'Ode à la joie'];
+  const marquee = [...words, ...words].map((w) => `<span>${w}</span>`).join('');
   app.innerHTML = `
     <section class="hero">
-      <div>
-        <span class="tag gold">Pour débuter de zéro</span>
-        <h1>Apprendre le piano, une touche après l'autre</h1>
-        <p class="lead">Ton prof te montre sur son piano, tu rejoues sur le tien. Le site t'écoute, te dit si c'est juste, et tu avances palier par palier : d'abord do ré mi, puis de vrais morceaux.</p>
-        <div class="hero-actions">
+      <div class="hero-canvas" id="hero-canvas"></div>
+      <div class="hero-content">
+        <div class="eyebrow" data-reveal>Ton prof de piano en 3D</div>
+        <h1 data-split>Apprends le piano, <span class="grad-text">une touche</span> après l'autre</h1>
+        <p class="lead" data-reveal style="--d:500ms">Le prof te montre sur son piano, tu rejoues sur le tien. Le site t'écoute, te dit si c'est juste, et tu montes de palier en palier.</p>
+        <div class="hero-actions" data-reveal style="--d:700ms">
           <a href="#/parcours" class="btn">Commencer le parcours</a>
           <a href="#/piano" class="btn ghost">Essayer le piano</a>
         </div>
       </div>
-      <div class="hero-art" id="hero-piano"></div>
+      <div class="hero-hint">PASSE SUR LES TOUCHES</div>
     </section>
 
-    <h2>Comment ça marche</h2>
-    <div class="grid steps">
-      <div class="card"><h3>Le prof montre</h3><p>Il joue l'exercice doucement sur le piano 3D. Tu vois quelles touches, avec quels doigts.</p></div>
-      <div class="card"><h3>Tu joues chez toi</h3><p>Sur ton vrai piano. Pose le téléphone ou la tablette sur le pupitre, le site t'écoute avec le micro.</p></div>
-      <div class="card"><h3>Tu gagnes de l'XP</h3><p>Chaque leçon réussie rapporte de l'XP et des étoiles. Termine un palier pour débloquer le suivant.</p></div>
-    </div>
+    <div class="marquee"><div class="marquee-track">${marquee}</div></div>
+
+    <section class="section">
+      <div class="eyebrow" data-reveal>Comment ça marche</div>
+      <h2 data-split>Trois temps, à chaque leçon</h2>
+      <div class="grid steps" style="margin-top:2rem">
+        ${[
+          ['Le prof montre', 'Il joue l\'exercice doucement sur le piano 3D. Tu vois les touches et les doigts.'],
+          ['Tu joues chez toi', 'Sur ton vrai piano. Pose le téléphone sur le pupitre : le site t\'écoute au micro.'],
+          ['Tu gagnes de l\'XP', 'Chaque leçon réussie rapporte de l\'XP et des étoiles. Finis un palier pour ouvrir le suivant.'],
+        ].map(([t, d], i) => `
+          <div class="card" data-reveal style="--d:${i * 120}ms">
+            <span class="num">0${i + 1}</span>
+            <div class="keys-deco">${[0, 1, 2, 3, 4].map((k) => `<i style="--k:${k + i * 2}"></i>`).join('')}</div>
+            <h3>${t}</h3><p class="hint" style="margin:0">${d}</p>
+          </div>`).join('')}
+      </div>
+    </section>
   `;
-  const m = mountPiano(document.getElementById('hero-piano'), { low: 60, high: 72 });
-  return () => m.dispose();
+  const hero = createHeroScene(document.getElementById('hero-canvas'));
+  return () => { hero.dispose(); app.classList.remove('full'); };
 }
 
 function pageParcours() {
@@ -108,47 +127,61 @@ function pageParcours() {
     const cls = st.complete ? 'done' : open ? '' : 'locked';
     const lessons = p.lecons.map((l) => {
       const done = lessonsDone[l.id];
-      const label = open ? `<a href="#/lecon/${l.id}">${l.titre}</a>` : l.titre;
-      return `<li><span class="dot ${done ? 'done' : ''}"></span>${label}</li>`;
+      const inner = `<span class="dot ${done ? 'done' : ''}"></span>${l.titre}`;
+      return `<li>${open ? `<a href="#/lecon/${l.id}">${inner}</a>` : `<span class="l">${inner}</span>`}</li>`;
     }).join('');
     return `
-      <div class="palier ${cls}">
+      <div class="palier ${cls}" data-reveal>
         <div class="palier-num">${p.id}</div>
         <div class="card">
-          <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+          <div class="palier-head">
             <h3 style="margin:0">${p.titre}</h3>
             <span class="tag ${open ? '' : 'grey'}">${open ? `${st.done} / ${st.total} leçons` : 'Bloqué'}</span>
           </div>
-          <p class="hint" style="margin:.4rem 0 0">${p.resume}</p>
-          ${open ? `<ul class="lessons">${lessons}</ul>` : ''}
-          <p class="hint" style="margin:.75rem 0 0">Morceau de fin : <strong>${p.final}</strong></p>
+          <p class="hint" style="margin:.5rem 0 0">${p.resume}</p>
+          ${open ? `<div class="progress-line"><span style="width:${(st.done / st.total) * 100}%"></span></div><ul class="lessons">${lessons}</ul>` : ''}
+          <p class="hint" style="margin:.9rem 0 0">Morceau de fin : <strong style="color:var(--ink)">${p.final}</strong></p>
         </div>
       </div>`;
   }).join('');
 
   app.innerHTML = `
-    <h1>Ton parcours</h1>
-    <p class="lead">Huit paliers, du tout début jusqu'aux vrais morceaux. Finis toutes les leçons d'un palier pour ouvrir le suivant.</p>
-    <div class="path">${items}</div>
+    <div class="eyebrow" data-reveal>8 paliers</div>
+    <h1 data-split>Ton <span class="grad-text">parcours</span></h1>
+    <p class="lead" data-reveal style="--d:300ms">Du tout début jusqu'aux vrais morceaux. Finis toutes les leçons d'un palier pour ouvrir le suivant.</p>
+    <div class="path" id="path">${items}</div>
   `;
+  const path = document.getElementById('path');
+  const onScroll = () => {
+    const r = path.getBoundingClientRect();
+    const p = (window.innerHeight * 0.6 - r.top) / r.height;
+    path.style.setProperty('--fill', Math.max(0, Math.min(1, p)).toFixed(3));
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  return () => window.removeEventListener('scroll', onScroll);
 }
 
 function pagePiano() {
   app.innerHTML = `
-    <h1>Piano libre</h1>
-    <p class="lead">Joue ce que tu veux. Clique ou touche les touches, ou utilise la rangée du milieu de ton clavier d'ordinateur.</p>
-    <div class="piano-wrap" id="piano"></div>
+    <div class="eyebrow" data-reveal>Mode libre</div>
+    <h1 data-split>Piano <span class="grad-text">libre</span></h1>
+    <p class="lead" data-reveal style="--d:300ms">Joue ce que tu veux : clique, touche l'écran, ou utilise la rangée du milieu de ton clavier d'ordinateur.</p>
+    <div class="piano-wrap" id="piano" data-reveal style="--d:400ms"></div>
     <div class="piano-tools">
-      <label class="toggle"><input type="checkbox" id="opt-labels" checked> Afficher le nom des notes</label>
-      <label class="toggle"><input type="checkbox" id="opt-top"> Vue du dessus</label>
-      <span class="now-playing" id="now"></span>
+      <label class="chip-toggle"><input type="checkbox" id="opt-labels" checked> Nom des notes</label>
+      <label class="chip-toggle"><input type="checkbox" id="opt-top"> Vue du dessus</label>
+      <span class="now-playing grad-text" id="now"></span>
     </div>
-    <p class="hint">Clavier d'ordinateur : <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> pour do ré mi fa sol la si do, et la rangée du dessus pour les touches noires. Le point doré marque le do du milieu.</p>
+    <p class="hint"><kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>G</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> jouent do ré mi fa sol la si do, la rangée du dessus joue les touches noires. Le point rose marque le do du milieu.</p>
   `;
   const now = document.getElementById('now');
   const m = mountPiano(document.getElementById('piano'), {
     onNoteOn: (midi) => {
       now.textContent = noteName(midi);
+      now.classList.remove('hit');
+      void now.offsetWidth;
+      now.classList.add('hit');
       unlockBadge('premiere-note');
     },
   });
@@ -163,11 +196,11 @@ function pageLecon(id) {
   const lecon = palier?.lecons.find((l) => l.id === id);
   if (!lecon) return pageIntrouvable();
   app.innerHTML = `
-    <p class="hint"><a href="#/parcours">Parcours</a> / Palier ${palier.id} - ${palier.titre}</p>
-    <h1>${lecon.titre}</h1>
-    <div class="card empty">
+    <p class="hint" data-reveal><a href="#/parcours">Parcours</a> / Palier ${palier.id} - ${palier.titre}</p>
+    <h1 data-split>${lecon.titre}</h1>
+    <div class="card empty" data-reveal>
       <h2>Cette leçon arrive bientôt</h2>
-      <p class="lead" style="margin:0 auto 1.5rem">Le prof est en train de s'installer au piano. En attendant, tu peux t'entraîner librement.</p>
+      <p class="lead" style="margin:0 auto 1.5rem">Le prof s'installe au piano. En attendant, tu peux t'entraîner librement.</p>
       <a href="#/piano" class="btn">Aller au piano libre</a>
     </div>
   `;
@@ -175,10 +208,16 @@ function pageLecon(id) {
 
 function pageMorceaux() {
   const { lessonsDone } = getState();
-  const cards = MORCEAUX.map((s) => {
+  const cards = MORCEAUX.map((s, i) => {
     const open = isUnlocked(s.palier - 1, lessonsDone);
+    let seed = s.id.length * 7;
+    const wave = Array.from({ length: 22 }, (_, k) => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return `<i style="--h:${25 + (seed / 233280) * 75};--k:${k}"></i>`;
+    }).join('');
     return `
-      <div class="card song ${open ? '' : 'locked'}">
+      <div class="card song ${open ? '' : 'locked'}" data-reveal style="--d:${(i % 3) * 100}ms">
+        <div class="wave">${wave}</div>
         <h3 style="margin:0">${s.titre}</h3>
         <span class="hint">${s.auteur}</span>
         <div class="meta">
@@ -189,9 +228,10 @@ function pageMorceaux() {
       </div>`;
   }).join('');
   app.innerHTML = `
-    <h1>Les morceaux</h1>
-    <p class="lead">Ils se débloquent au fur et à mesure du parcours. Les plus simples d'abord.</p>
-    <div class="grid">${cards}</div>
+    <div class="eyebrow" data-reveal>Bibliothèque</div>
+    <h1 data-split>Les <span class="grad-text">morceaux</span></h1>
+    <p class="lead" data-reveal style="--d:300ms">Ils se débloquent au fil du parcours, les plus simples d'abord.</p>
+    <div class="grid" style="margin-top:2rem">${cards}</div>
   `;
 }
 
@@ -199,27 +239,43 @@ function pageProfil() {
   const s = getState();
   const info = levelInfo();
   const nbLecons = Object.keys(s.lessonsDone).length;
-  const badges = BADGES.map((b) => `
-    <div class="card badge ${s.badges.includes(b.id) ? 'got' : ''}">
+  const C = 2 * Math.PI * 84;
+  const badges = BADGES.map((b, i) => `
+    <div class="card badge ${s.badges.includes(b.id) ? 'got' : ''}" data-reveal style="--d:${i * 70}ms">
       <span class="medal"></span>
       <div><strong>${b.titre}</strong><br><span class="hint">${b.desc}</span></div>
     </div>`).join('');
   app.innerHTML = `
-    <h1>Ton profil</h1>
-    <div class="stats">
-      <div class="card stat"><strong>${info.level}</strong>Niveau</div>
-      <div class="card stat"><strong>${s.xp}</strong>XP au total</div>
-      <div class="card stat"><strong>${nbLecons}</strong>Leçons finies</div>
-      <div class="card stat"><strong>${s.streak}</strong>Jours d'affilée</div>
+    <div class="eyebrow" data-reveal>Profil</div>
+    <h1 data-split>Ta <span class="grad-text">progression</span></h1>
+    <div class="profile-top">
+      <div class="ring" data-reveal>
+        <svg viewBox="0 0 190 190">
+          <defs><linearGradient id="ringgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3ef2ff"/><stop offset="1" stop-color="#8b5cff"/></linearGradient></defs>
+          <circle class="track" cx="95" cy="95" r="84" fill="none" stroke-width="10"/>
+          <circle class="bar" id="ring-bar" cx="95" cy="95" r="84" fill="none" stroke-width="10" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
+        </svg>
+        <div class="ring-label"><strong data-count="${info.level}">0</strong><span>Niveau</span></div>
+      </div>
+      <div class="stats">
+        <div class="card stat" data-reveal><strong data-count="${s.xp}">0</strong><span>XP au total</span></div>
+        <div class="card stat" data-reveal style="--d:100ms"><strong data-count="${nbLecons}">0</strong><span>Leçons finies</span></div>
+        <div class="card stat" data-reveal style="--d:200ms"><strong data-count="${s.streak}">0</strong><span>Jours d'affilée</span></div>
+        <div class="card stat" data-reveal style="--d:300ms"><strong data-count="${info.need - info.current}">0</strong><span>XP avant le niveau ${info.level + 1}</span></div>
+      </div>
     </div>
-    <h2>Badges</h2>
+    <h2 data-split>Badges</h2>
     <div class="badges">${badges}</div>
-    <p style="margin-top:2.5rem"><button class="btn ghost" id="reset">Remettre la progression à zéro</button></p>
+    <p style="margin-top:3rem"><button class="btn ghost" id="reset">Remettre la progression à zéro</button></p>
   `;
+  requestAnimationFrame(() => {
+    document.getElementById('ring-bar').style.strokeDashoffset = C * (1 - info.ratio);
+    countUp(app);
+  });
   document.getElementById('reset').addEventListener('click', () => {
     if (confirm('Effacer toute la progression ? On ne pourra pas revenir en arrière.')) {
       resetProgress();
-      pageProfil();
+      route(true);
     }
   });
 }
@@ -227,8 +283,9 @@ function pageProfil() {
 function pageIntrouvable() {
   app.innerHTML = `
     <div class="empty">
-      <h1>Cette page n'existe pas</h1>
-      <p class="lead" style="margin:0 auto 1.5rem">Fausse note ! On retourne au début ?</p>
+      <div class="eyebrow">Erreur 404</div>
+      <h1 data-split>Fausse <span class="grad-text">note</span></h1>
+      <p class="lead" style="margin:0 auto 1.5rem">Cette page n'existe pas. On reprend depuis le début ?</p>
       <a href="#/" class="btn">Retour à l'accueil</a>
     </div>`;
 }
@@ -242,15 +299,28 @@ const ROUTES = {
   profil: pageProfil,
 };
 
-function route() {
+function render(observe = true) {
   if (cleanup) { cleanup(); cleanup = null; }
   const [name = '', param] = location.hash.replace(/^#\/?/, '').split('/');
   document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === name));
   const page = name === 'lecon' ? () => pageLecon(param) : ROUTES[name] || pageIntrouvable;
+  window.scrollTo(0, 0);
   const result = page();
   if (typeof result === 'function') cleanup = result;
-  window.scrollTo(0, 0);
+  if (observe) observeReveals(app);
 }
 
-window.addEventListener('hashchange', route);
+let first = true;
+function route(instant = false) {
+  if (first) {
+    first = false;
+    render(false);
+    playIntro().then(() => observeReveals(app));
+    return;
+  }
+  if (instant === true) { render(); return; }
+  curtainSwap(render);
+}
+
+window.addEventListener('hashchange', () => route());
 route();
