@@ -1,14 +1,13 @@
-// Le prof 3D : un robot assis au piano qui joue avec les bons doigts.
-// Pose procedurale : on part de la pose de repos a chaque image, on assoit le
-// corps, puis on place poignets et doigts sur les touches (IK en espace monde).
+// Le prof 3D : un mannequin de porcelaine assis au piano, qui joue avec les bons doigts.
+// Son corps est fait maison (teacher-body.js). Pose procedurale : on part de la pose de repos
+// a chaque image, on assoit le corps, puis on place poignets et doigts sur les touches
+// (IK en espace monde). Il regarde la touche jouee, ou l'eleve quand il lui parle.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isBlack } from './notes.js';
+import { buildTeacherBody, FINGERS, HAND_COLOR, GLOW } from './teacher-body.js';
 
-const MODEL_URL = new URL('../vendor/models/xbot.glb', import.meta.url).href;
 const M = 42.5; // unites du piano par metre (1 touche blanche = 2,35 cm)
-
-const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
+const COLLAR = new THREE.Color('#3ef2ff');
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -27,6 +26,13 @@ function rotateWorld(bone, qDelta) {
   _wq.premultiply(qDelta);
   bone.parent.getWorldQuaternion(_pq);
   bone.quaternion.copy(_pq.invert().multiply(_wq));
+  bone.updateMatrixWorld(true);
+}
+
+// Donne a un os une orientation exprimee en espace monde
+function setWorldQuat(bone, q) {
+  bone.parent.getWorldQuaternion(_pq);
+  bone.quaternion.copy(_pq.invert().multiply(q));
   bone.updateMatrixWorld(true);
 }
 
@@ -70,23 +76,14 @@ function ccd(links, effector, target, iterations = 12, maxStep = 0.6) {
   }
 }
 
-// Le modele est charge une seule fois et garde pour toutes les lecons
-let modelPromise = null;
+// Le corps est construit une seule fois et garde pour toutes les lecons
+let model = null;
 export function preloadTeacher() {
-  if (!modelPromise) {
-    modelPromise = new GLTFLoader().loadAsync(MODEL_URL).then((gltf) => {
-      const scene = gltf.scene;
-      const rest = new Map();
-      scene.traverse((o) => {
-        if (o.isBone) rest.set(o.name, o.quaternion.clone());
-        if (o.isMesh) o.userData.joints = o.material.name.includes('Joints');
-      });
-      scene.userData.rest = rest;
-      scene.userData.basePos = scene.position.clone();
-      return scene;
-    }).catch((e) => { modelPromise = null; throw e; });
+  if (!model) {
+    model = buildTeacherBody();
+    model.userData.hips = model.userData.body.bones.Hips.position.clone();
   }
-  return modelPromise;
+  return Promise.resolve(model);
 }
 
 export class Teacher {
@@ -104,35 +101,31 @@ export class Teacher {
     this.shakeT = 0;
     this.look = new THREE.Vector3(0, 0, 0);
     this.lookTarget = new THREE.Vector3(0, 0, 0);
+    this.lastActive = -1e9;     // dernier geste au clavier (sinon il regarde l'eleve)
+    this.beat = null;           // { t0, ms } pendant qu'il joue : le collier bat la mesure
+    this.playing = false;
+    this.ears = null;           // niveau du micro quand il t'ecoute (null = il n'ecoute pas)
+    this.earLevel = 0;
 
-    // Materiaux : coque sombre et articulations lumineuses
-    if (!Teacher.mats) {
-      Teacher.mats = {
-        joints: new THREE.MeshStandardMaterial({ color: '#0e1430', emissive: new THREE.Color('#3ef2ff'), emissiveIntensity: 0.22, roughness: 0.3, metalness: 0.4 }),
-        shell: new THREE.MeshStandardMaterial({ color: '#9ea8c4', metalness: 0.35, roughness: 0.3 }),
-      };
-    }
     const shadows = piano.shadows;
     model.traverse((o) => {
       if (!o.isMesh) return;
       o.castShadow = shadows;
       o.receiveShadow = shadows;
-      o.frustumCulled = false;
-      o.material = o.userData.joints ? Teacher.mats.joints : Teacher.mats.shell;
     });
 
-    this.bones = {};
-    model.traverse((o) => { if (o.isBone) this.bones[o.name.replace('mixamorig', '')] = o; });
+    this.body = model.userData.body;
+    this.bones = this.body.bones;
+    // Pose de repos : tous les os sont droits (rotation nulle), seule leur position compte
     this.rest = new Map();
-    const rest = model.userData.rest;
     Object.values(this.bones).forEach((b) => {
-      const q = rest.get(b.name) || b.quaternion.clone();
-      b.quaternion.copy(q);
-      this.rest.set(b, q);
+      b.quaternion.identity();
+      this.rest.set(b, new THREE.Quaternion());
     });
+    this.bones.Hips.position.copy(model.userData.hips);
 
     // Assis face au piano, entre les deux mains
-    model.position.copy(model.userData.basePos);
+    model.position.set(0, 0, 0);
     model.scale.setScalar(M);
     model.rotation.set(0, Math.PI, 0);
     piano.root.add(model);
@@ -292,6 +285,7 @@ export class Teacher {
     hand.fingerKey[finger] = midi;
     hand.pressTarget[finger] = 1;
     this.lookTarget.copy(this.piano.keyTop(midi) || this.lookTarget);
+    this.lastActive = performance.now();
     const travel = hand.wrist.distanceTo(hand.wristTarget) > 0.5 ? 180 : 90;
     setTimeout(() => this.piano.press(midi, velocity, { teacher: true }), travel);
     setTimeout(() => {
@@ -316,11 +310,14 @@ export class Teacher {
     this.stopped = false;
     const beat = 60000 / tempo;
     const t0 = performance.now() + 120;
+    this.beat = { t0, ms: beat };
+    this.playing = true;
+    const done = (v) => { this.beat = null; this.playing = false; return v; };
     for (let i = 0; i < steps.length; i++) {
       const st = steps[i];
       const wait = t0 + st.start * beat - performance.now();
       if (wait > 0) await new Promise((r) => { this.timer = setTimeout(r, wait); });
-      if (this.stopped) return false;
+      if (this.stopped) return done(false);
       onStep?.(i, st);
       st.notes.forEach((n) => this.playNote(n.midi, Math.max(120, n.dur * beat * 0.88 - 90), { hand: n.hand, finger: n.finger }));
     }
@@ -330,7 +327,7 @@ export class Teacher {
     if (tail > 0) await new Promise((r) => { this.timer = setTimeout(r, tail); });
     if (!this.stopped && this.main === 'droite') this.restHand('Left');
     if (!this.stopped && this.main === 'gauche') this.restHand('Right');
-    return !this.stopped;
+    return done(!this.stopped);
   }
 
   stop() {
@@ -345,8 +342,22 @@ export class Teacher {
     return i >= 0 ? { finger: i + 1, hand: hand.side === 'Right' ? 'droite' : 'gauche' } : null;
   }
 
-  nod() { this.nodT = 1; }
-  shake() { this.shakeT = 1; }
+  // Reactions : hochement + sourire, ou tete qui dit non + regard qui encourage
+  nod() { this.nodT = 1; this.body.face.feel('happy', 1.9); }
+  shake() { this.shakeT = 1; this.body.face.feel('sorry', 1.9); }
+  feel(expr, seconds) { this.body.face.feel(expr, seconds); }
+
+  // Ses oreilles s'allument quand le micro t'ecoute, et vibrent avec ce qu'il entend
+  listen(on) { this.ears = on ? 0 : null; }
+  hear(level) { if (this.ears !== null) this.ears = level; }
+
+  // Suit des yeux la touche que l'eleve vient de jouer
+  watch(midi) {
+    const top = this.piano.keyTop(midi);
+    if (!top) return;
+    this.lookTarget.copy(top);
+    this.lastActive = performance.now();
+  }
 
   // ---------- Pose a chaque image ----------
   update(dt) {
@@ -377,18 +388,53 @@ export class Teacher {
     pointBone(b.Spine1, b.Spine2, V(0, 1, -0.14));
     pointBone(b.Spine2, b.Neck, V(0, 1, -0.12));
 
-    // Tete : regarde la touche jouee, hoche ou secoue la tete
+    // Tete : regarde la touche jouee, ou l'eleve quand il ne se passe rien au clavier
+    if (this.piano.view === 'teacher' && performance.now() - this.lastActive > 2600) {
+      this.lookTarget.copy(this.piano.camera.position);
+      this.piano.root.worldToLocal(this.lookTarget);
+    }
     this.look.lerp(this.lookTarget, 1 - Math.exp(-dt * 4));
+    pointBone(b.Neck, b.Head, V(0, 1, -0.18));
     const head = wpos(b.Head, new THREE.Vector3());
     const lookDir = this.piano.root.localToWorld(this.look.clone()).sub(head).normalize();
-    const neckDir = lookDir.clone().lerp(V(0, 1, 0), 0.55).normalize();
-    if (this.nodT > 0) { this.nodT = Math.max(0, this.nodT - dt * 1.4); neckDir.z -= Math.sin(this.nodT * Math.PI * 4) * 0.25; }
-    if (this.shakeT > 0) { this.shakeT = Math.max(0, this.shakeT - dt * 1.2); neckDir.x += Math.sin(this.shakeT * Math.PI * 6) * 0.3; }
-    pointBone(b.Neck, b.Head, neckDir);
-    pointBone(b.Head, b.HeadTop_End, neckDir.clone().lerp(lookDir, 0.3).normalize());
+    // Le visage se tourne (lacet) et se penche (tangage) dans des limites naturelles ; les yeux font le reste
+    const clamp = THREE.MathUtils.clamp;
+    let yaw = clamp(Math.atan2(lookDir.x, -lookDir.z), -1.05, 1.05);
+    let pitch = clamp(Math.asin(clamp(lookDir.y, -1, 1)), -0.8, 0.42);
+    if (this.nodT > 0) { this.nodT = Math.max(0, this.nodT - dt * 1.4); pitch -= Math.sin(this.nodT * Math.PI * 4) * 0.2; }
+    if (this.shakeT > 0) { this.shakeT = Math.max(0, this.shakeT - dt * 1.2); yaw += Math.sin(this.shakeT * Math.PI * 6) * 0.26; }
+    const face = V(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+    const side = V(0, 1, 0).cross(face).normalize();
+    const up = face.clone().cross(side).normalize();
+    const want = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, face));
+    // Le cou prend un tiers du mouvement, la tete le reste
+    setWorldQuat(b.Neck, b.Neck.getWorldQuaternion(new THREE.Quaternion()).slerp(want, 0.35));
+    setWorldQuat(b.Head, want);
 
     // Mains
     for (const hand of Object.values(this.hands)) this.#poseHand(hand, dt);
+
+    // Les yeux finissent le geste de la tete : ce qui reste de l'ecart, vu depuis le visage
+    const local = lookDir.applyQuaternion(want.invert());
+    const lx = THREE.MathUtils.clamp(local.x * 34, -15, 15);
+    const ly = THREE.MathUtils.clamp(-local.y * 30, -12, 14);
+    this.body.face.update(dt, lx, ly, this.playing ? 'focus' : 'idle');
+
+    // Lumieres : le bout du doigt qui joue, le collier sur le temps, les oreilles quand il sourit
+    const glow = this.body.uniforms.uGlow.value;
+    for (const hand of Object.values(this.hands)) {
+      const c = HAND_COLOR[hand.side];
+      for (let i = 0; i < 5; i++) glow[GLOW.finger(hand.side, i)].set(c.r, c.g, c.b).multiplyScalar(hand.resting ? 0 : hand.press[i] * 2.6);
+    }
+    let pulse = 0.22 + 0.08 * Math.sin(t * 1.6);
+    if (this.beat) {
+      const e = performance.now() - this.beat.t0;
+      if (e >= 0) pulse = 0.3 + 1.8 * Math.exp(-((e / this.beat.ms) % 1) * 7);
+    }
+    glow[GLOW.collar].set(COLLAR.r, COLLAR.g, COLLAR.b).multiplyScalar(pulse);
+    const listening = this.ears !== null && this.ears !== undefined;
+    this.earLevel += ((listening ? 0.9 + Math.min(1, this.ears * 3) * 1.6 : this.body.face.expr === 'happy' ? 1.1 : 0.2) - this.earLevel) * (1 - Math.exp(-dt * 12));
+    glow[GLOW.ears].set(COLLAR.r, COLLAR.g, COLLAR.b).multiplyScalar(this.earLevel);
   }
 
   #poseHand(hand, dt) {

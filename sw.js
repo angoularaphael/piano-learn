@@ -4,7 +4,7 @@
 // La liste et la version sont regenerees par tools/precache.py.
 
 // PRECACHE-START
-const VERSION = 'pl-app-08c76d09fa';
+const VERSION = 'pl-app-ad6df9ac1a';
 const PRECACHE = [
   './',
   'css/fonts.css',
@@ -25,11 +25,14 @@ const PRECACHE = [
   'js/app-install.js',
   'js/audio.js',
   'js/awake.js',
+  'js/backing.js',
   'js/bilan.js',
   'js/bloom.js',
   'js/chord.js',
   'js/data/badges.js',
   'js/data/curriculum.js',
+  'js/data/en/curriculum.js',
+  'js/data/en/songs.js',
   'js/data/library.js',
   'js/data/morceaux.js',
   'js/data/paliers-equipe.js',
@@ -54,6 +57,7 @@ const PRECACHE = [
   'js/sheet.js',
   'js/staff.js',
   'js/stage.js',
+  'js/teacher-body.js',
   'js/teacher.js',
   'js/text.js',
   'js/tutorial.js',
@@ -89,10 +93,8 @@ const PRECACHE = [
   'sounds/piano/Fs5.mp3',
   'sounds/piano/Fs6.mp3',
   'sounds/piano/Fs7.mp3',
-  'vendor/models/xbot.glb',
   'vendor/three/addons/environments/RoomEnvironment.js',
   'vendor/three/addons/geometries/RoundedBoxGeometry.js',
-  'vendor/three/addons/loaders/GLTFLoader.js',
   'vendor/three/addons/postprocessing/EffectComposer.js',
   'vendor/three/addons/postprocessing/MaskPass.js',
   'vendor/three/addons/postprocessing/OutputPass.js',

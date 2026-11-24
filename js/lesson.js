@@ -179,6 +179,7 @@ export function renderLesson(app, id) {
   import('./teacher.js').then(({ Teacher }) => Teacher.load(piano, { main: lecon.main })).then((t) => {
     if (!alive) { t.dispose(); return; }
     teacher = t;
+    if (window.__piano) window.__teacher = t; // ?debug : pour les essais
     $('#stage-loading').classList.add('done');
     watchBtn.disabled = false;
   }).catch((e) => {
@@ -285,6 +286,7 @@ export function renderLesson(app, id) {
     if (mode !== 'play') return;
     const st = step();
     if (!st) return;
+    teacher?.watch(midi);
     const fromMic = source === 'mic';
     // Au micro, un accord se verifie en entier (handleChord) : une note seule ne compte ni pour ni contre
     if (fromMic && st.notes.length > 1) return;
@@ -370,7 +372,7 @@ export function renderLesson(app, id) {
         heard.textContent = noteName(midi);
         handle(midi, 'mic');
       },
-      onLevel: (v) => { meter.style.width = `${Math.round(v * 100)}%`; },
+      onLevel: (v) => { meter.style.width = `${Math.round(v * 100)}%`; teacher?.hear(v); },
       onPitch: (midi) => { if (midi == null) heard.textContent = '–'; },
       onChord: (midis) => { heard.textContent = midis.map((x) => noteName(x)).join(' + '); handleChord(midis); },
     });
@@ -381,6 +383,7 @@ export function renderLesson(app, id) {
       const cur = step();
       listener.expectChord(cur && cur.notes.length > 1 ? cur.notes.map((n) => n.midi) : null);
       listenBar.hidden = false;
+      teacher?.listen(true);
     } catch (e) {
       showToast(`<b>Micro non disponible</b><span>${fr('Joue sur les touches à l’écran, ou autorise le micro dans ton navigateur.')}</span>`);
     }
@@ -397,6 +400,7 @@ export function renderLesson(app, id) {
     listener?.stop();
     listener = null;
     listenBar.hidden = true;
+    teacher?.listen(false);
   }
 
   function finish() {
