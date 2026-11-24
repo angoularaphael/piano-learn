@@ -20,24 +20,9 @@ export const MORCEAUX = [
     type: 'actuel',
     libre: true,
     lecon: null,
-    tempo: 92,
-    texte: 'Version piano du refrain de Mood. En fa dièse mineur, main droite. La phrase « est-ce que t\'as capté le mood » est celle qui revient.',
-    demo: [
-      [66, 0.5], [66, 0.5], [69, 1],
-      [73, 0.5], [71, 0.5], [69, 0.5], [68, 0.5],
-      [66, 1], [64, 0.5], [66, 1.5],
-      [64, 0.5], [66, 1.5],
-      [66, 0.5], [66, 0.5], [69, 1],
-      [73, 0.5], [71, 0.5], [69, 0.5], [68, 0.5],
-      [66, 1], [64, 0.5], [66, 1.5],
-      [64, 0.5], [61, 1.5],
-      [73, 0.5], [73, 0.5], [71, 0.5], [69, 0.5],
-      [73, 1], [71, 1],
-      [69, 0.5], [68, 0.5], [66, 2],
-      [73, 0.5], [71, 0.5], [69, 0.5], [68, 0.5],
-      [66, 1], [64, 0.5], [66, 1.5],
-      [69, 0.5], [68, 0.5], [66, 2],
-    ],
+    tempo: 124,
+    texte: 'Version piano du vrai refrain de Mood, au tempo du morceau. La phrase qui pose, c\'est do dièse, fa dièse, la : « est-ce que t\'as capté le mood ».',
+    demo: moodL2bDemo(),
   },
   { id: 'clair-de-lune', titre: 'Au clair de la lune', auteur: 'Traditionnel', palier: 1, type: 'classique', lecon: '1-7' },
   { id: 'ah-vous-dirai-je', titre: 'Ah ! vous dirai-je, maman', auteur: 'Traditionnel', palier: 2, type: 'classique', lecon: '2-3' },
@@ -112,4 +97,30 @@ function industryBabyDemo() {
     ...baby, ...baby,
     ...riff(63), ...riff(70), ...riff(75), [75, 2],
   ];
+}
+
+// Fa# mineur, 124 BPM. Melodie du refrain (preview audio) : A / F# puis le crochet C# C# C# F# A.
+function moodL2bDemo() {
+  const bebe = [
+    [69, 0.5], [69, 0.5], [69, 0.5], [66, 1.5],
+    [61, 0.5], [61, 0.5], [64, 0.5], [66, 0.5],
+    [64, 0.5], [66, 1], [64, 0.5], [66, 1.5],
+  ];
+  const hook = [
+    [61, 0.5], [61, 0.5], [61, 0.5], [61, 0.5],
+    [66, 0.5], [69, 1.5],
+    [69, 0.5], [69, 1.5],
+  ];
+  const milieu = [
+    [69, 0.5], [69, 0.5], [61, 1],
+    [61, 0.5], [61, 0.5], [64, 0.5], [64, 0.5],
+    [66, 0.5], [66, 0.5], [68, 1],
+    [73, 0.5], [69, 0.5], [69, 0.5], [69, 1],
+    [68, 0.5], [66, 0.5], [69, 2],
+  ];
+  const bouche = [
+    [69, 0.5], [68, 0.5], [66, 0.5], [64, 0.5],
+    [66, 1], [61, 0.5], [66, 0.5], [69, 2],
+  ];
+  return [...bebe, ...hook, ...bouche, ...bebe, ...hook, ...milieu, ...hook, ...bouche];
 }

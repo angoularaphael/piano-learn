@@ -239,16 +239,31 @@ export class Piano3D {
       const hits = ray.intersectObjects(this.keyMeshes, false);
       return hits.length ? hits[0].object.userData.midi : null;
     };
+    this._ptrStart = new Map();
     this._onDown = (e) => {
       const midi = hit(e);
       if (midi == null) return;
-      e.preventDefault();
-      try { el.setPointerCapture(e.pointerId); } catch (err) { /* evenement simule */ }
+      this._ptrStart.set(e.pointerId, { x: e.clientX, y: e.clientY, midi, scrolling: false });
       this.pointers.set(e.pointerId, midi);
       this.press(midi);
     };
     this._onMove = (e) => {
-      if (!this.pointers.has(e.pointerId)) return;
+      const start = this._ptrStart.get(e.pointerId);
+      if (!start) return;
+      const dy = e.clientY - start.y;
+      const dx = e.clientX - start.x;
+      if (!start.scrolling && Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx) * 1.2) {
+        start.scrolling = true;
+        const prev = this.pointers.get(e.pointerId);
+        if (prev != null) this.release(prev);
+        this.pointers.delete(e.pointerId);
+        try { el.releasePointerCapture(e.pointerId); } catch (err) { /* pas capture */ }
+        return;
+      }
+      if (start.scrolling || !this.pointers.has(e.pointerId)) return;
+      if (!el.hasPointerCapture?.(e.pointerId)) {
+        try { el.setPointerCapture(e.pointerId); } catch (err) { /* evenement simule */ }
+      }
       const midi = hit(e);
       const prev = this.pointers.get(e.pointerId);
       if (midi === prev) return;
@@ -257,6 +272,7 @@ export class Piano3D {
       if (midi != null) this.press(midi);
     };
     this._onUp = (e) => {
+      this._ptrStart.delete(e.pointerId);
       if (!this.pointers.has(e.pointerId)) return;
       const midi = this.pointers.get(e.pointerId);
       this.pointers.delete(e.pointerId);
