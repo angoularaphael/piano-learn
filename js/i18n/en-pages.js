@@ -326,6 +326,9 @@ export const EN_PAGES = {
   'jeux d’oreille et fiches': 'ear games and theory cards',
   'Planche {n}.': 'Plate {n}.',
   'Proposé par l’agence <b>EAM</b>': 'Brought to you by <b>EAM</b> Agency',
-  'Couleurs du site': 'Site colours',
   'Couleurs': 'Colours',
+  'Comme l’appareil': 'Like my device',
+  'Nuit': 'Night',
+  'Clair': 'Light',
+  'Nuit, le bleu de l’agence EAM ; Clair, pour les appareils réglés en mode clair. Par défaut, le site suit ton appareil.': 'Night is the blue of the EAM agency; Light suits devices set to light mode. By default, the site follows your device.',
 };

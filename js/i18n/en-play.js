@@ -138,7 +138,7 @@ export const EN_PLAY = {
 
   // ---------- Jeux d'oreille ----------
   'Plus aigu, plus grave': 'Higher or lower',
-  'Deux notes sonnent. La deuxième monte-t-elle, ou descend-elle ?': 'Two notes sound. Does the second one go up, or down?',
+  'Deux notes sonnent. La deuxième monte‑t‑elle, ou descend‑elle ?': 'Two notes sound. Does the second one go up, or down?',
   'Retrouve la note': 'Find the note',
   'Une note sonne : cherche-la sur le clavier, à l’oreille.': 'A note sounds: find it on the keyboard, by ear.',
   'Pareil ou pas ?': 'Same or different?',

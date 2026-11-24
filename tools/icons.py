@@ -1,5 +1,5 @@
-"""Dessine les icones de l'application : trois touches a l'encre sur le papier, et le do entoure
-au crayon rouge, comme sur la touche d'entree du site (« la seule touche a jouer »).
+"""Dessine les icones de l'application aux couleurs de la palette Nuit (celles d'EAM) : trois touches
+d'ivoire sur le bleu nuit, et le do entoure a la feuille d'or, comme sur la touche d'entree du site.
 
     python tools/icons.py
 """
@@ -11,10 +11,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'icons')
 os.makedirs(OUT, exist_ok=True)
 
-PAPER = (243, 238, 227)
-IVORY = (251, 248, 241)
-INK = (28, 24, 20)
-RED = (192, 57, 31)
+PAPER = (8, 16, 29)        # le bleu nuit
+IVORY = (243, 238, 228)    # l'ivoire des touches
+INK = (8, 16, 29)          # les noires et les filets, dans le bleu du fond
+RED = (201, 169, 110)      # l'or d'EAM
 
 
 def draw(size, scale):

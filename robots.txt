@@ -1,6 +1,8 @@
 # Piano Learn
-# Conçu et développé par Eddy Etame — designed and built by Eddy Etame
+# Conçu et développé par Eddy Etame et Raphaël Angoula — designed and built by Eddy Etame and Raphaël Angoula
 # Une réalisation de l'agence EAM — brought to you by EAM Agency : https://eam-agency.vercel.app
 
 User-agent: *
-Disallow: /
+Allow: /
+
+Sitemap: https://piano-learn-rho.vercel.app/sitemap.xml

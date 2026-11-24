@@ -4,12 +4,41 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Piano Learn · Apprendre le piano pas à pas</title>
-  <meta name="description" content="Apprendre le piano à la maison avec un prof en 3D : il montre, tu joues sur ton piano, le site écoute. Et ton instrument grandit avec toi.">
-  <meta name="robots" content="noindex, nofollow">
-  <meta name="theme-color" content="#f3eee3">
-  <meta name="color-scheme" content="light">
+  <meta name="description" content="Apprendre le piano à la maison avec un prof en 3D qui montre chaque geste, un site qui écoute ton piano au micro, et un instrument qui grandit avec toi, en huit paliers.">
+  <link rel="canonical" href="https://piano-learn-rho.vercel.app/">
+  <!-- Le partage (messageries, reseaux) : une vignette composee pour le site -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Piano Learn">
+  <meta property="og:url" content="https://piano-learn-rho.vercel.app/">
+  <meta property="og:title" content="Piano Learn · Apprends le piano, une touche après l’autre">
+  <meta property="og:description" content="Un prof en 3D te montre, tu rejoues sur ton piano, le site t’écoute. Huit paliers, de la première note au concert.">
+  <meta property="og:image" content="https://piano-learn-rho.vercel.app/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:locale:alternate" content="en_GB">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Piano Learn",
+    "url": "https://piano-learn-rho.vercel.app/",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web",
+    "inLanguage": ["fr", "en"],
+    "description": "Apprendre le piano à la maison avec un prof en 3D, un site qui écoute ton piano au micro et un parcours en huit paliers.",
+    "creator": [
+      { "@type": "Person", "name": "Eddy Etame" },
+      { "@type": "Person", "name": "Raphaël Angoula" }
+    ],
+    "publisher": { "@type": "Organization", "name": "EAM", "url": "https://eam-agency.vercel.app" }
+  }
+  </script>
+  <meta name="theme-color" content="#08101d">
+  <meta name="color-scheme" content="dark light">
   <!-- La palette choisie s'applique avant le premier affichage (sinon l'ancienne clignote) -->
-  <script>try{var t=JSON.parse(localStorage.getItem('piano-learn-settings-v1')||'{}').theme;if(t&&t!=='edition')document.documentElement.dataset.theme=t}catch(e){}</script>
+  <script>try{var t=JSON.parse(localStorage.getItem('piano-learn-settings-v1')||'{}').theme;if(t!=='nuit'&&t!=='studio')t=matchMedia('(prefers-color-scheme: light)').matches?'studio':'nuit';document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -73,9 +102,6 @@
   <footer class="colophon">
     <a href="https://eam-agency.vercel.app" target="_blank" rel="noopener" id="colophon">Proposé par l’agence <b>EAM</b></a>
   </footer>
-
-  <!-- Les palettes, a comparer en direct : un rond par palette, en bas a gauche -->
-  <div class="palette-switch" id="palette-switch" role="group" aria-label="Couleurs du site"></div>
 
   <script type="module" src="js/main.js"></script>
 </body>

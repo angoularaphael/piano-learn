@@ -907,8 +907,9 @@ export class Piano3D {
       // Au piano a queue, le couvercle ouvert boucherait la vue : on le regarde du cote des aigus, comme
       // le public voit un pianiste, de trois quarts
       teacher: { dir: this.stage === 'queue' ? [0.82, 0.42, -0.4] : [-0.5, 0.5, -0.82], target: this.teacherTarget || [0, 10.8, 14], d: 66 * (cam.aspect < 1 ? 1.5 : cam.aspect < 1.4 ? 1.15 : 1) },
-      // Au-dessus des mains, legerement incline : le clavier tel que l'eleve voit le sien
-      hands: { dir: [0, 1, 0.12], target: [center, 0, -1.3], d: fit(width + 3) * 0.98 },
+      // Par-dessus l'epaule droite du prof : on voit ses doigts arrondis sur les touches, comme assis a cote de lui
+      // (vu d'aplomb, des doigts courbes ont l'air de moignons ; plus bas, sa tete masque le clavier)
+      hands: { dir: [0.24, 0.86, 0.46], target: [center - 0.8, 1.2, 3.2], d: fit(width + 3) * 1.12 },
       // Les notes arrivent du fond : le clavier en bas, la piste qui monte vers l'horizon
       highway: { dir: [0, 1.1, 1], target: [center, 0, -6.5], d: Math.max(22, fit(width + 4) * 1.3) },
       grand: { dir: [-0.7, 0.55, 0.95], target: [0, -9, -grandDepth * 0.38], d: Math.max(fit(width + 16), grandDepth * 1.55) },

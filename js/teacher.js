@@ -59,6 +59,24 @@ function orientBone(bone, childA, fwd, sideFrom, sideTo, side) {
   rotateWorld(bone, _q);
 }
 
+// Tourne un vecteur autour d'un axe (unitaire)
+const _rq = new THREE.Quaternion();
+function turn(v, axis, angle) {
+  return v.clone().applyQuaternion(_rq.setFromAxisAngle(axis, angle));
+}
+// Angle signe de a vers b autour de l'axe n (a, b perpendiculaires a n)
+function signedAngle(a, b, n) {
+  return Math.atan2(_c.crossVectors(a, b).dot(n), a.dot(b));
+}
+
+// La courbe d'un doigt de pianiste, pour un degre de flexion c (0 = tendu, 1 = tres replie) :
+// articulation de la base, du milieu, du bout (radians). Le bout plie un peu moins que le milieu.
+const curl = (c) => [-0.05 + 0.75 * c, 0.25 + 1.0 * c, 0.15 + 0.6 * c];
+const CURL_NATURAL = 0.45;   // une main posee sur le clavier
+const CURL_REST = 0.6;       // une main posee sur la cuisse
+const CURL_MAX = 0.85;
+const HAND_PITCH = 0.1;      // le dos de la main descend a peine vers les doigts
+
 // CCD : amene l'effecteur sur la cible en tournant les maillons (du plus proche au plus loin)
 function ccd(links, effector, target, iterations = 12, maxStep = 0.6) {
   for (let it = 0; it < iterations; it++) {
@@ -140,6 +158,25 @@ export class Teacher {
     model.position.add(this.hipsTarget.clone().sub(hips));
     model.updateMatrixWorld(true);
     this.restHips = this.bones.Hips.position.clone();
+    // La main du prof, mesuree : paume (poignet -> base du majeur) et phalanges de chaque doigt
+    const local = (name) => piano.root.worldToLocal(wpos(this.bones[name], new THREE.Vector3()));
+    const dist = (a, b) => local(a).distanceTo(local(b));
+    this.palm = dist('RightHand', 'RightHandMiddle1');
+    this.phalanx = {};
+    for (const f of FINGERS) this.phalanx[f] = [dist(`RightHand${f}1`, `RightHand${f}2`), dist(`RightHand${f}2`, `RightHand${f}3`), dist(`RightHand${f}3`, `RightHand${f}4`)];
+    // Ou doit etre le poignet pour que le majeur, a sa courbe naturelle, touche sa touche :
+    // en avant (z) et au-dessus (y) du point de contact
+    {
+      const [a1, a2, a3] = curl(CURL_NATURAL);
+      const L = this.phalanx.Middle;
+      let ang = HAND_PITCH + a1;
+      let h = L[0] * Math.cos(ang);
+      let v = L[0] * Math.sin(ang);
+      ang += a2; h += L[1] * Math.cos(ang); v += L[1] * Math.sin(ang);
+      ang += a3; h += L[2] * Math.cos(ang); v += L[2] * Math.sin(ang);
+      this.reach = { z: h + this.palm * Math.cos(HAND_PITCH), y: v + this.palm * Math.sin(HAND_PITCH) };
+    }
+
     // La camera du prof se cadre sur sa vraie taille : entre son visage et ses mains
     const headY = piano.root.worldToLocal(wpos(this.bones.Head, new THREE.Vector3())).y;
     piano.teacherTarget = [0, headY - 7.2, 14];
@@ -218,14 +255,15 @@ export class Teacher {
     const whites = this.#whiteKeysFrom(base, 5);
     // Doigt i (pouce = 0) : a droite le pouce est sur la touche la plus grave, a gauche sur la plus aigue
     hand.fingerKey = FINGERS.map((_, i) => (hand.side === 'Right' ? whites[i] : whites[4 - i]));
-    const mid = this.piano.keyTop(whites[2], 0.7);
+    const mid = this.piano.keyTop(whites[2], 0.8);
     if (!mid) {
       // Les touches de cette main ne sont pas sur le clavier : elle se pose sur le genou
       this.restHand(hand.side, instant);
       return;
     }
     hand.resting = false;
-    hand.wristTarget.set(mid.x + (hand.side === 'Right' ? -0.6 : 0.6), mid.y + 2.6, mid.z + 6.2);
+    // Le poignet recule et s'eleve juste assez pour que les doigts arrondis tombent sur leurs touches
+    hand.wristTarget.set(mid.x + (hand.side === 'Right' ? -0.3 : 0.3), mid.y + this.reach.y, mid.z + this.reach.z);
     if (instant) hand.wrist.copy(hand.wristTarget);
   }
 
@@ -499,40 +537,91 @@ export class Teacher {
     const wristWorld = root.localToWorld(hand.wrist.clone());
     ccd([b[`${S}ForeArm`], b[`${S}Arm`]], b[`${S}Hand`], wristWorld, 8);
 
-    // Main a plat, doigts vers le clavier
+    // Main a plat, a peine inclinee vers les doigts
     const side = new THREE.Vector3(S === 'Right' ? 1 : -1, 0, 0);
-    orientBone(b[`${S}Hand`], b[`${S}HandMiddle1`], new THREE.Vector3(0, -0.28, -1), b[`${S}HandIndex1`], b[`${S}HandPinky1`], side);
+    orientBone(b[`${S}Hand`], b[`${S}HandMiddle1`], new THREE.Vector3(0, -Math.tan(HAND_PITCH), -1), b[`${S}HandIndex1`], b[`${S}HandPinky1`], side);
 
-    // Doigts : arrondis au-dessus des touches, celui qui joue descend sur la sienne
+    // Le repere de la main : en avant (poignet -> majeur), sur le cote (index -> auriculaire), paume vers le bas
+    const W = wpos(b[`${S}Hand`], new THREE.Vector3());
+    const fwdH = wpos(b[`${S}HandMiddle1`], new THREE.Vector3()).sub(W).normalize();
+    const sideH = wpos(b[`${S}HandPinky1`], new THREE.Vector3()).sub(wpos(b[`${S}HandIndex1`], new THREE.Vector3()));
+    sideH.addScaledVector(fwdH, -sideH.dot(fwdH)).normalize();
+    const palmDown = S === 'Right' ? fwdH.clone().cross(sideH) : sideH.clone().cross(fwdH);
+
+    // Le point que vise chaque doigt : sa touche (le doigt qui joue y entre, les autres l'effleurent)
+    const targetOf = (i) => {
+      if (hand.resting) return null;
+      const midi = hand.fingerKey[i];
+      if (midi == null) return null;
+      const top = this.piano.keyTop(midi, isBlack(midi) ? 0.75 : 0.8);
+      if (!top) return null;
+      const p = hand.press[i];
+      top.y += 0.22 * (1 - p) - 0.3 * p;
+      return root.localToWorld(top);
+    };
+
     FINGERS.forEach((name, i) => {
-      if (hand.resting) {
-        const r1 = b[`${S}Hand${name}1`], r2 = b[`${S}Hand${name}2`], r3 = b[`${S}Hand${name}3`], r4 = b[`${S}Hand${name}4`];
-        pointBone(r1, r2, new THREE.Vector3(name === 'Thumb' ? -sgn * 0.4 : 0, -0.3, -1));
-        pointBone(r2, r3, new THREE.Vector3(0, -0.7, -0.8));
-        pointBone(r3, r4, new THREE.Vector3(0, -1, -0.4));
+      const j1 = b[`${S}Hand${name}1`], j2 = b[`${S}Hand${name}2`], j3 = b[`${S}Hand${name}3`], tip = b[`${S}Hand${name}4`];
+      const L = this.phalanx[name];
+      const P1 = wpos(j1, new THREE.Vector3());
+      const T = targetOf(i);
+
+      if (name === 'Thumb') {
+        // Le pouce : un arc tendu vers sa touche, la base un peu relevee, le bout pose sur le cote
+        let dir;
+        let beta = 0.35;
+        if (T) {
+          dir = T.clone().sub(P1);
+          const D = dir.length();
+          dir.normalize();
+          const reach = L[0] + L[2];
+          beta = D < L[0] + L[1] + L[2] ? Math.acos(THREE.MathUtils.clamp((D - L[1]) / reach, -1, 1)) : 0;
+          beta = Math.min(beta, 0.9);
+        } else {
+          dir = fwdH.clone().multiplyScalar(0.75).addScaledVector(sideH, -0.35).addScaledVector(palmDown, 0.45).normalize();
+        }
+        const axis = dir.clone().cross(palmDown).normalize();
+        pointBone(j1, j2, turn(dir, axis, -beta));
+        pointBone(j2, j3, dir);
+        pointBone(j3, tip, turn(dir, axis, beta));
         return;
       }
-      const f1 = b[`${S}Hand${name}1`], f2 = b[`${S}Hand${name}2`], f3 = b[`${S}Hand${name}3`], f4 = b[`${S}Hand${name}4`];
-      if (name === 'Thumb') {
-        pointBone(f1, f2, new THREE.Vector3(-sgn * 0.5, -0.5, -0.8));
-        pointBone(f2, f3, new THREE.Vector3(-sgn * 0.15, -0.6, -1));
-        pointBone(f3, f4, new THREE.Vector3(0, -0.9, -1));
-      } else {
-        pointBone(f1, f2, new THREE.Vector3(0, -0.35, -1));
-        pointBone(f2, f3, new THREE.Vector3(0, -1, -0.9));
-        pointBone(f3, f4, new THREE.Vector3(0, -1.6, -0.5));
+
+      // La direction de base du doigt, dans le plan de la paume
+      const dRest = wpos(j2, new THREE.Vector3()).sub(P1);
+      dRest.addScaledVector(palmDown, -dRest.dot(palmDown)).normalize();
+      let d0 = dRest;
+      if (T) {
+        // Il s'ecarte un peu vers sa touche (dans les limites d'une vraie main)
+        const v = T.clone().sub(P1);
+        v.addScaledVector(palmDown, -v.dot(palmDown));
+        if (v.lengthSq() > 1e-6) {
+          const ang = THREE.MathUtils.clamp(signedAngle(dRest, v.normalize(), palmDown), -0.28, 0.28);
+          d0 = turn(dRest, palmDown, ang);
+        }
       }
-      const midi = hand.fingerKey[i];
-      if (midi == null) return;
-      const top = this.piano.keyTop(midi, isBlack(midi) ? 0.75 : 0.8);
-      if (!top) return;
-      const p = hand.press[i];
-      top.y += 0.9 * (1 - p) - 0.35 * p;
-      const tgt = root.localToWorld(top);
-      const tip = wpos(f4, new THREE.Vector3());
-      // Les doigts au repos ne vont pas plus bas que leur hauteur naturelle
-      if (p < 0.02 && tip.y > tgt.y) return;
-      ccd([f3, f2, f1], f4, tgt, p > 0.02 ? 5 : 2, 0.5);
+      // Il plie comme une charniere, autour de l'axe perpendiculaire au doigt dans le plan de la paume
+      const hinge = d0.clone().cross(palmDown).normalize();
+      const dirs = (c) => {
+        const [a1, a2, a3] = curl(c);
+        return [turn(d0, hinge, a1), turn(d0, hinge, a1 + a2), turn(d0, hinge, a1 + a2 + a3)];
+      };
+      let c = T ? CURL_NATURAL : CURL_REST;
+      if (T) {
+        // Juste assez plie pour que le bout du doigt arrive a la hauteur de sa cible
+        let lo = 0;
+        let hi = CURL_MAX;
+        for (let k = 0; k < 12; k++) {
+          c = (lo + hi) / 2;
+          const [d1, d2, d3] = dirs(c);
+          const y = P1.y + L[0] * d1.y + L[1] * d2.y + L[2] * d3.y;
+          if (y > T.y) lo = c; else hi = c;
+        }
+      }
+      const [d1, d2, d3] = dirs(c);
+      pointBone(j1, j2, d1);
+      pointBone(j2, j3, d2);
+      pointBone(j3, tip, d3);
     });
   }
 

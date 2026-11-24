@@ -28,7 +28,7 @@ import { FICHES } from './data/theorie.js';
 import { sessionSummary, reminderICS, reminderGoogle } from './session.js';
 import { exportData, importData, validData } from './progress.js';
 import { t, lang, setLang, locale } from './i18n.js';
-import { THEMES, THEME_IDS, themeId, setTheme, applyTheme } from './palette.js';
+import { themeSetting, setTheme, applyTheme } from './palette.js';
 
 const app = document.getElementById('app');
 let cleanup = null;
@@ -53,29 +53,10 @@ function translateShell() {
 translateShell();
 
 // ---------- Les palettes ----------
-// Un rond par palette (son papier et sa couleur d'action) ; le rond de la palette en cours est cercle.
-// Changer de palette redessine la page ou l'on est, au meme endroit, sans rejouer les apparitions.
+// Nuit par defaut, Clair pour les appareils en mode clair (reglage « Couleurs »). Quand la palette change,
+// la page ou l'on est se redessine, au meme endroit, sans rejouer les apparitions.
 applyTheme();
-function buildPaletteSwitch() {
-  const box = document.getElementById('palette-switch');
-  if (!box) return;
-  box.setAttribute('aria-label', t('Couleurs du site'));
-  box.innerHTML = `<span>${t('Couleurs')}</span>${THEME_IDS.map((id) => {
-    const th = THEMES[id];
-    const name = th.nom[lang()] || th.nom.fr;
-    return `<button type="button" data-theme-id="${id}" aria-pressed="${id === themeId()}" title="${name}" aria-label="${name}" style="--sw-paper:${th.paper};--sw-accent:${th.right};--sw-ink:${th.ink}"><i></i></button>`;
-  }).join('')}`;
-  // Sur telephone, le selecteur se replie sur la palette en cours : un toucher l'ouvre, un autre choisit
-  box.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-    const narrow = window.matchMedia('(max-width: 560px)').matches;
-    if (narrow && b.dataset.themeId === themeId()) { box.classList.toggle('open'); return; }
-    box.classList.remove('open');
-    setTheme(b.dataset.themeId);
-  }));
-}
-buildPaletteSwitch();
 window.addEventListener('themechange', () => {
-  buildPaletteSwitch();
   const y = window.scrollY;
   render({ entered: false });
   app.querySelectorAll('[data-reveal], .split').forEach((el) => el.classList.add('in'));
@@ -1026,6 +1007,13 @@ function pageReglages() {
           ${[['fr', 'Français'], ['en', 'English']].map(([id, label]) => `<button type="button" role="radio" lang="${id}" data-lang="${id}" class="${id === lang() ? 'on' : ''}" aria-checked="${id === lang()}">${label}</button>`).join('')}
         </div>
       </section>
+      <section class="card set" data-reveal style="--d:15ms">
+        <h3 id="set-theme-title">${t('Couleurs')}</h3>
+        <div class="seg" id="set-theme" role="radiogroup" aria-labelledby="set-theme-title" style="justify-self:start">
+          ${[['auto', t('Comme l’appareil')], ['nuit', t('Nuit')], ['studio', t('Clair')]].map(([id, label]) => `<button type="button" role="radio" data-theme-choice="${id}" class="${id === themeSetting() ? 'on' : ''}" aria-checked="${id === themeSetting()}">${label}</button>`).join('')}
+        </div>
+        <p class="hint">${fr(t('Nuit, le bleu de l’agence EAM ; Clair, pour les appareils réglés en mode clair. Par défaut, le site suit ton appareil.'))}</p>
+      </section>
       <section class="card set" data-reveal style="--d:30ms">
         <h3>${t('Toi')}</h3>
         <label class="field"><span>${t('Ton prénom')}</span><input type="text" id="set-prenom" maxlength="30" value="${esc(s.prenom)}" placeholder="${t('Pour que le prof t’appelle par ton nom')}" autocomplete="given-name"></label>
@@ -1083,6 +1071,17 @@ function pageReglages() {
   $('set-lang').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-lang]');
     if (b && b.dataset.lang !== lang()) setLang(b.dataset.lang);
+  });
+  // Les couleurs : la page se redessine si la palette change ; sinon seul le bouton bouge
+  $('set-theme').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-theme-choice]');
+    if (!b || b.dataset.themeChoice === themeSetting()) return;
+    setTheme(b.dataset.themeChoice);
+    document.querySelectorAll('#set-theme button').forEach((x) => {
+      const on = x.dataset.themeChoice === themeSetting();
+      x.classList.toggle('on', on);
+      x.setAttribute('aria-checked', String(on));
+    });
   });
   $('set-prenom').addEventListener('change', (e) => setSetting('prenom', e.target.value.trim()));
   $('set-volume').addEventListener('input', (e) => setSetting('volume', Number(e.target.value) / 100));

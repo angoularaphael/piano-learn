@@ -5,10 +5,10 @@
 // de fin. Lisible imprime en noir et blanc.
 import { BRAND } from './text.js';
 import { deliverFile } from './share.js';
-import { THEMES } from './palette.js';
+import { PRINT } from './palette.js';
 
-// Le certificat s'imprime : il garde le papier et l'encre de l'edition, quelle que soit la palette du site
-const PAL = THEMES.edition;
+// Le certificat s'imprime : papier creme et encre, quelle que soit la palette de l'ecran
+const PAL = PRINT;
 
 const W = 2000;
 const H = Math.round(W / Math.SQRT2);

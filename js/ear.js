@@ -15,7 +15,7 @@ import { hasKeyboard } from './kbd-ui.js';
 import { t, lang } from './i18n.js';
 
 export const EAR_GAMES = [
-  { id: 'hauteur', palier: 1, rounds: 10, titre: t('Plus aigu, plus grave'), desc: t('Deux notes sonnent. La deuxième monte-t-elle, ou descend-elle ?') },
+  { id: 'hauteur', palier: 1, rounds: 10, titre: t('Plus aigu, plus grave'), desc: t('Deux notes sonnent. La deuxième monte‑t‑elle, ou descend‑elle ?') },
   { id: 'retrouve', palier: 1, rounds: 8, titre: t('Retrouve la note'), desc: t('Une note sonne : cherche-la sur le clavier, à l’oreille.') },
   { id: 'pareil', palier: 2, rounds: 8, titre: t('Pareil ou pas ?'), desc: t('Deux petites mélodies. Sont-elles identiques ?') },
   { id: 'intervalles', palier: 4, rounds: 10, titre: t('Les intervalles'), desc: t('L’écart entre deux notes : seconde, tierce, quinte ou octave ?') },
