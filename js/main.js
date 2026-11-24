@@ -195,15 +195,64 @@ function pageLecon(id) {
   const palier = PALIERS.find((p) => p.lecons.some((l) => l.id === id));
   const lecon = palier?.lecons.find((l) => l.id === id);
   if (!lecon) return pageIntrouvable();
+  const demo = lecon.demo || [];
   app.innerHTML = `
     <p class="hint" data-reveal><a href="#/parcours">Parcours</a> / Palier ${palier.id} - ${palier.titre}</p>
-    <h1 data-split>${lecon.titre}</h1>
-    <div class="card empty" data-reveal>
-      <h2>Cette leçon arrive bientôt</h2>
-      <p class="lead" style="margin:0 auto 1.5rem">Le prof s'installe au piano. En attendant, tu peux t'entraîner librement.</p>
-      <a href="#/piano" class="btn">Aller au piano libre</a>
+    <h1 data-split style="font-size:clamp(1.8rem,4.5vw,3.2rem)">${lecon.titre}</h1>
+    <div class="stage" data-reveal>
+      <div class="piano-wrap stage-3d" id="stage"></div>
+      <div class="bubble" id="bubble">
+        <span class="bubble-who">Le prof</span>
+        <p>${lecon.texte || 'Le prof prépare cette leçon. Elle arrive très vite.'}</p>
+      </div>
+      <div class="stage-loading" id="stage-loading"><span></span>Le prof s'installe au piano</div>
     </div>
+    <div class="seq" id="seq">${demo.map(([m]) => `<span>${noteName(m)}</span>`).join('')}</div>
+    <div class="piano-tools">
+      ${demo.length ? '<button class="btn" id="play" disabled>Regarder le prof</button>' : ''}
+      <label class="chip-toggle"><input type="checkbox" id="opt-hands"> Vue sur les mains</label>
+      <label class="chip-toggle"><input type="checkbox" id="opt-labels" checked> Nom des notes</label>
+    </div>
+    <p class="hint">Prochaine étape : à toi de jouer sur ton piano, le site t'écoutera au micro.</p>
   `;
+
+  const m = mountPiano(document.getElementById('stage'), { low: 36, high: 96, floorY: -31, view: 'teacher' });
+  if (!m.piano) return () => {};
+  const piano = m.piano;
+  (lecon.highlight || []).forEach((n) => piano.highlight(n, '#ff4fd8'));
+  document.getElementById('opt-labels').addEventListener('change', (e) => piano.setLabelsVisible(e.target.checked));
+  document.getElementById('opt-hands').addEventListener('change', (e) => piano.setView(e.target.checked ? 'hands' : 'teacher'));
+
+  let teacher = null;
+  let alive = true;
+  const chips = [...document.querySelectorAll('#seq span')];
+  const playBtn = document.getElementById('play');
+  import('./teacher.js').then(({ Teacher }) => Teacher.load(piano)).then((t) => {
+    if (!alive) { t.dispose(); return; }
+    teacher = t;
+    document.getElementById('stage-loading').classList.add('done');
+    if (playBtn) playBtn.disabled = false;
+  }).catch((e) => {
+    console.error(e);
+    document.getElementById('stage-loading').innerHTML = 'Le prof n\'a pas pu se charger. Vérifie ta connexion.';
+  });
+
+  playBtn?.addEventListener('click', async () => {
+    if (!teacher) return;
+    if (playBtn.dataset.playing) { teacher.stop(); return; }
+    playBtn.dataset.playing = '1';
+    playBtn.textContent = 'Arrêter';
+    const done = await teacher.playSequence(demo, {
+      tempo: 96,
+      onNote: (i) => chips.forEach((c, k) => { c.classList.toggle('on', k === i); c.classList.toggle('past', k < i); }),
+    });
+    chips.forEach((c) => c.classList.remove('on', 'past'));
+    if (done) teacher.nod();
+    delete playBtn.dataset.playing;
+    playBtn.textContent = 'Revoir';
+  });
+
+  return () => { alive = false; teacher?.stop(); teacher?.dispose(); m.dispose(); };
 }
 
 function pageMorceaux() {

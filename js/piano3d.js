@@ -57,7 +57,8 @@ export class Piano3D {
     this.highlights = new Map();
     this.pointers = new Map();
     this.frameHooks = new Set();
-    this.view = 'front';
+    this.view = opts.view ?? 'front';
+    this.floorY = opts.floorY ?? -6;
 
     this.#setup();
     this.#buildKeys();
@@ -108,7 +109,6 @@ export class Piano3D {
     scene.add(violetLight);
 
     // Sol sombre avec grille lumineuse
-    this.floorY = -6;
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(400, 400),
       new THREE.MeshStandardMaterial({ color: '#070912', roughness: 0.35, metalness: 0.6 })
@@ -357,11 +357,19 @@ export class Piano3D {
       const hfov = 2 * Math.atan(Math.tan(vfov / 2) * cam.aspect);
       const fitW = this.width + 5;
       const dist = Math.max((fitW / 2) / Math.tan(hfov / 2), 12);
-      const dir = this.view === 'top'
-        ? new THREE.Vector3(0, 1, 0.12).normalize()
-        : new THREE.Vector3(0, 0.78, 1).normalize();
-      this.camTarget = new THREE.Vector3(0, this.view === 'top' ? 0 : 1.2, this.view === 'top' ? 0.6 : 0);
-      this.camBase = this.camTarget.clone().addScaledVector(dir, dist);
+      const VIEWS = {
+        front: { dir: [0, 0.78, 1], target: [0, 1.2, 0], k: 1 },
+        top: { dir: [0, 1, 0.12], target: [0, 0, 0.6], k: 1 },
+        // Face au prof, en hauteur, legerement de cote
+        teacher: { dir: [-34, 42, -58], target: [0, 0, 10], fixed: 80 },
+        // Vue de l'eleve, au-dessus des mains du prof
+        hands: { dir: [0, 1, 0.16], target: [0, 0, -0.5], k: 0.95 },
+      };
+      const v = VIEWS[this.view] || VIEWS.front;
+      const dir = new THREE.Vector3(...v.dir).normalize();
+      this.camTarget = new THREE.Vector3(...v.target);
+      const d = v.fixed ? v.fixed * (cam.aspect < 1 ? 1.5 : cam.aspect < 1.4 ? 1.15 : 1) : dist * v.k;
+      this.camBase = this.camTarget.clone().addScaledVector(dir, d);
       cam.position.copy(this.camBase);
       cam.lookAt(this.camTarget);
     }

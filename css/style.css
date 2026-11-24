@@ -341,3 +341,32 @@ kbd { font-family: var(--display); font-size: .7em; padding: .15rem .45rem; bord
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .split .w > span, [data-reveal] { transform: none; filter: none; opacity: 1; }
 }
+
+/* ---------- Lecon ---------- */
+.stage { position: relative; margin-top: 1.5rem; }
+.stage-3d { height: min(72vh, 680px); }
+.bubble {
+  position: absolute; left: 1rem; top: 1rem; max-width: min(420px, calc(100% - 2rem)); z-index: 2;
+  padding: 1rem 1.2rem; border-radius: 18px 18px 18px 4px;
+  background: rgba(8, 11, 26, .72); backdrop-filter: blur(14px);
+  border: 1px solid rgba(62, 242, 255, .35); box-shadow: 0 0 40px -10px rgba(62, 242, 255, .5);
+  animation: fadeup .8s var(--ease) both .3s;
+}
+.bubble p { margin: .3rem 0 0; font-size: .98rem; }
+.bubble-who { font-family: var(--display); font-size: .62rem; letter-spacing: .25em; text-transform: uppercase; color: var(--cyan); }
+.stage-loading {
+  position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; align-content: center; gap: 1rem;
+  font-family: var(--display); font-size: .72rem; letter-spacing: .25em; text-transform: uppercase; color: var(--muted);
+  background: rgba(5, 6, 13, .65); border-radius: var(--radius); transition: opacity .6s, visibility .6s;
+}
+.stage-loading span { width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(62, 242, 255, .2); border-top-color: var(--cyan); animation: spin 1s linear infinite; }
+.stage-loading.done { opacity: 0; visibility: hidden; }
+.seq { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: 1.2rem; }
+.seq span {
+  font-family: var(--display); font-size: .72rem; padding: .45rem .7rem; border-radius: 10px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, .03); color: var(--muted);
+  transition: all .2s var(--ease);
+}
+.seq span.past { color: var(--ink); border-color: rgba(62, 242, 255, .25); }
+.seq span.on { color: #04050b; background: var(--grad); border-color: transparent; transform: translateY(-4px) scale(1.08); box-shadow: 0 0 20px rgba(62, 242, 255, .6); }
+@media (max-width: 640px) { .bubble { position: relative; left: 0; top: 0; max-width: none; margin-bottom: .8rem; } }

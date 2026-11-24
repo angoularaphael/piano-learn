@@ -5,12 +5,37 @@ export const PALIERS = [
     titre: 'Découverte',
     resume: 'Se repérer sur le clavier, trouver le do, jouer do ré mi fa sol avec les bons doigts.',
     lecons: [
-      { id: '1-1', titre: 'Bien s\'asseoir et placer ses mains' },
-      { id: '1-2', titre: 'Trouver le do du milieu' },
-      { id: '1-3', titre: 'Les numéros des doigts' },
-      { id: '1-4', titre: 'Do, ré, mi' },
-      { id: '1-5', titre: 'Fa et sol' },
-      { id: '1-6', titre: 'Monter et descendre de do à sol' },
+      {
+        id: '1-1', titre: 'Bien s\'asseoir et placer ses mains',
+        texte: 'Assieds-toi au bord du banc, le dos droit, les avant-bras à la hauteur du clavier. Les mains sont arrondies, comme si tu tenais une balle. Regarde, je te joue un petit air.',
+        demo: [[60, 1], [60, 1], [60, 1], [62, 1], [64, 2], [62, 2], [60, 1], [64, 1], [62, 1], [62, 1], [60, 4]],
+      },
+      {
+        id: '1-2', titre: 'Trouver le do du milieu',
+        texte: 'Le do est toujours juste à gauche du groupe de deux touches noires. Celui du milieu est en face de toi. Regarde, je joue tous les do, du grave à l\'aigu.',
+        demo: [[48, 2], [60, 2], [72, 2], [84, 2], [60, 4]],
+        highlight: [48, 60, 72, 84],
+      },
+      {
+        id: '1-3', titre: 'Les numéros des doigts',
+        texte: 'Pouce = 1, index = 2, majeur = 3, annulaire = 4, auriculaire = 5. Pouce sur le do, et chaque doigt sur sa touche. Je joue doigt par doigt.',
+        demo: [[60, 1], [62, 1], [64, 1], [65, 1], [67, 2], [65, 1], [64, 1], [62, 1], [60, 2]],
+      },
+      {
+        id: '1-4', titre: 'Do, ré, mi',
+        texte: 'Trois notes, trois doigts : pouce, index, majeur. On monte, on redescend, bien régulier.',
+        demo: [[60, 1], [62, 1], [64, 2], [64, 1], [62, 1], [60, 2], [60, 1], [62, 1], [64, 1], [62, 1], [60, 4]],
+      },
+      {
+        id: '1-5', titre: 'Fa et sol',
+        texte: 'On ajoute l\'annulaire sur le fa et le petit doigt sur le sol. Garde la main bien ronde.',
+        demo: [[64, 1], [65, 1], [67, 2], [67, 1], [65, 1], [64, 2], [65, 1], [67, 1], [65, 1], [64, 1], [62, 1], [60, 3]],
+      },
+      {
+        id: '1-6', titre: 'Monter et descendre de do à sol',
+        texte: 'Les cinq doigts à la suite, sans regarder tes mains si tu peux. Écoute si les notes sont bien égales. Puis je fais pareil à la main gauche.',
+        demo: [[60, 1], [62, 1], [64, 1], [65, 1], [67, 1], [65, 1], [64, 1], [62, 1], [60, 2], [48, 1], [50, 1], [52, 1], [53, 1], [55, 2]],
+      },
     ],
     final: 'Au clair de la lune (main droite)',
   },
