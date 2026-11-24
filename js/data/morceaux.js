@@ -36,6 +36,18 @@ export const MORCEAUX = [
     texte: 'Rush E, version piano. Ça part sur des mi répétés, vite. Accroche-toi, je ne ralentis pas.',
     demo: rushEDemo(),
   },
+  {
+    id: 'axel-f',
+    titre: 'Axel F',
+    auteur: 'Crazy Frog / Harold Faltermeyer',
+    palier: 4,
+    type: 'actuel',
+    libre: true,
+    lecon: null,
+    tempo: 138,
+    texte: 'Axel F, la version Crazy Frog. Le riff commence sur le fa : fa, sol dièse, fa fa, la dièse. Main droite, au tempo du morceau.',
+    demo: axelFDemo(),
+  },
   { id: 'clair-de-lune', titre: 'Au clair de la lune', auteur: 'Traditionnel', palier: 1, type: 'classique', lecon: '1-7' },
   { id: 'ah-vous-dirai-je', titre: 'Ah ! vous dirai-je, maman', auteur: 'Traditionnel', palier: 2, type: 'classique', lecon: '2-3' },
   { id: 'frere-jacques', titre: 'Frère Jacques', auteur: 'Traditionnel', palier: 2, type: 'classique', lecon: '2-6' },
@@ -166,4 +178,28 @@ function rushEDemo() {
     [62, 0.5], [65, 0.25], [64, 0.25], [60, 0.5],
     [62, 0.5], [59, 0.25], [57, 0.25], [64, 0.5], [69, 2],
   ];
+}
+
+function axelFDemo() {
+  const riff = [
+    [65, 0.25], [68, 0.25], [65, 0.5], [65, 0.5], [70, 0.5], [65, 0.5], [63, 0.5], [65, 0.5],
+    [72, 0.5], [65, 0.5], [65, 0.5], [73, 0.5], [72, 0.5], [68, 0.5], [65, 0.5], [72, 0.5],
+    [65, 0.5], [65, 0.5], [63, 0.5], [63, 0.5], [60, 0.5], [67, 0.5], [65, 1],
+  ];
+  const arp = [
+    [65, 0.5], [69, 0.5], [72, 0.5], [65, 0.5], [69, 0.5], [72, 0.5],
+    [63, 0.5], [67, 0.5], [70, 0.5], [63, 0.5], [67, 0.5], [70, 0.5],
+    [62, 0.5], [65, 0.5], [70, 0.5], [62, 0.5], [65, 0.5], [70, 0.5],
+    [65, 0.5], [69, 0.5], [72, 1],
+  ];
+  const ding = [
+    [68, 0.5], [63, 0.5], [68, 0.5], [63, 0.5],
+    [68, 0.5], [63, 0.5], [68, 0.5], [63, 0.5],
+    [68, 0.5], [63, 0.5], [68, 0.5], [63, 0.5],
+    [68, 0.5], [63, 0.5], [68, 1],
+    [63, 0.5], [60, 0.5], [70, 0.5], [68, 0.5],
+    [70, 0.5], [72, 0.5], [75, 0.5], [72, 0.5],
+    [70, 0.5], [68, 0.5], [63, 1],
+  ];
+  return [...riff, ...riff, ...arp, ...riff, ...ding, ...riff, ...riff];
 }
