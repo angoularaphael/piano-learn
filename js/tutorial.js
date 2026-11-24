@@ -12,6 +12,7 @@ import { instrumentAt, freeRange, wholeOctaves } from './instrument.js';
 import { sameNote } from './listen.js';
 import { countUp } from './fx.js';
 import { tick } from './audio.js';
+import { createBacking } from './backing.js';
 import { fr, esc, DOIGTS } from './text.js';
 import { keepAwake } from './awake.js';
 import { Sheet } from './sheet.js';
@@ -115,6 +116,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
   let si = 0;
   let autoIdx = 0;
   let auto = [];
+  let backing = null;
   const timers = new Set();
   const fresh = [];
 
@@ -337,6 +339,7 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
       if (auto[autoIdx].start >= now - 0.01) playAuto(auto[autoIdx]);
       autoIdx++;
     }
+    if (mode === 'ecoute') backing?.update(target);
     // Rate une note qui est passee sans etre jouee (mode ecoute : rien a rater)
     now = target;
     hw.setTime(now);
@@ -368,9 +371,12 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     } else {
       next.innerHTML = '';
       piano.hideFinger();
+      if (backing) say('L’instru tourne derrière. Le piano est calé dessus.');
     }
     now = -3.2;
     lastCount = null;
+    backing?.stop();
+    backing = which === 'ecoute' ? createBacking(song.id, { bpm: (song.tempo || 90) * scale }) : null;
   }
 
   function stop() {
@@ -389,6 +395,8 @@ export function renderPlayer(app, songId, { lecon = null, palier = null } = {}) 
     listener?.stop();
     listener = null;
     listenBar.hidden = true;
+    backing?.stop();
+    backing = null;
     return was;
   }
 
