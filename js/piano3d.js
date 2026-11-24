@@ -74,7 +74,9 @@ export class Piano3D {
   #setup() {
     const mobile = window.innerWidth < 760;
     const r = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    r.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2));
+    this.maxDpr = Math.min(window.devicePixelRatio, mobile ? 1.5 : 1.75);
+    this.dpr = this.maxDpr;
+    r.setPixelRatio(this.dpr);
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 0.8;
@@ -97,7 +99,7 @@ export class Piano3D {
     const sun = new THREE.DirectionalLight('#ffffff', 0.9);
     sun.position.set(-8, 22, 14);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, far: 80 });
     sun.shadow.bias = -0.0005;
     scene.add(sun);
@@ -127,6 +129,7 @@ export class Piano3D {
     this.root = new THREE.Group();
     scene.add(this.root);
 
+    this.useBloom = true;
     this.bloom = createBloom(r, scene, this.camera, { strength: 0.6, radius: 0.45, threshold: 1.1 });
   }
 
@@ -151,12 +154,10 @@ export class Piano3D {
       const pivot = new THREE.Group();
       pivot.position.set(p.x - offset, 0, -WHITE.l / 2);
       const base = new THREE.Color(p.black ? '#0b0c14' : '#aab2c6');
-      const mat = new THREE.MeshPhysicalMaterial({
+      const mat = new THREE.MeshStandardMaterial({
         color: base.clone(),
-        roughness: p.black ? 0.22 : 0.3,
+        roughness: p.black ? 0.2 : 0.28,
         metalness: p.black ? 0.3 : 0,
-        clearcoat: 1,
-        clearcoatRoughness: 0.15,
         emissive: new THREE.Color('#000000'),
       });
       const mesh = new THREE.Mesh(p.black ? blackGeo : whiteGeo, mat);
@@ -186,7 +187,7 @@ export class Piano3D {
 
   #buildBody() {
     const W = this.width;
-    const body = new THREE.MeshPhysicalMaterial({ color: '#07080f', roughness: 0.15, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.05 });
+    const body = new THREE.MeshStandardMaterial({ color: '#07080f', roughness: 0.15, metalness: 0.6 });
     const neon = (c, k = 3) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) });
     const add = (geo, mat, x, y, z, shadow = true) => {
       const m = new THREE.Mesh(geo, mat);
@@ -286,6 +287,10 @@ export class Piano3D {
     if (!k || this.pressed.has(midi)) return;
     this.pressed.add(midi);
     k.glow = 1;
+    k.lit = true;
+    k.angle = k.black ? PRESS_ANGLE.black : PRESS_ANGLE.white;
+    k.pivot.rotation.x = k.angle;
+    k.mat.emissive.copy(this.colorFor(midi)).multiplyScalar(k.black ? 2.5 : 1.4);
     this.#paint(midi);
     const p = new THREE.Vector3(k.x, k.black ? 0.8 : 0.32, k.black ? -WHITE.l / 2 + 0.2 : -WHITE.l / 2 + 0.25);
     this.fx.start(midi, p, this.colorFor(midi), k.black ? 0.5 : 0.85);
@@ -384,12 +389,14 @@ export class Piano3D {
       const down = this.pressed.has(midi);
       const target = down ? (key.black ? PRESS_ANGLE.black : PRESS_ANGLE.white) : 0;
       if (Math.abs(key.angle - target) > 0.0001) {
-        key.angle += (target - key.angle) * k;
+        key.angle = down ? target : key.angle + (target - key.angle) * k;
         key.pivot.rotation.x = key.angle;
       }
       if (!down && key.glow > 0) key.glow = Math.max(0, key.glow - dt * 2.5);
-      const c = this.colorFor(midi);
-      key.mat.emissive.copy(c).multiplyScalar(key.glow * (key.black ? 2.5 : 1.4));
+      if (key.glow > 0 || key.lit) {
+        key.mat.emissive.copy(this.colorFor(midi)).multiplyScalar(key.glow * (key.black ? 2.5 : 1.4));
+        key.lit = key.glow > 0;
+      }
     }
     this.fx.update(dt);
     this.grid.material.opacity = 0.18 + Math.sin(t * 1.5) * 0.04;
@@ -399,7 +406,32 @@ export class Piano3D {
       this.camera.lookAt(this.camTarget);
     }
     this.frameHooks.forEach((fn) => fn(dt, t));
-    this.bloom.render();
+    if (this.useBloom) this.bloom.render();
+    else this.renderer.render(this.scene, this.camera);
+    this.#adapt(dt);
+  }
+
+  // Si l'appareil peine, on baisse la resolution, puis on coupe le halo.
+  // S'il est a l'aise, on remonte petit a petit.
+  #adapt(dt) {
+    this.frames = (this.frames || 0) + 1;
+    this.acc = (this.acc || 0) + dt;
+    if (this.frames < 40) return;
+    const ms = (this.acc / this.frames) * 1000;
+    this.frames = 0;
+    this.acc = 0;
+    if (ms > 24) {
+      if (this.dpr > 0.8) this.setDpr(this.dpr - 0.25);
+      else if (this.useBloom) this.useBloom = false;
+    } else if (ms < 14 && this.dpr < this.maxDpr) {
+      this.setDpr(Math.min(this.maxDpr, this.dpr + 0.25));
+    }
+  }
+
+  setDpr(v) {
+    this.dpr = v;
+    this.renderer.setPixelRatio(v);
+    this.resize();
   }
 
   dispose() {

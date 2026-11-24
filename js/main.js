@@ -201,12 +201,19 @@ function pageLecon(id) {
 function pageMorceaux() {
   const { lessonsDone } = getState();
   const cards = MORCEAUX.map((s, i) => {
-    const open = isUnlocked(s.palier - 1, lessonsDone);
+    const open = s.libre || isUnlocked(s.palier - 1, lessonsDone);
+    const done = s.lecon && lessonsDone[s.lecon];
     let seed = s.id.length * 7;
     const wave = Array.from({ length: 22 }, (_, k) => {
       seed = (seed * 9301 + 49297) % 233280;
       return `<i style="--h:${25 + (seed / 233280) * 75};--k:${k}"></i>`;
     }).join('');
+    const tagEtat = !open ? '<span class="tag grey">Bloqué</span>'
+      : s.libre ? '<span class="tag">Libre</span>'
+      : done ? '<span class="tag gold">Réussi</span>' : '';
+    const action = !open ? ''
+      : s.lecon ? `<a class="btn ghost song-go" href="#/lecon/${s.lecon}">Jouer avec le prof</a>`
+      : '<span class="hint">Notes bientôt disponibles</span>';
     return `
       <div class="card song ${open ? '' : 'locked'}" data-reveal style="--d:${(i % 3) * 100}ms">
         <div class="wave">${wave}</div>
@@ -215,8 +222,9 @@ function pageMorceaux() {
         <div class="meta">
           <span class="tag">Palier ${s.palier}</span>
           <span class="tag ${s.type === 'actuel' ? 'gold' : 'grey'}">${s.type === 'actuel' ? 'Actuel' : 'Classique'}</span>
-          ${open ? '' : '<span class="tag grey">Bloqué</span>'}
+          ${tagEtat}
         </div>
+        ${action}
       </div>`;
   }).join('');
   app.innerHTML = `

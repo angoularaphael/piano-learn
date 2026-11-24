@@ -92,9 +92,9 @@ export class Teacher {
       o.receiveShadow = true;
       o.frustumCulled = false;
       if (o.material.name.includes('Joints')) {
-        o.material = new THREE.MeshPhysicalMaterial({ color: '#0e1430', emissive: new THREE.Color('#3ef2ff'), emissiveIntensity: 0.22, roughness: 0.3, metalness: 0.4, clearcoat: 1 });
+        o.material = new THREE.MeshStandardMaterial({ color: '#0e1430', emissive: new THREE.Color('#3ef2ff'), emissiveIntensity: 0.22, roughness: 0.3, metalness: 0.4 });
       } else {
-        o.material = new THREE.MeshPhysicalMaterial({ color: '#9ea8c4', metalness: 0.2, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.1, iridescence: 0.6, iridescenceIOR: 1.4 });
+        o.material = new THREE.MeshStandardMaterial({ color: '#9ea8c4', metalness: 0.35, roughness: 0.3 });
       }
     });
 
@@ -117,7 +117,7 @@ export class Teacher {
     // Banc
     const floorY = piano.floorY;
     const seatY = this.hipsTarget.y - 3.6;
-    const benchMat = new THREE.MeshPhysicalMaterial({ color: '#07080f', roughness: 0.2, metalness: 0.5, clearcoat: 1 });
+    const benchMat = new THREE.MeshStandardMaterial({ color: '#07080f', roughness: 0.2, metalness: 0.5 });
     const bench = new THREE.Group();
     const top = new THREE.Mesh(new THREE.BoxGeometry(26, 2, 14), benchMat);
     top.position.y = seatY - 1;
@@ -135,16 +135,13 @@ export class Teacher {
     piano.root.add(bench);
     this.bench = bench;
 
-    // Eclairage du prof : douche de lumiere devant, liseré violet derriere
+    // Eclairage du prof : une douche de lumiere devant lui
     const spot = new THREE.SpotLight('#dfe8ff', 380, 160, 0.45, 0.7, 1.4);
     spot.position.set(-20, 70, -30);
     spot.target.position.set(0, 0, 16);
-    const rim = new THREE.PointLight('#8b5cff', 140, 70, 1.6);
-    rim.position.set(14, 30, 40);
-    bench.add(spot, spot.target, rim);
+    bench.add(spot, spot.target);
     spot.position.z -= bench.position.z;
     spot.target.position.z -= bench.position.z;
-    rim.position.z -= bench.position.z;
 
     // Etat des mains : position du poignet et appui de chaque doigt
     const mk = (side) => ({
@@ -322,7 +319,7 @@ export class Teacher {
 
     // Poignet sur sa cible
     const wristWorld = root.localToWorld(hand.wrist.clone());
-    ccd([b[`${S}ForeArm`], b[`${S}Arm`]], b[`${S}Hand`], wristWorld, 14);
+    ccd([b[`${S}ForeArm`], b[`${S}Arm`]], b[`${S}Hand`], wristWorld, 8);
 
     // Main a plat, doigts vers le clavier
     const side = new THREE.Vector3(S === 'Right' ? 1 : -1, 0, 0);
@@ -350,7 +347,7 @@ export class Teacher {
       const tip = wpos(f4, new THREE.Vector3());
       // Les doigts au repos ne vont pas plus bas que leur hauteur naturelle
       if (p < 0.02 && tip.y > tgt.y) return;
-      ccd([f3, f2, f1], f4, tgt, 6, 0.5);
+      ccd([f3, f2, f1], f4, tgt, p > 0.02 ? 5 : 2, 0.5);
     });
   }
 

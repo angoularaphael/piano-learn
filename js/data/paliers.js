@@ -36,6 +36,15 @@ export const PALIERS = [
         texte: 'Les cinq doigts à la suite, sans regarder tes mains si tu peux. Écoute si les notes sont bien égales. Puis je fais pareil à la main gauche.',
         demo: [[60, 1], [62, 1], [64, 1], [65, 1], [67, 1], [65, 1], [64, 1], [62, 1], [60, 2], [48, 1], [50, 1], [52, 1], [53, 1], [55, 2]],
       },
+      {
+        id: '1-7', titre: 'Morceau : Au clair de la lune',
+        texte: 'Ton premier vrai morceau ! Deux fois la même phrase, puis une phrase qui descend plus bas : ma main va glisser vers la gauche, suis-la.',
+        demo: [
+          [60, 1], [60, 1], [60, 1], [62, 1], [64, 2], [62, 2], [60, 1], [64, 1], [62, 1], [62, 1], [60, 4],
+          [62, 1], [62, 1], [62, 1], [62, 1], [57, 2], [57, 2], [62, 1], [60, 1], [59, 1], [57, 1], [55, 4],
+          [60, 1], [60, 1], [60, 1], [62, 1], [64, 2], [62, 2], [60, 1], [64, 1], [62, 1], [62, 1], [60, 4],
+        ],
+      },
     ],
     final: 'Au clair de la lune (main droite)',
   },
@@ -44,11 +53,41 @@ export const PALIERS = [
     titre: 'Premières mélodies',
     resume: 'Enchaîner les notes main droite, jouer lié, sans s\'arrêter.',
     lecons: [
-      { id: '2-1', titre: 'Jouer lié' },
-      { id: '2-2', titre: 'Sauter une note' },
-      { id: '2-3', titre: 'Petites phrases' },
-      { id: '2-4', titre: 'Jouer sans regarder ses mains' },
-      { id: '2-5', titre: 'Jouer en rythme avec le prof' },
+      {
+        id: '2-1', titre: 'Jouer lié',
+        texte: 'Jouer lié, c\'est ne lever un doigt qu\'au moment où le suivant appuie. Les notes se tiennent la main, sans trou entre elles.',
+        demo: [[60, 1], [62, 1], [64, 1], [65, 1], [67, 2], [65, 1], [64, 1], [62, 1], [60, 2], [64, 1], [65, 1], [67, 1], [65, 1], [64, 4]],
+      },
+      {
+        id: '2-2', titre: 'Sauter une note',
+        texte: 'Maintenant on saute une touche : do-mi, ré-fa, mi-sol. La main ne bouge pas, ce sont les doigts qui choisissent.',
+        demo: [[60, 1], [64, 1], [62, 1], [65, 1], [64, 1], [67, 2], [67, 1], [64, 1], [65, 1], [62, 1], [64, 1], [60, 2]],
+      },
+      {
+        id: '2-3', titre: 'Petites phrases',
+        texte: 'Une vraie petite phrase : « Ah ! vous dirai-je, maman ». Au la, ma main se décale d\'une touche, regarde bien.',
+        demo: [[60, 1], [60, 1], [67, 1], [67, 1], [69, 1], [69, 1], [67, 2], [65, 1], [65, 1], [64, 1], [64, 1], [62, 1], [62, 1], [60, 2]],
+      },
+      {
+        id: '2-4', titre: 'Jouer sans regarder ses mains',
+        texte: 'Essaie de regarder l\'écran et pas tes mains. Tes doigts savent déjà où sont mi, ré et do. Fais-leur confiance.',
+        demo: [[64, 1], [62, 1], [60, 1], [62, 1], [64, 1], [64, 1], [64, 2], [62, 1], [62, 1], [62, 2], [64, 1], [67, 1], [67, 2]],
+      },
+      {
+        id: '2-5', titre: 'Jouer en rythme avec le prof',
+        texte: 'Des notes longues et des notes courtes. Compte dans ta tête : les longues durent deux temps, la dernière quatre.',
+        demo: [[60, 2], [62, 1], [64, 1], [65, 2], [64, 2], [62, 1], [62, 1], [60, 4]],
+      },
+      {
+        id: '2-6', titre: 'Morceau : Frère Jacques',
+        texte: 'Frère Jacques en entier. La troisième phrase va vite, et la dernière descend jusqu\'au sol grave : ma main s\'adapte, fais pareil.',
+        demo: [
+          [60, 1], [62, 1], [64, 1], [60, 1], [60, 1], [62, 1], [64, 1], [60, 1],
+          [64, 1], [65, 1], [67, 2], [64, 1], [65, 1], [67, 2],
+          [67, 0.5], [69, 0.5], [67, 0.5], [65, 0.5], [64, 1], [60, 1], [67, 0.5], [69, 0.5], [67, 0.5], [65, 0.5], [64, 1], [60, 1],
+          [60, 1], [55, 1], [60, 2], [60, 1], [55, 1], [60, 2],
+        ],
+      },
     ],
     final: 'Frère Jacques',
   },
