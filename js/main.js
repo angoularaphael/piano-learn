@@ -12,6 +12,7 @@ import { BADGES } from './data/badges.js';
 import { instrumentAt, unlocksOf, STAGES } from './instrument.js';
 import { playGate, pageTransition, observeReveals, countUp } from './fx.js';
 import { createHeroScene } from './hero-scene.js';
+import { createHeroStage } from './hero-stage.js';
 import { renderLesson } from './lesson.js';
 import { renderPlayer } from './tutorial.js';
 import { renderBilan, needsBilan } from './bilan.js';
@@ -202,17 +203,30 @@ function pageAccueil(_, { entered }) {
     return `<li class="${open ? '' : 'locked'} ${s.complete ? 'done' : ''} ${here ? 'current' : ''}" data-reveal style="--d:${i * 50}ms">${open && target ? `<a href="#/lecon/${target.id}">${row}</a>` : `<span>${row}</span>`}</li>`;
   }).join('');
   app.innerHTML = `
-    <section class="cover">
-      <div class="cover-top" data-reveal><span>${t('Méthode de piano en huit paliers')}</span><span>${t('pour débuter, ou pour reprendre')}</span></div>
-      <h1 data-split>${t('Apprends le piano, <em data-pencil="under">une touche</em> après l’autre')}</h1>
+    <section class="hero">
+      <div class="hero-stage" id="hero-stage"></div>
+      <div class="hero-content">
+        <div class="eyebrow" data-reveal>${t('Méthode de piano en huit paliers')}</div>
+        <h1 data-split>${t('Apprends le piano, <em data-pencil="under">une touche</em> après l’autre')}</h1>
+        <p class="lead" data-reveal style="--d:220ms">${fr(t('Le prof te montre sur son piano, tu rejoues sur le tien. Le site t’écoute, te dit si c’est juste, et ton instrument grandit avec toi.'))}</p>
+        <div class="hero-actions" data-reveal style="--d:320ms">
+          ${started && nxt ? `<a href="#/lecon/${nxt.lecon.id}" class="btn">${t('Reprendre : {titre}', { titre: esc(nxt.lecon.titre) })}</a>` : `<a href="${needsBilan() ? '#/bilan' : '#/lecon/1-1'}" class="btn">${t('Commencer')}</a>`}
+          <a href="#/piano" class="btn ghost">${started ? t('Mon piano') : t('Essayer le piano')}</a>
+        </div>
+      </div>
+      <div class="hero-hint" aria-hidden="true">${hover ? t('Passe sur les touches') : t('Touche le clavier')}</div>
+    </section>
+
+    ${started ? todayCard() : ''}
+
+    <section class="section cover-band">
+      <div class="section-head">
+        <div><div class="eyebrow" data-reveal>${t('Ton clavier')}</div><h2 data-split>${t('Chaque note apprise <em>s’encre pour de bon</em>')}</h2></div>
+      </div>
       <div class="cover-grid">
         <div class="cover-text">
-          <p class="lead" data-reveal style="--d:220ms">${fr(t('Le prof te montre sur son piano, tu rejoues sur le tien. Le site t’écoute, te dit si c’est juste, et ton instrument grandit avec toi.'))}</p>
-          <div class="hero-actions" data-reveal style="--d:320ms">
-            ${started && nxt ? `<a href="#/lecon/${nxt.lecon.id}" class="btn">${t('Reprendre : {titre}', { titre: esc(nxt.lecon.titre) })}</a>` : `<a href="${needsBilan() ? '#/bilan' : '#/lecon/1-1'}" class="btn">${t('Commencer')}</a>`}
-            <a href="#/piano" class="btn ghost">${started ? t('Mon piano') : t('Essayer le piano')}</a>
-          </div>
-          <dl class="cover-facts" data-reveal style="--d:420ms">
+          <p class="lead" data-reveal>${fr(t('Ton clavier commence au crayon. Chaque touche que tu apprends s’encre, ivoire et ébène, et le reste.'))}</p>
+          <dl class="cover-facts" data-reveal style="--d:120ms">
             ${[
               [PALIERS.length, t('paliers')],
               [PALIERS.reduce((n, p) => n + p.lecons.length, 0), t('leçons avec le prof')],
@@ -227,8 +241,6 @@ function pageAccueil(_, { entered }) {
         </figure>
       </div>
     </section>
-
-    ${started ? todayCard() : ''}
 
     <section class="section">
       <div class="section-head">
@@ -283,10 +295,11 @@ function pageAccueil(_, { entered }) {
     </section>
     ${footer()}
   `;
-  const hero = createHeroScene(document.getElementById('hero-canvas'), { unfold: entered, known });
+  const stage = createHeroStage(document.getElementById('hero-stage'), { unfold: entered });
+  const hero = createHeroScene(document.getElementById('hero-canvas'), { unfold: false, known });
   bindToday();
   countUp(app);
-  return () => { hero.dispose(); app.classList.remove('full'); };
+  return () => { stage.dispose(); hero.dispose(); app.classList.remove('full'); };
 }
 
 function footer() {

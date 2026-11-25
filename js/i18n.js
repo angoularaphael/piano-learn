@@ -17,12 +17,10 @@ let current = null;
 
 export function lang() {
   if (current) return current;
+  // Le site est en francais par defaut, quelle que soit la langue du navigateur ; l'anglais se choisit
+  // dans les reglages (Langue · Language) et reste choisi
   const chosen = getSettings().langue;
-  if (chosen === 'fr' || chosen === 'en') current = chosen;
-  else {
-    const nav = (navigator.languages?.[0] || navigator.language || 'fr').toLowerCase();
-    current = nav.startsWith('fr') ? 'fr' : 'en';
-  }
+  current = chosen === 'en' ? 'en' : 'fr';
   return current;
 }
 

@@ -313,7 +313,6 @@ export const EN_PAGES = {
   '{done} leçons sur {total}': '{done} of {total} lessons',
   'après le palier {n}': 'after level {n}',
   'Méthode de piano en huit paliers': 'A piano method in eight levels',
-  'pour débuter, ou pour reprendre': 'for beginners, and for coming back',
   'Apprends le piano, <em data-pencil="under">une touche</em> après l’autre': 'Learn piano <em data-pencil="under">one key</em> at a time',
   'Planche I.': 'Plate I.',
   'Le prof joue l’exercice lentement sur son piano. Tu vois ses doigts, et chaque touche jouée prend la couleur de sa main.': 'They play the exercise slowly on their piano. You watch their fingers, and every key they play takes the colour of their hand.',
@@ -331,4 +330,9 @@ export const EN_PAGES = {
   'Nuit': 'Night',
   'Clair': 'Light',
   'Nuit, le bleu de l’agence EAM ; Clair, pour les appareils réglés en mode clair. Par défaut, le site suit ton appareil.': 'Night is the blue of the EAM agency; Light suits devices set to light mode. By default, the site follows your device.',
+  'Passe sur les touches': 'Glide over the keys',
+  'Touche le clavier': 'Touch the keys',
+  'Ton clavier': 'Your keyboard',
+  'Chaque note apprise <em>s’encre pour de bon</em>': 'Every note you learn <em>is inked for good</em>',
+  'Ton clavier commence au crayon. Chaque touche que tu apprends s’encre, ivoire et ébène, et le reste.': 'Your keyboard starts in pencil. Every key you learn is inked in ivory and ebony, and stays that way.',
 };

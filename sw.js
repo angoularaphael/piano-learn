@@ -4,7 +4,7 @@
 // La liste et la version sont regenerees par tools/precache.py.
 
 // PRECACHE-START
-const VERSION = 'pl-app-59d61dafe5';
+const VERSION = 'pl-app-eb2243d23f';
 const PRECACHE = [
   './',
   'css/fonts.css',
@@ -42,6 +42,7 @@ const PRECACHE = [
   'js/fx.js',
   'js/grand.js',
   'js/hero-scene.js',
+  'js/hero-stage.js',
   'js/highway.js',
   'js/i18n.js',
   'js/i18n/en-pages.js',
@@ -53,6 +54,7 @@ const PRECACHE = [
   'js/main.js',
   'js/midi.js',
   'js/mount.js',
+  'js/note-fx.js',
   'js/notes.js',
   'js/palette.js',
   'js/piano3d.js',

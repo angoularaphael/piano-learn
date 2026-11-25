@@ -321,11 +321,35 @@ kbd { font-family: var(--sans); font-size: .78em; font-weight: 700; padding: .08
 .caption { display: flex; gap: .8rem; align-items: baseline; margin: .7rem 0 0; font-size: .88rem; color: var(--muted); }
 .caption b { font-family: var(--serif); font-style: italic; font-weight: 400; color: var(--ink); font-size: 1rem; white-space: nowrap; }
 
-/* ---------- Accueil : la page de titre d'une methode ---------- */
-.cover { max-width: 1180px; margin: 0 auto; padding: clamp(2rem, 6vw, 4.5rem) clamp(1rem, 4vw, 2rem) 0; }
-.cover-top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; border-bottom: 1px solid var(--ink); padding-bottom: .7rem; margin-bottom: clamp(1.6rem, 4vw, 2.6rem); font-size: .78rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
-.cover-top span:last-child { font-family: var(--serif); font-style: italic; font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 1rem; }
-.cover h1 { max-width: 19ch; margin-bottom: .45em; font-size: clamp(2.5rem, 6.2vw, 5.6rem); line-height: 1.1; }
+/* ---------- Accueil : l'ouverture, un clavier qui flotte dans la nuit ---------- */
+.hero { position: relative; min-height: calc(100svh - 66px); display: flex; align-items: flex-end; overflow: hidden; border-bottom: 1px solid var(--rule); }
+.hero-stage { position: absolute; inset: 0; z-index: 0; }
+.hero-stage canvas { display: block; width: 100%; height: 100%; }
+/* La scene se fond dans la page vers le bas et a gauche : le texte reste lisible, sans encadre */
+.hero::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to top, var(--paper) 0%, rgb(var(--paper-rgb) / .82) 24%, rgb(var(--paper-rgb) / 0) 60%),
+              linear-gradient(to right, rgb(var(--paper-rgb) / .7) 0%, rgb(var(--paper-rgb) / 0) 52%);
+}
+.hero-content { position: relative; z-index: 2; width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2rem) clamp(2.5rem, 8vh, 5rem); pointer-events: none; }
+.hero-content a, .hero-content button { pointer-events: auto; }
+.hero-content h1 { max-width: 13ch; font-size: clamp(2.7rem, 7vw, 6rem); line-height: 1.06; margin-bottom: .4em; }
+.hero-content .lead { max-width: 46ch; }
+.hero-hint {
+  position: absolute; right: clamp(1rem, 4vw, 3rem); bottom: 2.4rem; z-index: 2; pointer-events: none;
+  font-size: .64rem; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: var(--muted);
+  writing-mode: vertical-rl; display: flex; align-items: center; gap: .8rem;
+}
+.hero-hint::after { content: ""; width: 1px; height: 60px; background: var(--red); transform-origin: top; animation: hint-drip 2.2s var(--ease) infinite; }
+@keyframes hint-drip { 0% { transform: scaleY(0); opacity: 1; } 70% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+@media (max-width: 760px) {
+  .hero { min-height: calc(100svh - 104px); }
+  .hero-hint { display: none; }
+  .hero::after { background: linear-gradient(to top, var(--paper) 0%, rgb(var(--paper-rgb) / .86) 38%, rgb(var(--paper-rgb) / 0) 72%); }
+}
+@media (prefers-reduced-motion: reduce) { .hero-hint::after { animation: none; } }
+
+/* La bande « Ton clavier » : la planche au crayon et le contenu de la methode */
 .cover-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.4fr); gap: clamp(1.5rem, 5vw, 4rem); align-items: start; }
 .cover-text .lead { margin-bottom: 1.6rem; }
 /* Le contenu de la methode, en chiffres : comme la page de garde d'une edition */
@@ -349,7 +373,6 @@ kbd { font-family: var(--sans); font-size: .78em; font-weight: 700; padding: .08
   .cover-text .lead { margin-bottom: 0; }
   .cover-figure { order: 2; }
   .cover-facts { order: 3; margin-top: 0; }
-  .cover-top { flex-direction: column; align-items: flex-start; gap: .15rem; letter-spacing: .12em; }
 }
 
 .section { max-width: 1180px; margin: 0 auto; padding: clamp(3rem, 8vw, 6rem) clamp(1rem, 4vw, 2rem) 0; }

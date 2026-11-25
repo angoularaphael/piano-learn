@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS = {
   entree: null,      // acoustique | numerique | ecran
   affichage: null,   // notes | mix | partition (morceaux)
   rappel: '18:30',   // heure du rappel quotidien (fichier calendrier)
-  langue: null,      // fr | en (null = celle du navigateur)
+  langue: null,      // fr | en (null = francais, la langue par defaut du site)
   theme: 'auto',     // couleurs : auto (suit l'appareil), nuit ou studio (js/palette.js)
   prof: 'femme',     // le prof 3D : femme | homme
 };

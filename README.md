@@ -3,7 +3,7 @@
 Site pour apprendre le piano à la maison avec un prof en 3D. Le prof montre, on rejoue sur son vrai piano
 (le site écoute au micro), et l'instrument grandit avec l'élève : un clavier esquissé au crayon au début
 (chaque note apprise s'encre), un vrai clavier au palier 3, un piano à queue au palier 6, une salle de concert au palier 8.
-En français et en anglais. Aucun compte, aucun serveur : tout reste sur l'appareil, et le site marche hors ligne.
+En français par défaut, et en anglais (au choix dans les réglages). Aucun compte, aucun serveur : tout reste sur l'appareil, et le site marche hors ligne.
 
 Lancer en local (sans cache navigateur, pour toujours voir la dernière version) :
 
@@ -16,7 +16,9 @@ Le plan complet est dans PLAN.md.
 ## Comment c'est construit
 
 - `js/main.js` : routeur et pages (accueil en page de titre, séance du jour, parcours, mon piano et son studio, morceaux, profil, réglages).
-- `js/hero-scene.js` : la planche de l'accueil, un clavier dessiné au crayon en vraie perspective (Canvas 2D) qui s'encre quand on le joue.
+- `js/hero-stage.js` + `js/note-fx.js` : l'ouverture de l'accueil, plein écran : un clavier de concert qui flotte dans la nuit,
+  ondule et joue tout seul la Lettre à Élise ; les touches jouées s'allument d'or, des colonnes de lumière montent, on joue en passant dessus.
+- `js/hero-scene.js` : la planche « Ton clavier », un clavier dessiné au crayon en vraie perspective (Canvas 2D) qui s'encre quand on le joue.
 - `css/style.css` + `js/palette.js` : deux palettes, Nuit (bleu nuit, ivoire et or d'EAM, par défaut) et Clair (gris clair,
   noir, orange) pour les appareils en mode clair ; le réglage « Couleurs » suit l'appareil ou force l'une des deux.
   La 3D, le rouleau et les dessins suivent la palette ; le certificat reste imprimable.
