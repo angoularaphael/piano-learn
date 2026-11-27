@@ -36,7 +36,8 @@ for (const [S, s] of [['Left', 'L'], ['Right', 'R']]) {
 
 // Les expressions : chaque humeur est un melange de formes du visage
 export const MOODS = {
-  idle: { AK_44_MouthSmileLeft: 0.14, AK_45_MouthSmileRight: 0.14 },
+  // Au repos : un sourire a peine, les paupieres detendues (grands ouverts, ses yeux fixaient l'eleve)
+  idle: { AK_44_MouthSmileLeft: 0.2, AK_45_MouthSmileRight: 0.2, AK_19_EyeSquintLeft: 0.12, AK_20_EyeSquintRight: 0.12, AK_07_CheekSquintLeft: 0.08, AK_08_CheekSquintRight: 0.08 },
   focus: { AK_01_BrowDownLeft: 0.22, AK_02_BrowDownRight: 0.22, AK_19_EyeSquintLeft: 0.18, AK_20_EyeSquintRight: 0.18, AK_36_MouthPressLeft: 0.2, AK_37_MouthPressRight: 0.2 },
   happy: { AK_44_MouthSmileLeft: 0.78, AK_45_MouthSmileRight: 0.78, AK_07_CheekSquintLeft: 0.45, AK_08_CheekSquintRight: 0.45, AK_19_EyeSquintLeft: 0.28, AK_20_EyeSquintRight: 0.28 },
   sorry: { AK_03_BrowInnerUp: 0.7, AK_30_MouthFrownLeft: 0.32, AK_31_MouthFrownRight: 0.32, AK_44_MouthSmileLeft: 0.12, AK_45_MouthSmileRight: 0.12 },
@@ -110,6 +111,28 @@ function setup(scene, choice) {
     m.metalness = 0;
     m.envMapIntensity = 0.85;
   });
+
+  // Cheveux, cils et sourcils en deux passes, comme dans les jeux : d'abord le coeur des meches, decoupe
+  // net et ecrit dans la profondeur ; puis leurs bords et leurs pointes, fondus par-dessus. Avec un seul
+  // seuil, les meches sortaient en escalier et leurs pointes fines etaient coupees net.
+  for (const m of meshes.filter((o) => /opacity/i.test(o.material.name))) {
+    m.material.alphaTest = 0.5;
+    const soft = m.material.clone();
+    soft.transparent = true;
+    soft.alphaTest = 0.04;
+    soft.alphaToCoverage = false;
+    soft.depthWrite = false;
+    const edge = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, soft) : new THREE.Mesh(m.geometry, soft);
+    if (m.isSkinnedMesh) edge.bind(m.skeleton, m.bindMatrix);
+    // Les memes expressions que la passe du dessous : les cils clignent ensemble
+    edge.morphTargetDictionary = m.morphTargetDictionary;
+    edge.morphTargetInfluences = m.morphTargetInfluences;
+    edge.name = `${m.name}-pointes`;
+    edge.frustumCulled = false;
+    edge.renderOrder = 1;
+    edge.userData.noShadow = true;
+    m.add(edge);
+  }
   const morphs = meshes.filter((m) => m.morphTargetDictionary);
   const names = morphs.length ? Object.keys(morphs[0].morphTargetDictionary) : [];
   const setMorph = (name, v) => {

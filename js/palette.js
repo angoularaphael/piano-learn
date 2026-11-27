@@ -15,6 +15,7 @@ export const THEMES = {
     paper: '#08101d', paperHi: '#0f1a2c', ink: '#f3eee4', muted: '#919cb0',
     right: '#c9a96e', left: '#8dbdf2', ok: '#6fc28f', graphite: '#8a95a8', brass: '#c9a96e',
     studio: '#0a1322', floor: '#0f1b2e',
+    desk: '#6b4a33', deskGrain: '#2a1a10',   // la table du clavier de papier : noyer
     // Lumiere du studio 3D : ciel, sol, intensite ; soleil ; reflets ; lumieres de scene (hors piano a queue)
     light: { sky: '#eef3ff', ground: '#0a1120', hemi: 0.45, sun: 1.5, env: 0.32, warm: 160, rim: 340, fill: 34 },
   },
@@ -25,6 +26,7 @@ export const THEMES = {
     // brass : le laiton des pianos 3D (un metal). Le CSS imprime un or plus fonce (#7a5f2e) pour le texte.
     right: '#ef4d12', left: '#2457d6', ok: '#1d8049', graphite: '#67655f', brass: '#9a7b3f',
     studio: '#e2e1dd', floor: '#e8e7e3',
+    desk: '#cdb08a', deskGrain: '#8d6c46',   // chene clair
     light: { sky: '#ffffff', ground: '#c9c8c3', hemi: 1.1, sun: 1.65, env: 0.45, warm: 0, rim: 0, fill: 0 },
   },
 };

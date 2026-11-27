@@ -70,6 +70,40 @@ function planarUV(geo, scale) {
 
 // Les hachures au crayon d'une noire pas encore apprise : des traits de mine a 45 degres sur le papier
 let HATCH = null;
+// Le plateau de la table : trois lames de bois, la veine dans la longueur, un ton par lame
+function woodTexture(base, grain) {
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 512;
+  const g = c.getContext('2d');
+  g.fillStyle = base;
+  g.fillRect(0, 0, 1024, 512);
+  for (let b = 0; b < 3; b++) {
+    g.fillStyle = `rgba(0, 0, 0, ${[0.0, 0.06, 0.03][b]})`;
+    g.fillRect(0, (b * 512) / 3, 1024, 512 / 3);
+    g.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    g.fillRect(0, (b * 512) / 3, 1024, 1.5);
+  }
+  g.strokeStyle = grain;
+  for (let i = 0; i < 260; i++) {
+    const y0 = Math.random() * 512;
+    const k = 0.003 + Math.random() * 0.006;
+    const ph = Math.random() * 6.3;
+    const amp = 1 + Math.random() * 5;
+    g.globalAlpha = 0.05 + Math.random() * 0.16;
+    g.lineWidth = 0.5 + Math.random() * 1.7;
+    g.beginPath();
+    g.moveTo(0, y0);
+    for (let x = 0; x <= 1024; x += 16) g.lineTo(x, y0 + Math.sin(x * k + ph) * amp + Math.sin(x * k * 3.7) * amp * 0.25);
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
 function hatchTexture() {
   if (HATCH) return HATCH;
   const c = document.createElement('canvas');
@@ -544,11 +578,14 @@ export class Piano3D {
     const ink = (c = '#1c1814') => new THREE.MeshBasicMaterial({ color: new THREE.Color(c) });
 
     if (this.stage === 'lumiere') {
-      // L'esquisse : le clavier dessine sur une feuille, deux traits d'encre pour le cadre
+      // L'esquisse : le clavier dessine sur une feuille, deux traits d'encre pour le cadre. La feuille
+      // est posee sur une table : le premier clavier de beaucoup de pianistes est en papier, sur une table
+      const sheetW = W + 2.2;
       const sheet = new THREE.MeshLambertMaterial({ color: '#f6f1e6' });
-      add(new RoundedBoxGeometry(W + 2.2, 0.12, WHITE.l + 2.4, 2, 0.04), sheet, 0, -0.42, 0.25);
+      add(new RoundedBoxGeometry(sheetW, 0.12, WHITE.l + 2.4, 2, 0.04), sheet, 0, -0.42, 0.25);
       add(new THREE.BoxGeometry(W + 0.8, 0.03, 0.035), ink(), 0, -0.34, WHITE.l / 2 + 0.4, false);
       add(new THREE.BoxGeometry(W + 0.8, 0.03, 0.035), ink(), 0, -0.34, -WHITE.l / 2 - 0.45, false);
+      this.#buildDesk(add, sheetW, floorLevel);
     } else {
       const body = new THREE.MeshStandardMaterial({ color: '#17120f', roughness: 0.3, metalness: 0.1 });
       // Feutre rouge derriere les touches, comme sur un vrai piano
@@ -570,6 +607,55 @@ export class Piano3D {
       }
     }
     this.#applyAtmosphere();
+  }
+
+  // La table du clavier de papier, a l'echelle du prof (une unite = 2,35 cm : 72 cm de haut, 1,20 m de
+  // large). Quatre pieds et une ceinture sur les cotes et au fond seulement : les genoux passent dessous,
+  // comme a un bureau. A droite de la feuille, le crayon qui l'a dessinee.
+  #buildDesk(add, sheetW, floorY) {
+    this.deskTex ||= woodTexture(PAL.desk, PAL.deskGrain);
+    const top = new THREE.MeshStandardMaterial({ map: this.deskTex, roughness: 0.46, metalness: 0 });
+    const wood = new THREE.MeshStandardMaterial({ color: new THREE.Color(PAL.desk).multiplyScalar(0.82), roughness: 0.55, metalness: 0 });
+    const deskW = Math.max(sheetW + 20, 51);
+    const front = 6;
+    const depth = 25.5;
+    const thick = 1.1;
+    const back = front - depth;
+    add(new RoundedBoxGeometry(deskW, thick, depth, 2, 0.2), top, 0, -0.48 - thick / 2, front - depth / 2);
+    const legTop = -0.48 - thick;
+    const legH = legTop - floorY;
+    if (legH > 0.5) {
+      const leg = new THREE.BoxGeometry(1.9, legH, 1.9);
+      for (const x of [-deskW / 2 + 1.7, deskW / 2 - 1.7]) {
+        for (const z of [front - 1.7, back + 1.7]) add(leg, wood, x, legTop - legH / 2, z);
+      }
+      const apron = Math.min(2.6, legH * 0.5);
+      for (const x of [-deskW / 2 + 1.7, deskW / 2 - 1.7]) add(new THREE.BoxGeometry(0.7, apron, depth - 5), wood, x, legTop - apron / 2, front - depth / 2);
+      add(new THREE.BoxGeometry(deskW - 5, apron, 0.7), wood, 0, legTop - apron / 2, back + 1.7);
+    }
+
+    // Le crayon : peint dans la couleur des traits du site, bois taille, mine, virole de laiton, gomme
+    const len = 7.4;
+    const r = 0.17;
+    const mat = (color, roughness, metalness = 0) => new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness, metalness });
+    const parts = [
+      [new THREE.CylinderGeometry(r, r, len * 0.76, 6), mat(PAL.right, 0.26, PAL.dark ? 0.45 : 0.1), 0],
+      [new THREE.ConeGeometry(r, len * 0.13, 6), mat('#dcbd93', 0.85), len * 0.38 + len * 0.065],
+      [new THREE.ConeGeometry(r * 0.32, len * 0.042, 6), mat('#2b2a28', 0.4, 0.35), len * 0.38 + len * 0.13 - len * 0.021],
+      [new THREE.CylinderGeometry(r * 1.04, r * 1.04, len * 0.07, 16), mat(PAL.brass, 0.32, 0.9), -len * 0.38 - len * 0.035],
+      [new THREE.CylinderGeometry(r * 0.96, r * 0.96, len * 0.05, 16), mat('#c4877a', 0.9), -len * 0.38 - len * 0.07 - len * 0.025],
+    ];
+    const pencil = new THREE.Group();
+    for (const [geo, m, y] of parts) {
+      const mesh = new THREE.Mesh(geo, m);
+      mesh.position.y = y;            // couche, une face de l'hexagone repose a plat sur la table
+      mesh.castShadow = this.shadows;
+      mesh.receiveShadow = this.shadows;
+      pencil.add(mesh);
+    }
+    pencil.rotation.set(0, -0.42, Math.PI / 2);
+    pencil.position.set(sheetW / 2 + 4.2, -0.48 + r * Math.cos(Math.PI / 6), 1.2);
+    this.bodyGroup.add(pencil);
   }
 
   // L'ambiance suit l'instrument : le studio de papier, puis la lumiere de scene pour le piano a queue
@@ -912,7 +998,7 @@ export class Piano3D {
       // clavier masquait la moitie de l'image quand il jouait : d'ici elle reste hors du cadre, meme la sienne).
       // Jamais plus d'une trentaine de touches : pour cadrer les 88 du piano a queue, la camera reculait
       // jusque derriere sa tete.
-      hands: { dir: [0.42, 0.9, 0.18], target: [center - 0.8, 1.2, 3.2], d: fit(Math.min(width, 30) + 3) * 1.12 },
+      hands: { dir: [0.5, 0.9, 0.12], target: [center - 0.8, 1.2, 3.2], d: fit(Math.min(width, 30) + 3) * 1.12 },
       // Les notes arrivent du fond : le clavier en bas, la piste qui monte vers l'horizon
       highway: { dir: [0, 1.1, 1], target: [center, 0, -6.5], d: Math.max(22, fit(width + 4) * 1.3) },
       grand: { dir: [-0.7, 0.55, 0.95], target: [0, -9, -grandDepth * 0.38], d: Math.max(fit(width + 16), grandDepth * 1.55) },
@@ -1049,7 +1135,10 @@ export class Piano3D {
       this.camera.lookAt(this.camTarget);
     }
     this.frameHooks.forEach((fn) => fn(dt, t));
-    if (bloomAllowed()) this.bloom.render();
+    // Le halo ne passe que quand l'ambiance en met (la scene de concert) : au seuil de 3 des lecons, il
+    // ne touchait qu'un reflet du couvercle. Sinon l'image va droit a l'ecran, avec l'anticrenelage natif
+    // de la carte graphique : plus net que tout lissage apres coup, et il adoucit les pointes des cheveux.
+    if (bloomAllowed() && this.bloom.bloom.threshold < 2.5) this.bloom.render();
     else this.renderer.render(this.scene, this.camera);
   }
 
@@ -1074,6 +1163,7 @@ export class Piano3D {
     detach(this);
     this.bloom.dispose();
     this.#clearBody();
+    this.deskTex?.dispose();
     for (const k of this.keys.values()) {
       k.mat.dispose();
       k.edgeMat.dispose();
