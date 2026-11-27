@@ -105,6 +105,9 @@ function setup(scene, choice) {
     } else {
       m.roughness = Math.max(m.roughness, 0.58);
     }
+    // Le fichier ne dit rien du metal, et glTF vaut alors 1 : la peau devenait du cuivre poli
+    // (teint orange, facettes du visage visibles, tissus noirs sans aucune lumiere). Rien n'est metal ici.
+    m.metalness = 0;
     m.envMapIntensity = 0.85;
   });
   const morphs = meshes.filter((m) => m.morphTargetDictionary);

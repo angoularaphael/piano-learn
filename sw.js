@@ -4,7 +4,7 @@
 // La liste et la version sont regenerees par tools/precache.py.
 
 // PRECACHE-START
-const VERSION = 'pl-app-eb2243d23f';
+const VERSION = 'pl-app-55bdf37906';
 const PRECACHE = [
   './',
   'css/fonts.css',

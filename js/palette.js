@@ -22,6 +22,7 @@ export const THEMES = {
     nom: { fr: 'Clair', en: 'Light' },
     dark: false,
     paper: '#e6e5e1', paperHi: '#f3f2ef', ink: '#121212', muted: '#5f5d58',
+    // brass : le laiton des pianos 3D (un metal). Le CSS imprime un or plus fonce (#7a5f2e) pour le texte.
     right: '#ef4d12', left: '#2457d6', ok: '#1d8049', graphite: '#67655f', brass: '#9a7b3f',
     studio: '#e2e1dd', floor: '#e8e7e3',
     light: { sky: '#ffffff', ground: '#c9c8c3', hemi: 1.1, sun: 1.65, env: 0.45, warm: 0, rim: 0, fill: 0 },

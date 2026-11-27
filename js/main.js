@@ -1001,7 +1001,10 @@ function pageProfil() {
     <p style="margin-top:2.5rem"><a class="btn ghost" href="#/reglages">${t('Réglages')}</a></p>
   `;
   requestAnimationFrame(() => {
-    document.getElementById('ring-bar').style.strokeDashoffset = C * (1 - info.ratio);
+    // On a pu quitter la page avant cette image (clic rapide, onglet en arriere-plan)
+    const bar = document.getElementById('ring-bar');
+    if (!bar) return;
+    bar.style.strokeDashoffset = C * (1 - info.ratio);
     countUp(app);
   });
 }
